@@ -1,0 +1,110 @@
+# ============================================================
+# Environment / Secrets (NEVER commit)
+# ============================================================
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+*.cer
+*.crt
+secrets/
+**/google-services.json
+**/GoogleService-Info.plist
+
+# ============================================================
+# Dart / Flutter
+# ============================================================
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+pubspec.lock
+
+# ============================================================
+# Flutter / Gradle / Android
+# ============================================================
+**/android/**/gradle-wrapper.jar
+**/android/.gradle
+**/android/captures/
+**/android/gradlew
+**/android/gradlew.bat
+**/android/local.properties
+**/android/**/GeneratedPluginRegistrant.java
+**/android/key.properties
+*.iml
+
+# ============================================================
+# iOS / Xcode
+# ============================================================
+**/ios/**/xcuserdata/
+**/ios/**/Pods/
+**/ios/**/.symlinks/
+**/ios/**/DerivedData/
+**/ios/Podfile.lock
+**/ios/Flutter/ephemeral/
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/flutter_export_environment.sh
+**/ios/Runner/GeneratedPluginRegistrant.*
+
+# ============================================================
+# Desktop / platform build artifacts
+# ============================================================
+**/windows/flutter/ephemeral/
+**/windows/flutter/generated_plugin_registrant.cc
+**/windows/flutter/generated_plugin_registrant.h
+**/windows/flutter/generated_plugins.cmake
+**/linux/flutter/ephemeral/
+**/macos/Flutter/ephemeral/
+
+# ============================================================
+# Node.js (apps/web, apps/api, packages)
+# ============================================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.next/
+out/
+dist/
+.turbo/
+*.tsbuildinfo
+
+# ============================================================
+# Test / coverage artifacts
+# ============================================================
+coverage/
+*.lcov
+
+# ============================================================
+# Editors / IDE
+# ============================================================
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+.idea/
+
+# ============================================================
+# OS files
+# ============================================================
+.DS_Store
+ehthumbs.db
+[Dd]esktop.ini
+Thumbs.db
+
+# ============================================================
+# Logs / temp
+# ============================================================
+*.log
+*.tmp
+*.swp
