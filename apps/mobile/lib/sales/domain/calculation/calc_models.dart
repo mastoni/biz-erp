@@ -1,5 +1,6 @@
 /// Pure Dart models for sale calculation.
 /// No database dependencies. Immutable value objects.
+library;
 
 /// Types of discounts supported (D3: Simple deterministic rules)
 enum DiscountType {

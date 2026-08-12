@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:drift/drift.dart' hide isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sqlite3/sqlite3.dart' show SqliteException;
 import 'package:biz_erp_mobile/core/database/app_database.dart';
 import 'package:biz_erp_mobile/products/data/product_repository.dart';
 import 'package:biz_erp_mobile/products/domain/product.dart';
