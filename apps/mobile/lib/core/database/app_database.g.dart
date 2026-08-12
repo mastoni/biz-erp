@@ -2297,12 +2297,24 @@ class $LocalIdempotencyKeysTable extends LocalIdempotencyKeys
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _requestFingerprintMeta =
+      const VerificationMeta('requestFingerprint');
+  @override
+  late final GeneratedColumn<String> requestFingerprint =
+      GeneratedColumn<String>(
+        'request_fingerprint',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     key,
     businessId,
     entityType,
     createdAt,
+    requestFingerprint,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2348,6 +2360,15 @@ class $LocalIdempotencyKeysTable extends LocalIdempotencyKeys
     } else if (isInserting) {
       context.missing(_createdAtMeta);
     }
+    if (data.containsKey('request_fingerprint')) {
+      context.handle(
+        _requestFingerprintMeta,
+        requestFingerprint.isAcceptableOrUnknown(
+          data['request_fingerprint']!,
+          _requestFingerprintMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -2373,6 +2394,10 @@ class $LocalIdempotencyKeysTable extends LocalIdempotencyKeys
         DriftSqlType.int,
         data['${effectivePrefix}created_at'],
       )!,
+      requestFingerprint: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}request_fingerprint'],
+      ),
     );
   }
 
@@ -2393,11 +2418,17 @@ class LocalIdempotencyKey extends DataClass
 
   /// Epoch milliseconds
   final int createdAt;
+
+  /// V3 addition: Fingerprint of the original checkout request.
+  /// Nullable for backward compatibility with V2 rows.
+  /// All new rows MUST have a fingerprint.
+  final String? requestFingerprint;
   const LocalIdempotencyKey({
     required this.key,
     required this.businessId,
     required this.entityType,
     required this.createdAt,
+    this.requestFingerprint,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2406,6 +2437,9 @@ class LocalIdempotencyKey extends DataClass
     map['business_id'] = Variable<String>(businessId);
     map['entity_type'] = Variable<String>(entityType);
     map['created_at'] = Variable<int>(createdAt);
+    if (!nullToAbsent || requestFingerprint != null) {
+      map['request_fingerprint'] = Variable<String>(requestFingerprint);
+    }
     return map;
   }
 
@@ -2415,6 +2449,9 @@ class LocalIdempotencyKey extends DataClass
       businessId: Value(businessId),
       entityType: Value(entityType),
       createdAt: Value(createdAt),
+      requestFingerprint: requestFingerprint == null && nullToAbsent
+          ? const Value.absent()
+          : Value(requestFingerprint),
     );
   }
 
@@ -2428,6 +2465,9 @@ class LocalIdempotencyKey extends DataClass
       businessId: serializer.fromJson<String>(json['businessId']),
       entityType: serializer.fromJson<String>(json['entityType']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
+      requestFingerprint: serializer.fromJson<String?>(
+        json['requestFingerprint'],
+      ),
     );
   }
   @override
@@ -2438,6 +2478,7 @@ class LocalIdempotencyKey extends DataClass
       'businessId': serializer.toJson<String>(businessId),
       'entityType': serializer.toJson<String>(entityType),
       'createdAt': serializer.toJson<int>(createdAt),
+      'requestFingerprint': serializer.toJson<String?>(requestFingerprint),
     };
   }
 
@@ -2446,11 +2487,15 @@ class LocalIdempotencyKey extends DataClass
     String? businessId,
     String? entityType,
     int? createdAt,
+    Value<String?> requestFingerprint = const Value.absent(),
   }) => LocalIdempotencyKey(
     key: key ?? this.key,
     businessId: businessId ?? this.businessId,
     entityType: entityType ?? this.entityType,
     createdAt: createdAt ?? this.createdAt,
+    requestFingerprint: requestFingerprint.present
+        ? requestFingerprint.value
+        : this.requestFingerprint,
   );
   LocalIdempotencyKey copyWithCompanion(LocalIdempotencyKeysCompanion data) {
     return LocalIdempotencyKey(
@@ -2462,6 +2507,9 @@ class LocalIdempotencyKey extends DataClass
           ? data.entityType.value
           : this.entityType,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      requestFingerprint: data.requestFingerprint.present
+          ? data.requestFingerprint.value
+          : this.requestFingerprint,
     );
   }
 
@@ -2471,13 +2519,15 @@ class LocalIdempotencyKey extends DataClass
           ..write('key: $key, ')
           ..write('businessId: $businessId, ')
           ..write('entityType: $entityType, ')
-          ..write('createdAt: $createdAt')
+          ..write('createdAt: $createdAt, ')
+          ..write('requestFingerprint: $requestFingerprint')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(key, businessId, entityType, createdAt);
+  int get hashCode =>
+      Object.hash(key, businessId, entityType, createdAt, requestFingerprint);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2485,7 +2535,8 @@ class LocalIdempotencyKey extends DataClass
           other.key == this.key &&
           other.businessId == this.businessId &&
           other.entityType == this.entityType &&
-          other.createdAt == this.createdAt);
+          other.createdAt == this.createdAt &&
+          other.requestFingerprint == this.requestFingerprint);
 }
 
 class LocalIdempotencyKeysCompanion
@@ -2494,12 +2545,14 @@ class LocalIdempotencyKeysCompanion
   final Value<String> businessId;
   final Value<String> entityType;
   final Value<int> createdAt;
+  final Value<String?> requestFingerprint;
   final Value<int> rowid;
   const LocalIdempotencyKeysCompanion({
     this.key = const Value.absent(),
     this.businessId = const Value.absent(),
     this.entityType = const Value.absent(),
     this.createdAt = const Value.absent(),
+    this.requestFingerprint = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   LocalIdempotencyKeysCompanion.insert({
@@ -2507,6 +2560,7 @@ class LocalIdempotencyKeysCompanion
     required String businessId,
     required String entityType,
     required int createdAt,
+    this.requestFingerprint = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : key = Value(key),
        businessId = Value(businessId),
@@ -2517,6 +2571,7 @@ class LocalIdempotencyKeysCompanion
     Expression<String>? businessId,
     Expression<String>? entityType,
     Expression<int>? createdAt,
+    Expression<String>? requestFingerprint,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2524,6 +2579,7 @@ class LocalIdempotencyKeysCompanion
       if (businessId != null) 'business_id': businessId,
       if (entityType != null) 'entity_type': entityType,
       if (createdAt != null) 'created_at': createdAt,
+      if (requestFingerprint != null) 'request_fingerprint': requestFingerprint,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2533,6 +2589,7 @@ class LocalIdempotencyKeysCompanion
     Value<String>? businessId,
     Value<String>? entityType,
     Value<int>? createdAt,
+    Value<String?>? requestFingerprint,
     Value<int>? rowid,
   }) {
     return LocalIdempotencyKeysCompanion(
@@ -2540,6 +2597,7 @@ class LocalIdempotencyKeysCompanion
       businessId: businessId ?? this.businessId,
       entityType: entityType ?? this.entityType,
       createdAt: createdAt ?? this.createdAt,
+      requestFingerprint: requestFingerprint ?? this.requestFingerprint,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2559,6 +2617,9 @@ class LocalIdempotencyKeysCompanion
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
     }
+    if (requestFingerprint.present) {
+      map['request_fingerprint'] = Variable<String>(requestFingerprint.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2572,6 +2633,7 @@ class LocalIdempotencyKeysCompanion
           ..write('businessId: $businessId, ')
           ..write('entityType: $entityType, ')
           ..write('createdAt: $createdAt, ')
+          ..write('requestFingerprint: $requestFingerprint, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -6504,6 +6566,7 @@ typedef $$LocalIdempotencyKeysTableCreateCompanionBuilder =
       required String businessId,
       required String entityType,
       required int createdAt,
+      Value<String?> requestFingerprint,
       Value<int> rowid,
     });
 typedef $$LocalIdempotencyKeysTableUpdateCompanionBuilder =
@@ -6512,6 +6575,7 @@ typedef $$LocalIdempotencyKeysTableUpdateCompanionBuilder =
       Value<String> businessId,
       Value<String> entityType,
       Value<int> createdAt,
+      Value<String?> requestFingerprint,
       Value<int> rowid,
     });
 
@@ -6541,6 +6605,11 @@ class $$LocalIdempotencyKeysTableFilterComposer
 
   ColumnFilters<int> get createdAt => $composableBuilder(
     column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get requestFingerprint => $composableBuilder(
+    column: $table.requestFingerprint,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -6573,6 +6642,11 @@ class $$LocalIdempotencyKeysTableOrderingComposer
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get requestFingerprint => $composableBuilder(
+    column: $table.requestFingerprint,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$LocalIdempotencyKeysTableAnnotationComposer
@@ -6599,6 +6673,11 @@ class $$LocalIdempotencyKeysTableAnnotationComposer
 
   GeneratedColumn<int> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<String> get requestFingerprint => $composableBuilder(
+    column: $table.requestFingerprint,
+    builder: (column) => column,
+  );
 }
 
 class $$LocalIdempotencyKeysTableTableManager
@@ -6648,12 +6727,14 @@ class $$LocalIdempotencyKeysTableTableManager
                 Value<String> businessId = const Value.absent(),
                 Value<String> entityType = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
+                Value<String?> requestFingerprint = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocalIdempotencyKeysCompanion(
                 key: key,
                 businessId: businessId,
                 entityType: entityType,
                 createdAt: createdAt,
+                requestFingerprint: requestFingerprint,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -6662,12 +6743,14 @@ class $$LocalIdempotencyKeysTableTableManager
                 required String businessId,
                 required String entityType,
                 required int createdAt,
+                Value<String?> requestFingerprint = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocalIdempotencyKeysCompanion.insert(
                 key: key,
                 businessId: businessId,
                 entityType: entityType,
                 createdAt: createdAt,
+                requestFingerprint: requestFingerprint,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

@@ -25,6 +25,11 @@ class LocalIdempotencyKeys extends Table {
   /// Epoch milliseconds
   IntColumn get createdAt => integer()();
 
+  /// V3 addition: Fingerprint of the original checkout request.
+  /// Nullable for backward compatibility with V2 rows.
+  /// All new rows MUST have a fingerprint.
+  TextColumn get requestFingerprint => text().nullable()();
+
   @override
   Set<Column> get primaryKey => {key};
 }

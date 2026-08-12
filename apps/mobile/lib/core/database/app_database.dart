@@ -37,7 +37,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.memory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -50,28 +50,31 @@ class AppDatabase extends _$AppDatabase {
     },
     onUpgrade: (m, from, to) async {
       if (from < 2) {
-        // Create new V2 tables
         await m.createTable(productsLocal);
         await m.createTable(receiptSequencesLocal);
         await m.createTable(cartLocal);
         await m.createTable(cartItemsLocal);
         await m.createTable(businessSettingsLocal);
 
-        // Add new columns to existing V1 tables (nullable to preserve V1 rows)
         await m.addColumn(salesLocal, salesLocal.receiptNumber);
         await m.addColumn(salesLocal, salesLocal.receiptSequence);
         await m.addColumn(salesLocal, salesLocal.receiptDate);
         await m.addColumn(paymentsLocal, paymentsLocal.changeMinor);
 
-        // Create partial unique index for one ACTIVE cart per business
         await customStatement(
           'CREATE UNIQUE INDEX IF NOT EXISTS idx_one_active_cart_per_business '
           'ON cart_local(business_id) WHERE status = \'ACTIVE\'',
         );
       }
+      if (from < 3) {
+        // V3: Add request fingerprint (nullable for backward compatibility)
+        await m.addColumn(
+          localIdempotencyKeys,
+          localIdempotencyKeys.requestFingerprint,
+        );
+      }
     },
     beforeOpen: (details) async {
-      // Enable foreign key constraints after every open
       await customStatement('PRAGMA foreign_keys = ON');
     },
   );

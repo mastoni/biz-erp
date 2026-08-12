@@ -90,13 +90,13 @@ void main() {
       await db.close();
     });
 
-    test('schemaVersion is 2', () async {
+    test('schemaVersion is 3', () async {
       final db = AppDatabase.memory();
-      expect(db.schemaVersion, equals(2));
+      expect(db.schemaVersion, equals(3));
       await db.customSelect('SELECT 1').get();
 
       final result = await db.customSelect('PRAGMA user_version').get();
-      expect(result.first.read<int>('user_version'), equals(2));
+      expect(result.first.read<int>('user_version'), equals(3));
       await db.close();
     });
 
@@ -306,7 +306,7 @@ void main() {
 
       // 4. Verify V2 schema version
       final version = await v2Db.customSelect('PRAGMA user_version').get();
-      expect(version.first.read<int>('user_version'), 2);
+      expect(version.first.read<int>('user_version'), 3);
 
       // 5. Verify new columns exist and are nullable
       expect(sale.receiptNumber, isNull);

@@ -121,9 +121,9 @@ void main() {
   });
 
   group('MIG-002: schemaVersion is correct', () {
-    test('schemaVersion is 2', () async {
+    test('schemaVersion is 3', () async {
       final db = AppDatabase.memory();
-      expect(db.schemaVersion, equals(2));
+      expect(db.schemaVersion, equals(3));
       await db.close();
     });
 
@@ -132,7 +132,7 @@ void main() {
       await db.customSelect('SELECT 1').get(); // Trigger creation
 
       final result = await db.customSelect('PRAGMA user_version').get();
-      expect(result.first.read<int>('user_version'), equals(2));
+      expect(result.first.read<int>('user_version'), equals(3));
 
       await db.close();
     });
@@ -341,11 +341,13 @@ void main() {
         // Reopen and verify version unchanged
         final db2 = AppDatabase(NativeDatabase(dbFile));
         final result = await db2.customSelect('PRAGMA user_version').get();
-        expect(result.first.read<int>('user_version'), equals(2));
+        expect(result.first.read<int>('user_version'), equals(3));
 
         await db2.close();
       } finally {
-        tempDir.deleteSync(recursive: true);
+        try {
+          tempDir.deleteSync(recursive: true);
+        } catch (_) {}
       }
     });
   });
@@ -356,27 +358,21 @@ void main() {
       final dbFile = File('${tempDir.path}/test.db');
 
       try {
-        // Create v1 database with data
         final db1 = AppDatabase(NativeDatabase(dbFile));
         await insertTestData(db1, testBusinessId);
         await db1.close();
 
-        // Attempt to open with a database class that has schemaVersion = 2
-        // and a failing onUpgrade. This simulates a future migration failure.
         final failingDb = _FailingMigrationDb(NativeDatabase(dbFile));
 
         try {
-          // Opening should throw due to failed migration
           await expectLater(
             failingDb.customSelect('SELECT 1').get(),
             throwsA(isA<Exception>()),
           );
         } finally {
-          // Always close to release file lock, even if migration failed
           await failingDb.close();
         }
 
-        // Verify original data is still intact by opening with v1 class
         final db2 = AppDatabase(NativeDatabase(dbFile));
         final sale =
             await (db2.select(db2.salesLocal)..where(
@@ -387,7 +383,9 @@ void main() {
         expect(sale.totalMinor, equals(154000));
         await db2.close();
       } finally {
-        tempDir.deleteSync(recursive: true);
+        try {
+          tempDir.deleteSync(recursive: true);
+        } catch (_) {}
       }
     });
   });
@@ -417,13 +415,13 @@ class _FailingMigrationDb extends AppDatabase {
   _FailingMigrationDb(super.e);
 
   @override
-  int get schemaVersion => 3; // Bumped to 3 to test V2 -> V3 failure
+  int get schemaVersion => 4; // Bumped to 4 to test V3 -> V4 failure
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) async => m.createAll(),
     onUpgrade: (m, from, to) async {
-      if (from < 3) {
+      if (from < 4) {
         throw Exception('Simulated migration failure v$from → v$to');
       }
     },
