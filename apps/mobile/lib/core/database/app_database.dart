@@ -5,18 +5,30 @@ import 'tables/sales_local.dart';
 import 'tables/sale_items_local.dart';
 import 'tables/payments_local.dart';
 import 'tables/local_idempotency_keys.dart';
+import 'tables/products_local.dart';
+import 'tables/receipt_sequences_local.dart';
+import 'tables/cart_local.dart';
+import 'tables/cart_items_local.dart';
+import 'tables/business_settings_local.dart';
 
 part 'app_database.g.dart';
 
 /// The main application database for offline POS.
 ///
-/// This database uses SQLite3MultipleCiphers for encryption (configured
-/// in Phase 1B.1 via the official sqlite3 hook mechanism).
-///
-/// Schema version 1 — initial schema (Phase 1B.3).
-/// Migration framework established in Phase 1B.5.
+/// Schema version 2 — Phase 2 POS Domain additions.
+/// Migration framework preserves all V1 financial data.
 @DriftDatabase(
-  tables: [SalesLocal, SaleItemsLocal, PaymentsLocal, LocalIdempotencyKeys],
+  tables: [
+    SalesLocal,
+    SaleItemsLocal,
+    PaymentsLocal,
+    LocalIdempotencyKeys,
+    ProductsLocal,
+    ReceiptSequencesLocal,
+    CartLocal,
+    CartItemsLocal,
+    BusinessSettingsLocal,
+  ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
@@ -24,52 +36,42 @@ class AppDatabase extends _$AppDatabase {
   /// For testing with in-memory database
   AppDatabase.memory() : super(NativeDatabase.memory());
 
-  /// Current schema version.
-  ///
-  /// VERSION HISTORY:
-  /// - Version 1: Initial schema (Phase 1B.3)
-  ///   Tables: sales_local, sale_items_local, payments_local, local_idempotency_keys
-  ///
-  /// Future schema changes MUST increment this version.
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) async {
-      // Fresh database: create all tables from scratch.
-      // This is called when the database file does not exist.
       await m.createAll();
+      await customStatement(
+        'CREATE UNIQUE INDEX IF NOT EXISTS idx_one_active_cart_per_business '
+        'ON cart_local(business_id) WHERE status = \'ACTIVE\'',
+      );
     },
     onUpgrade: (m, from, to) async {
-      // Incremental migrations for existing databases.
-      //
-      // This callback is called when an existing database with version
-      // 'from' is opened by code expecting version 'to' (where from < to).
-      //
-      // VERSION HISTORY:
-      // - Version 1: Initial schema (Phase 1B.3)
-      //
-      // FUTURE MIGRATIONS:
-      // Add migration steps here as schemaVersion increments.
-      // Example for v1 → v2:
-      //
-      //   if (from < 2) {
-      //     // Migrate from v1 to v2
-      //     await m.addColumn(salesLocal, salesLocal.newColumn);
-      //   }
-      //
-      // IMPORTANT:
-      // - Do not execute destructive operations unless explicitly required.
-      // - Preserve all existing financial data.
-      // - Test migrations thoroughly before deployment.
-      //
-      // For v1 → v1, no migration is needed.
-      // Drift only calls onUpgrade when from < to.
+      if (from < 2) {
+        // Create new V2 tables
+        await m.createTable(productsLocal);
+        await m.createTable(receiptSequencesLocal);
+        await m.createTable(cartLocal);
+        await m.createTable(cartItemsLocal);
+        await m.createTable(businessSettingsLocal);
+
+        // Add new columns to existing V1 tables (nullable to preserve V1 rows)
+        await m.addColumn(salesLocal, salesLocal.receiptNumber);
+        await m.addColumn(salesLocal, salesLocal.receiptSequence);
+        await m.addColumn(salesLocal, salesLocal.receiptDate);
+        await m.addColumn(paymentsLocal, paymentsLocal.changeMinor);
+
+        // Create partial unique index for one ACTIVE cart per business
+        await customStatement(
+          'CREATE UNIQUE INDEX IF NOT EXISTS idx_one_active_cart_per_business '
+          'ON cart_local(business_id) WHERE status = \'ACTIVE\'',
+        );
+      }
     },
     beforeOpen: (details) async {
-      // Enable foreign key constraints (disabled by default in SQLite).
-      // This must run after every open, including after migrations.
+      // Enable foreign key constraints after every open
       await customStatement('PRAGMA foreign_keys = ON');
     },
   );

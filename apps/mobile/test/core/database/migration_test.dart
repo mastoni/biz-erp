@@ -121,9 +121,9 @@ void main() {
   });
 
   group('MIG-002: schemaVersion is correct', () {
-    test('schemaVersion is 1', () async {
+    test('schemaVersion is 2', () async {
       final db = AppDatabase.memory();
-      expect(db.schemaVersion, equals(1));
+      expect(db.schemaVersion, equals(2));
       await db.close();
     });
 
@@ -132,7 +132,7 @@ void main() {
       await db.customSelect('SELECT 1').get(); // Trigger creation
 
       final result = await db.customSelect('PRAGMA user_version').get();
-      expect(result.first.read<int>('user_version'), equals(1));
+      expect(result.first.read<int>('user_version'), equals(2));
 
       await db.close();
     });
@@ -341,7 +341,7 @@ void main() {
         // Reopen and verify version unchanged
         final db2 = AppDatabase(NativeDatabase(dbFile));
         final result = await db2.customSelect('PRAGMA user_version').get();
-        expect(result.first.read<int>('user_version'), equals(1));
+        expect(result.first.read<int>('user_version'), equals(2));
 
         await db2.close();
       } finally {
@@ -363,13 +363,13 @@ void main() {
 
         // Attempt to open with a database class that has schemaVersion = 2
         // and a failing onUpgrade. This simulates a future migration failure.
-        final failingDb = _FailingMigrationDatabase(NativeDatabase(dbFile));
+        final failingDb = _FailingMigrationDb(NativeDatabase(dbFile));
 
         try {
           // Opening should throw due to failed migration
           await expectLater(
             failingDb.customSelect('SELECT 1').get(),
-            throwsA(isA<MigrationException>()),
+            throwsA(isA<Exception>()),
           );
         } finally {
           // Always close to release file lock, even if migration failed
@@ -413,22 +413,19 @@ class _FakeSecureStorageForMigration implements SecureStorageAdapter {
 
 /// Test-only database class with schemaVersion = 2 and failing migration.
 /// Used to verify that migration failures preserve existing data.
-class _FailingMigrationDatabase extends AppDatabase {
-  _FailingMigrationDatabase(super.e);
+class _FailingMigrationDb extends AppDatabase {
+  _FailingMigrationDb(super.e);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3; // Bumped to 3 to test V2 -> V3 failure
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-    onCreate: (m) async {
-      await m.createAll();
-    },
+    onCreate: (m) async => m.createAll(),
     onUpgrade: (m, from, to) async {
-      // Simulate a migration failure
-      throw MigrationException(
-        'Simulated migration failure from v$from to v$to',
-      );
+      if (from < 3) {
+        throw Exception('Simulated migration failure v$from → v$to');
+      }
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');

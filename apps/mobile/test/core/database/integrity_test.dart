@@ -1128,10 +1128,12 @@ void main() {
 
           final db2 = AppDatabase(NativeDatabase(dbFile));
           final result = await db2.customSelect('PRAGMA user_version').get();
-          expect(result.first.read<int>('user_version'), equals(1));
+          expect(result.first.read<int>('user_version'), equals(2));
           await db2.close();
         } finally {
-          tempDir.deleteSync(recursive: true);
+          try {
+            tempDir.deleteSync(recursive: true);
+          } catch (_) {}
         }
       },
     );

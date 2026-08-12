@@ -57,6 +57,10 @@ class PaymentsLocal extends Table {
   IntColumn get createdAt => integer()();
   IntColumn get syncedAt => integer().nullable()();
 
+  /// V2 addition: Change given for cash payments (D8)
+  IntColumn get changeMinor =>
+      integer().nullable().check(const CustomExpression('change_minor >= 0'))();
+
   @override
   Set<Column> get primaryKey => {clientPaymentId};
 }

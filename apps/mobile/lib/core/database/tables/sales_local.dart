@@ -36,6 +36,11 @@ class SalesLocal extends Table {
   TextColumn get cashierId => text()();
   TextColumn get customerId => text().nullable()();
 
+  /// V2 additions: Structured receipt fields (D4)
+  TextColumn get receiptNumber => text().nullable()();
+  IntColumn get receiptSequence => integer().nullable()();
+  TextColumn get receiptDate => text().nullable()();
+
   /// Sale status — restricted to valid state machine values
   TextColumn get status => text().check(
     const CustomExpression(

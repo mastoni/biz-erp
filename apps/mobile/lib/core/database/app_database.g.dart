@@ -64,6 +64,39 @@ class $SalesLocalTable extends SalesLocal
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _receiptNumberMeta = const VerificationMeta(
+    'receiptNumber',
+  );
+  @override
+  late final GeneratedColumn<String> receiptNumber = GeneratedColumn<String>(
+    'receipt_number',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _receiptSequenceMeta = const VerificationMeta(
+    'receiptSequence',
+  );
+  @override
+  late final GeneratedColumn<int> receiptSequence = GeneratedColumn<int>(
+    'receipt_sequence',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _receiptDateMeta = const VerificationMeta(
+    'receiptDate',
+  );
+  @override
+  late final GeneratedColumn<String> receiptDate = GeneratedColumn<String>(
+    'receipt_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _statusMeta = const VerificationMeta('status');
   @override
   late final GeneratedColumn<String> status = GeneratedColumn<String>(
@@ -199,6 +232,9 @@ class $SalesLocalTable extends SalesLocal
     branchId,
     cashierId,
     customerId,
+    receiptNumber,
+    receiptSequence,
+    receiptDate,
     status,
     subtotalMinor,
     discountMinor,
@@ -262,6 +298,33 @@ class $SalesLocalTable extends SalesLocal
       context.handle(
         _customerIdMeta,
         customerId.isAcceptableOrUnknown(data['customer_id']!, _customerIdMeta),
+      );
+    }
+    if (data.containsKey('receipt_number')) {
+      context.handle(
+        _receiptNumberMeta,
+        receiptNumber.isAcceptableOrUnknown(
+          data['receipt_number']!,
+          _receiptNumberMeta,
+        ),
+      );
+    }
+    if (data.containsKey('receipt_sequence')) {
+      context.handle(
+        _receiptSequenceMeta,
+        receiptSequence.isAcceptableOrUnknown(
+          data['receipt_sequence']!,
+          _receiptSequenceMeta,
+        ),
+      );
+    }
+    if (data.containsKey('receipt_date')) {
+      context.handle(
+        _receiptDateMeta,
+        receiptDate.isAcceptableOrUnknown(
+          data['receipt_date']!,
+          _receiptDateMeta,
+        ),
       );
     }
     if (data.containsKey('status')) {
@@ -387,6 +450,18 @@ class $SalesLocalTable extends SalesLocal
         DriftSqlType.string,
         data['${effectivePrefix}customer_id'],
       ),
+      receiptNumber: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}receipt_number'],
+      ),
+      receiptSequence: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}receipt_sequence'],
+      ),
+      receiptDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}receipt_date'],
+      ),
       status: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}status'],
@@ -448,6 +523,11 @@ class SalesLocalData extends DataClass implements Insertable<SalesLocalData> {
   final String cashierId;
   final String? customerId;
 
+  /// V2 additions: Structured receipt fields (D4)
+  final String? receiptNumber;
+  final int? receiptSequence;
+  final String? receiptDate;
+
   /// Sale status — restricted to valid state machine values
   final String status;
 
@@ -470,6 +550,9 @@ class SalesLocalData extends DataClass implements Insertable<SalesLocalData> {
     required this.branchId,
     required this.cashierId,
     this.customerId,
+    this.receiptNumber,
+    this.receiptSequence,
+    this.receiptDate,
     required this.status,
     required this.subtotalMinor,
     required this.discountMinor,
@@ -491,6 +574,15 @@ class SalesLocalData extends DataClass implements Insertable<SalesLocalData> {
     map['cashier_id'] = Variable<String>(cashierId);
     if (!nullToAbsent || customerId != null) {
       map['customer_id'] = Variable<String>(customerId);
+    }
+    if (!nullToAbsent || receiptNumber != null) {
+      map['receipt_number'] = Variable<String>(receiptNumber);
+    }
+    if (!nullToAbsent || receiptSequence != null) {
+      map['receipt_sequence'] = Variable<int>(receiptSequence);
+    }
+    if (!nullToAbsent || receiptDate != null) {
+      map['receipt_date'] = Variable<String>(receiptDate);
     }
     map['status'] = Variable<String>(status);
     map['subtotal_minor'] = Variable<int>(subtotalMinor);
@@ -517,6 +609,15 @@ class SalesLocalData extends DataClass implements Insertable<SalesLocalData> {
       customerId: customerId == null && nullToAbsent
           ? const Value.absent()
           : Value(customerId),
+      receiptNumber: receiptNumber == null && nullToAbsent
+          ? const Value.absent()
+          : Value(receiptNumber),
+      receiptSequence: receiptSequence == null && nullToAbsent
+          ? const Value.absent()
+          : Value(receiptSequence),
+      receiptDate: receiptDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(receiptDate),
       status: Value(status),
       subtotalMinor: Value(subtotalMinor),
       discountMinor: Value(discountMinor),
@@ -546,6 +647,9 @@ class SalesLocalData extends DataClass implements Insertable<SalesLocalData> {
       branchId: serializer.fromJson<String>(json['branchId']),
       cashierId: serializer.fromJson<String>(json['cashierId']),
       customerId: serializer.fromJson<String?>(json['customerId']),
+      receiptNumber: serializer.fromJson<String?>(json['receiptNumber']),
+      receiptSequence: serializer.fromJson<int?>(json['receiptSequence']),
+      receiptDate: serializer.fromJson<String?>(json['receiptDate']),
       status: serializer.fromJson<String>(json['status']),
       subtotalMinor: serializer.fromJson<int>(json['subtotalMinor']),
       discountMinor: serializer.fromJson<int>(json['discountMinor']),
@@ -568,6 +672,9 @@ class SalesLocalData extends DataClass implements Insertable<SalesLocalData> {
       'branchId': serializer.toJson<String>(branchId),
       'cashierId': serializer.toJson<String>(cashierId),
       'customerId': serializer.toJson<String?>(customerId),
+      'receiptNumber': serializer.toJson<String?>(receiptNumber),
+      'receiptSequence': serializer.toJson<int?>(receiptSequence),
+      'receiptDate': serializer.toJson<String?>(receiptDate),
       'status': serializer.toJson<String>(status),
       'subtotalMinor': serializer.toJson<int>(subtotalMinor),
       'discountMinor': serializer.toJson<int>(discountMinor),
@@ -588,6 +695,9 @@ class SalesLocalData extends DataClass implements Insertable<SalesLocalData> {
     String? branchId,
     String? cashierId,
     Value<String?> customerId = const Value.absent(),
+    Value<String?> receiptNumber = const Value.absent(),
+    Value<int?> receiptSequence = const Value.absent(),
+    Value<String?> receiptDate = const Value.absent(),
     String? status,
     int? subtotalMinor,
     int? discountMinor,
@@ -605,6 +715,13 @@ class SalesLocalData extends DataClass implements Insertable<SalesLocalData> {
     branchId: branchId ?? this.branchId,
     cashierId: cashierId ?? this.cashierId,
     customerId: customerId.present ? customerId.value : this.customerId,
+    receiptNumber: receiptNumber.present
+        ? receiptNumber.value
+        : this.receiptNumber,
+    receiptSequence: receiptSequence.present
+        ? receiptSequence.value
+        : this.receiptSequence,
+    receiptDate: receiptDate.present ? receiptDate.value : this.receiptDate,
     status: status ?? this.status,
     subtotalMinor: subtotalMinor ?? this.subtotalMinor,
     discountMinor: discountMinor ?? this.discountMinor,
@@ -630,6 +747,15 @@ class SalesLocalData extends DataClass implements Insertable<SalesLocalData> {
       customerId: data.customerId.present
           ? data.customerId.value
           : this.customerId,
+      receiptNumber: data.receiptNumber.present
+          ? data.receiptNumber.value
+          : this.receiptNumber,
+      receiptSequence: data.receiptSequence.present
+          ? data.receiptSequence.value
+          : this.receiptSequence,
+      receiptDate: data.receiptDate.present
+          ? data.receiptDate.value
+          : this.receiptDate,
       status: data.status.present ? data.status.value : this.status,
       subtotalMinor: data.subtotalMinor.present
           ? data.subtotalMinor.value
@@ -662,6 +788,9 @@ class SalesLocalData extends DataClass implements Insertable<SalesLocalData> {
           ..write('branchId: $branchId, ')
           ..write('cashierId: $cashierId, ')
           ..write('customerId: $customerId, ')
+          ..write('receiptNumber: $receiptNumber, ')
+          ..write('receiptSequence: $receiptSequence, ')
+          ..write('receiptDate: $receiptDate, ')
           ..write('status: $status, ')
           ..write('subtotalMinor: $subtotalMinor, ')
           ..write('discountMinor: $discountMinor, ')
@@ -684,6 +813,9 @@ class SalesLocalData extends DataClass implements Insertable<SalesLocalData> {
     branchId,
     cashierId,
     customerId,
+    receiptNumber,
+    receiptSequence,
+    receiptDate,
     status,
     subtotalMinor,
     discountMinor,
@@ -705,6 +837,9 @@ class SalesLocalData extends DataClass implements Insertable<SalesLocalData> {
           other.branchId == this.branchId &&
           other.cashierId == this.cashierId &&
           other.customerId == this.customerId &&
+          other.receiptNumber == this.receiptNumber &&
+          other.receiptSequence == this.receiptSequence &&
+          other.receiptDate == this.receiptDate &&
           other.status == this.status &&
           other.subtotalMinor == this.subtotalMinor &&
           other.discountMinor == this.discountMinor &&
@@ -724,6 +859,9 @@ class SalesLocalCompanion extends UpdateCompanion<SalesLocalData> {
   final Value<String> branchId;
   final Value<String> cashierId;
   final Value<String?> customerId;
+  final Value<String?> receiptNumber;
+  final Value<int?> receiptSequence;
+  final Value<String?> receiptDate;
   final Value<String> status;
   final Value<int> subtotalMinor;
   final Value<int> discountMinor;
@@ -742,6 +880,9 @@ class SalesLocalCompanion extends UpdateCompanion<SalesLocalData> {
     this.branchId = const Value.absent(),
     this.cashierId = const Value.absent(),
     this.customerId = const Value.absent(),
+    this.receiptNumber = const Value.absent(),
+    this.receiptSequence = const Value.absent(),
+    this.receiptDate = const Value.absent(),
     this.status = const Value.absent(),
     this.subtotalMinor = const Value.absent(),
     this.discountMinor = const Value.absent(),
@@ -761,6 +902,9 @@ class SalesLocalCompanion extends UpdateCompanion<SalesLocalData> {
     required String branchId,
     required String cashierId,
     this.customerId = const Value.absent(),
+    this.receiptNumber = const Value.absent(),
+    this.receiptSequence = const Value.absent(),
+    this.receiptDate = const Value.absent(),
     required String status,
     required int subtotalMinor,
     this.discountMinor = const Value.absent(),
@@ -791,6 +935,9 @@ class SalesLocalCompanion extends UpdateCompanion<SalesLocalData> {
     Expression<String>? branchId,
     Expression<String>? cashierId,
     Expression<String>? customerId,
+    Expression<String>? receiptNumber,
+    Expression<int>? receiptSequence,
+    Expression<String>? receiptDate,
     Expression<String>? status,
     Expression<int>? subtotalMinor,
     Expression<int>? discountMinor,
@@ -811,6 +958,9 @@ class SalesLocalCompanion extends UpdateCompanion<SalesLocalData> {
       if (branchId != null) 'branch_id': branchId,
       if (cashierId != null) 'cashier_id': cashierId,
       if (customerId != null) 'customer_id': customerId,
+      if (receiptNumber != null) 'receipt_number': receiptNumber,
+      if (receiptSequence != null) 'receipt_sequence': receiptSequence,
+      if (receiptDate != null) 'receipt_date': receiptDate,
       if (status != null) 'status': status,
       if (subtotalMinor != null) 'subtotal_minor': subtotalMinor,
       if (discountMinor != null) 'discount_minor': discountMinor,
@@ -833,6 +983,9 @@ class SalesLocalCompanion extends UpdateCompanion<SalesLocalData> {
     Value<String>? branchId,
     Value<String>? cashierId,
     Value<String?>? customerId,
+    Value<String?>? receiptNumber,
+    Value<int?>? receiptSequence,
+    Value<String?>? receiptDate,
     Value<String>? status,
     Value<int>? subtotalMinor,
     Value<int>? discountMinor,
@@ -852,6 +1005,9 @@ class SalesLocalCompanion extends UpdateCompanion<SalesLocalData> {
       branchId: branchId ?? this.branchId,
       cashierId: cashierId ?? this.cashierId,
       customerId: customerId ?? this.customerId,
+      receiptNumber: receiptNumber ?? this.receiptNumber,
+      receiptSequence: receiptSequence ?? this.receiptSequence,
+      receiptDate: receiptDate ?? this.receiptDate,
       status: status ?? this.status,
       subtotalMinor: subtotalMinor ?? this.subtotalMinor,
       discountMinor: discountMinor ?? this.discountMinor,
@@ -886,6 +1042,15 @@ class SalesLocalCompanion extends UpdateCompanion<SalesLocalData> {
     }
     if (customerId.present) {
       map['customer_id'] = Variable<String>(customerId.value);
+    }
+    if (receiptNumber.present) {
+      map['receipt_number'] = Variable<String>(receiptNumber.value);
+    }
+    if (receiptSequence.present) {
+      map['receipt_sequence'] = Variable<int>(receiptSequence.value);
+    }
+    if (receiptDate.present) {
+      map['receipt_date'] = Variable<String>(receiptDate.value);
     }
     if (status.present) {
       map['status'] = Variable<String>(status.value);
@@ -934,6 +1099,9 @@ class SalesLocalCompanion extends UpdateCompanion<SalesLocalData> {
           ..write('branchId: $branchId, ')
           ..write('cashierId: $cashierId, ')
           ..write('customerId: $customerId, ')
+          ..write('receiptNumber: $receiptNumber, ')
+          ..write('receiptSequence: $receiptSequence, ')
+          ..write('receiptDate: $receiptDate, ')
           ..write('status: $status, ')
           ..write('subtotalMinor: $subtotalMinor, ')
           ..write('discountMinor: $discountMinor, ')
@@ -1556,6 +1724,18 @@ class $PaymentsLocalTable extends PaymentsLocal
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _changeMinorMeta = const VerificationMeta(
+    'changeMinor',
+  );
+  @override
+  late final GeneratedColumn<int> changeMinor = GeneratedColumn<int>(
+    'change_minor',
+    aliasedName,
+    true,
+    check: () => const CustomExpression('change_minor >= 0'),
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     clientPaymentId,
@@ -1566,6 +1746,7 @@ class $PaymentsLocalTable extends PaymentsLocal
     verificationStatus,
     createdAt,
     syncedAt,
+    changeMinor,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1655,6 +1836,15 @@ class $PaymentsLocalTable extends PaymentsLocal
         syncedAt.isAcceptableOrUnknown(data['synced_at']!, _syncedAtMeta),
       );
     }
+    if (data.containsKey('change_minor')) {
+      context.handle(
+        _changeMinorMeta,
+        changeMinor.isAcceptableOrUnknown(
+          data['change_minor']!,
+          _changeMinorMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -1696,6 +1886,10 @@ class $PaymentsLocalTable extends PaymentsLocal
         DriftSqlType.int,
         data['${effectivePrefix}synced_at'],
       ),
+      changeMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}change_minor'],
+      ),
     );
   }
 
@@ -1726,6 +1920,9 @@ class PaymentsLocalData extends DataClass
   /// Epoch milliseconds
   final int createdAt;
   final int? syncedAt;
+
+  /// V2 addition: Change given for cash payments (D8)
+  final int? changeMinor;
   const PaymentsLocalData({
     required this.clientPaymentId,
     required this.clientTransactionId,
@@ -1735,6 +1932,7 @@ class PaymentsLocalData extends DataClass
     required this.verificationStatus,
     required this.createdAt,
     this.syncedAt,
+    this.changeMinor,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1748,6 +1946,9 @@ class PaymentsLocalData extends DataClass
     map['created_at'] = Variable<int>(createdAt);
     if (!nullToAbsent || syncedAt != null) {
       map['synced_at'] = Variable<int>(syncedAt);
+    }
+    if (!nullToAbsent || changeMinor != null) {
+      map['change_minor'] = Variable<int>(changeMinor);
     }
     return map;
   }
@@ -1764,6 +1965,9 @@ class PaymentsLocalData extends DataClass
       syncedAt: syncedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(syncedAt),
+      changeMinor: changeMinor == null && nullToAbsent
+          ? const Value.absent()
+          : Value(changeMinor),
     );
   }
 
@@ -1785,6 +1989,7 @@ class PaymentsLocalData extends DataClass
       ),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       syncedAt: serializer.fromJson<int?>(json['syncedAt']),
+      changeMinor: serializer.fromJson<int?>(json['changeMinor']),
     );
   }
   @override
@@ -1799,6 +2004,7 @@ class PaymentsLocalData extends DataClass
       'verificationStatus': serializer.toJson<String>(verificationStatus),
       'createdAt': serializer.toJson<int>(createdAt),
       'syncedAt': serializer.toJson<int?>(syncedAt),
+      'changeMinor': serializer.toJson<int?>(changeMinor),
     };
   }
 
@@ -1811,6 +2017,7 @@ class PaymentsLocalData extends DataClass
     String? verificationStatus,
     int? createdAt,
     Value<int?> syncedAt = const Value.absent(),
+    Value<int?> changeMinor = const Value.absent(),
   }) => PaymentsLocalData(
     clientPaymentId: clientPaymentId ?? this.clientPaymentId,
     clientTransactionId: clientTransactionId ?? this.clientTransactionId,
@@ -1820,6 +2027,7 @@ class PaymentsLocalData extends DataClass
     verificationStatus: verificationStatus ?? this.verificationStatus,
     createdAt: createdAt ?? this.createdAt,
     syncedAt: syncedAt.present ? syncedAt.value : this.syncedAt,
+    changeMinor: changeMinor.present ? changeMinor.value : this.changeMinor,
   );
   PaymentsLocalData copyWithCompanion(PaymentsLocalCompanion data) {
     return PaymentsLocalData(
@@ -1843,6 +2051,9 @@ class PaymentsLocalData extends DataClass
           : this.verificationStatus,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       syncedAt: data.syncedAt.present ? data.syncedAt.value : this.syncedAt,
+      changeMinor: data.changeMinor.present
+          ? data.changeMinor.value
+          : this.changeMinor,
     );
   }
 
@@ -1856,7 +2067,8 @@ class PaymentsLocalData extends DataClass
           ..write('recordStatus: $recordStatus, ')
           ..write('verificationStatus: $verificationStatus, ')
           ..write('createdAt: $createdAt, ')
-          ..write('syncedAt: $syncedAt')
+          ..write('syncedAt: $syncedAt, ')
+          ..write('changeMinor: $changeMinor')
           ..write(')'))
         .toString();
   }
@@ -1871,6 +2083,7 @@ class PaymentsLocalData extends DataClass
     verificationStatus,
     createdAt,
     syncedAt,
+    changeMinor,
   );
   @override
   bool operator ==(Object other) =>
@@ -1883,7 +2096,8 @@ class PaymentsLocalData extends DataClass
           other.recordStatus == this.recordStatus &&
           other.verificationStatus == this.verificationStatus &&
           other.createdAt == this.createdAt &&
-          other.syncedAt == this.syncedAt);
+          other.syncedAt == this.syncedAt &&
+          other.changeMinor == this.changeMinor);
 }
 
 class PaymentsLocalCompanion extends UpdateCompanion<PaymentsLocalData> {
@@ -1895,6 +2109,7 @@ class PaymentsLocalCompanion extends UpdateCompanion<PaymentsLocalData> {
   final Value<String> verificationStatus;
   final Value<int> createdAt;
   final Value<int?> syncedAt;
+  final Value<int?> changeMinor;
   final Value<int> rowid;
   const PaymentsLocalCompanion({
     this.clientPaymentId = const Value.absent(),
@@ -1905,6 +2120,7 @@ class PaymentsLocalCompanion extends UpdateCompanion<PaymentsLocalData> {
     this.verificationStatus = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.syncedAt = const Value.absent(),
+    this.changeMinor = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   PaymentsLocalCompanion.insert({
@@ -1916,6 +2132,7 @@ class PaymentsLocalCompanion extends UpdateCompanion<PaymentsLocalData> {
     this.verificationStatus = const Value.absent(),
     required int createdAt,
     this.syncedAt = const Value.absent(),
+    this.changeMinor = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : clientPaymentId = Value(clientPaymentId),
        clientTransactionId = Value(clientTransactionId),
@@ -1931,6 +2148,7 @@ class PaymentsLocalCompanion extends UpdateCompanion<PaymentsLocalData> {
     Expression<String>? verificationStatus,
     Expression<int>? createdAt,
     Expression<int>? syncedAt,
+    Expression<int>? changeMinor,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -1943,6 +2161,7 @@ class PaymentsLocalCompanion extends UpdateCompanion<PaymentsLocalData> {
       if (verificationStatus != null) 'verification_status': verificationStatus,
       if (createdAt != null) 'created_at': createdAt,
       if (syncedAt != null) 'synced_at': syncedAt,
+      if (changeMinor != null) 'change_minor': changeMinor,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1956,6 +2175,7 @@ class PaymentsLocalCompanion extends UpdateCompanion<PaymentsLocalData> {
     Value<String>? verificationStatus,
     Value<int>? createdAt,
     Value<int?>? syncedAt,
+    Value<int?>? changeMinor,
     Value<int>? rowid,
   }) {
     return PaymentsLocalCompanion(
@@ -1967,6 +2187,7 @@ class PaymentsLocalCompanion extends UpdateCompanion<PaymentsLocalData> {
       verificationStatus: verificationStatus ?? this.verificationStatus,
       createdAt: createdAt ?? this.createdAt,
       syncedAt: syncedAt ?? this.syncedAt,
+      changeMinor: changeMinor ?? this.changeMinor,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2000,6 +2221,9 @@ class PaymentsLocalCompanion extends UpdateCompanion<PaymentsLocalData> {
     if (syncedAt.present) {
       map['synced_at'] = Variable<int>(syncedAt.value);
     }
+    if (changeMinor.present) {
+      map['change_minor'] = Variable<int>(changeMinor.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2017,6 +2241,7 @@ class PaymentsLocalCompanion extends UpdateCompanion<PaymentsLocalData> {
           ..write('verificationStatus: $verificationStatus, ')
           ..write('createdAt: $createdAt, ')
           ..write('syncedAt: $syncedAt, ')
+          ..write('changeMinor: $changeMinor, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -2353,6 +2578,2410 @@ class LocalIdempotencyKeysCompanion
   }
 }
 
+class $ProductsLocalTable extends ProductsLocal
+    with TableInfo<$ProductsLocalTable, ProductsLocalData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ProductsLocalTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _businessIdMeta = const VerificationMeta(
+    'businessId',
+  );
+  @override
+  late final GeneratedColumn<String> businessId = GeneratedColumn<String>(
+    'business_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _descriptionMeta = const VerificationMeta(
+    'description',
+  );
+  @override
+  late final GeneratedColumn<String> description = GeneratedColumn<String>(
+    'description',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _priceMinorMeta = const VerificationMeta(
+    'priceMinor',
+  );
+  @override
+  late final GeneratedColumn<int> priceMinor = GeneratedColumn<int>(
+    'price_minor',
+    aliasedName,
+    false,
+    check: () => const CustomExpression('price_minor >= 0'),
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _categoryMeta = const VerificationMeta(
+    'category',
+  );
+  @override
+  late final GeneratedColumn<String> category = GeneratedColumn<String>(
+    'category',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isActiveMeta = const VerificationMeta(
+    'isActive',
+  );
+  @override
+  late final GeneratedColumn<int> isActive = GeneratedColumn<int>(
+    'is_active',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _serverVersionMeta = const VerificationMeta(
+    'serverVersion',
+  );
+  @override
+  late final GeneratedColumn<int> serverVersion = GeneratedColumn<int>(
+    'server_version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _lastSyncedAtMeta = const VerificationMeta(
+    'lastSyncedAt',
+  );
+  @override
+  late final GeneratedColumn<int> lastSyncedAt = GeneratedColumn<int>(
+    'last_synced_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    businessId,
+    name,
+    description,
+    priceMinor,
+    category,
+    isActive,
+    serverVersion,
+    lastSyncedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'products_local';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ProductsLocalData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('business_id')) {
+      context.handle(
+        _businessIdMeta,
+        businessId.isAcceptableOrUnknown(data['business_id']!, _businessIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_businessIdMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('description')) {
+      context.handle(
+        _descriptionMeta,
+        description.isAcceptableOrUnknown(
+          data['description']!,
+          _descriptionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('price_minor')) {
+      context.handle(
+        _priceMinorMeta,
+        priceMinor.isAcceptableOrUnknown(data['price_minor']!, _priceMinorMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_priceMinorMeta);
+    }
+    if (data.containsKey('category')) {
+      context.handle(
+        _categoryMeta,
+        category.isAcceptableOrUnknown(data['category']!, _categoryMeta),
+      );
+    }
+    if (data.containsKey('is_active')) {
+      context.handle(
+        _isActiveMeta,
+        isActive.isAcceptableOrUnknown(data['is_active']!, _isActiveMeta),
+      );
+    }
+    if (data.containsKey('server_version')) {
+      context.handle(
+        _serverVersionMeta,
+        serverVersion.isAcceptableOrUnknown(
+          data['server_version']!,
+          _serverVersionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_synced_at')) {
+      context.handle(
+        _lastSyncedAtMeta,
+        lastSyncedAt.isAcceptableOrUnknown(
+          data['last_synced_at']!,
+          _lastSyncedAtMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ProductsLocalData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ProductsLocalData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      businessId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}business_id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      description: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}description'],
+      ),
+      priceMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}price_minor'],
+      )!,
+      category: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}category'],
+      ),
+      isActive: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}is_active'],
+      )!,
+      serverVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}server_version'],
+      )!,
+      lastSyncedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_synced_at'],
+      ),
+    );
+  }
+
+  @override
+  $ProductsLocalTable createAlias(String alias) {
+    return $ProductsLocalTable(attachedDatabase, alias);
+  }
+}
+
+class ProductsLocalData extends DataClass
+    implements Insertable<ProductsLocalData> {
+  /// Server-generated globally unique UUID (ASSUMPTION-PROD-001)
+  final String id;
+  final String businessId;
+  final String name;
+  final String? description;
+
+  /// Price in minor units (INTEGER, no floating point)
+  final int priceMinor;
+  final String? category;
+
+  /// Soft delete flag. 1 = active, 0 = inactive.
+  /// Inactive products remain in DB for historical reference.
+  final int isActive;
+
+  /// Sync version tracking for Phase 3 Sync Engine
+  final int serverVersion;
+
+  /// Last sync timestamp (epoch ms)
+  final int? lastSyncedAt;
+  const ProductsLocalData({
+    required this.id,
+    required this.businessId,
+    required this.name,
+    this.description,
+    required this.priceMinor,
+    this.category,
+    required this.isActive,
+    required this.serverVersion,
+    this.lastSyncedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['business_id'] = Variable<String>(businessId);
+    map['name'] = Variable<String>(name);
+    if (!nullToAbsent || description != null) {
+      map['description'] = Variable<String>(description);
+    }
+    map['price_minor'] = Variable<int>(priceMinor);
+    if (!nullToAbsent || category != null) {
+      map['category'] = Variable<String>(category);
+    }
+    map['is_active'] = Variable<int>(isActive);
+    map['server_version'] = Variable<int>(serverVersion);
+    if (!nullToAbsent || lastSyncedAt != null) {
+      map['last_synced_at'] = Variable<int>(lastSyncedAt);
+    }
+    return map;
+  }
+
+  ProductsLocalCompanion toCompanion(bool nullToAbsent) {
+    return ProductsLocalCompanion(
+      id: Value(id),
+      businessId: Value(businessId),
+      name: Value(name),
+      description: description == null && nullToAbsent
+          ? const Value.absent()
+          : Value(description),
+      priceMinor: Value(priceMinor),
+      category: category == null && nullToAbsent
+          ? const Value.absent()
+          : Value(category),
+      isActive: Value(isActive),
+      serverVersion: Value(serverVersion),
+      lastSyncedAt: lastSyncedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastSyncedAt),
+    );
+  }
+
+  factory ProductsLocalData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ProductsLocalData(
+      id: serializer.fromJson<String>(json['id']),
+      businessId: serializer.fromJson<String>(json['businessId']),
+      name: serializer.fromJson<String>(json['name']),
+      description: serializer.fromJson<String?>(json['description']),
+      priceMinor: serializer.fromJson<int>(json['priceMinor']),
+      category: serializer.fromJson<String?>(json['category']),
+      isActive: serializer.fromJson<int>(json['isActive']),
+      serverVersion: serializer.fromJson<int>(json['serverVersion']),
+      lastSyncedAt: serializer.fromJson<int?>(json['lastSyncedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'businessId': serializer.toJson<String>(businessId),
+      'name': serializer.toJson<String>(name),
+      'description': serializer.toJson<String?>(description),
+      'priceMinor': serializer.toJson<int>(priceMinor),
+      'category': serializer.toJson<String?>(category),
+      'isActive': serializer.toJson<int>(isActive),
+      'serverVersion': serializer.toJson<int>(serverVersion),
+      'lastSyncedAt': serializer.toJson<int?>(lastSyncedAt),
+    };
+  }
+
+  ProductsLocalData copyWith({
+    String? id,
+    String? businessId,
+    String? name,
+    Value<String?> description = const Value.absent(),
+    int? priceMinor,
+    Value<String?> category = const Value.absent(),
+    int? isActive,
+    int? serverVersion,
+    Value<int?> lastSyncedAt = const Value.absent(),
+  }) => ProductsLocalData(
+    id: id ?? this.id,
+    businessId: businessId ?? this.businessId,
+    name: name ?? this.name,
+    description: description.present ? description.value : this.description,
+    priceMinor: priceMinor ?? this.priceMinor,
+    category: category.present ? category.value : this.category,
+    isActive: isActive ?? this.isActive,
+    serverVersion: serverVersion ?? this.serverVersion,
+    lastSyncedAt: lastSyncedAt.present ? lastSyncedAt.value : this.lastSyncedAt,
+  );
+  ProductsLocalData copyWithCompanion(ProductsLocalCompanion data) {
+    return ProductsLocalData(
+      id: data.id.present ? data.id.value : this.id,
+      businessId: data.businessId.present
+          ? data.businessId.value
+          : this.businessId,
+      name: data.name.present ? data.name.value : this.name,
+      description: data.description.present
+          ? data.description.value
+          : this.description,
+      priceMinor: data.priceMinor.present
+          ? data.priceMinor.value
+          : this.priceMinor,
+      category: data.category.present ? data.category.value : this.category,
+      isActive: data.isActive.present ? data.isActive.value : this.isActive,
+      serverVersion: data.serverVersion.present
+          ? data.serverVersion.value
+          : this.serverVersion,
+      lastSyncedAt: data.lastSyncedAt.present
+          ? data.lastSyncedAt.value
+          : this.lastSyncedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ProductsLocalData(')
+          ..write('id: $id, ')
+          ..write('businessId: $businessId, ')
+          ..write('name: $name, ')
+          ..write('description: $description, ')
+          ..write('priceMinor: $priceMinor, ')
+          ..write('category: $category, ')
+          ..write('isActive: $isActive, ')
+          ..write('serverVersion: $serverVersion, ')
+          ..write('lastSyncedAt: $lastSyncedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    businessId,
+    name,
+    description,
+    priceMinor,
+    category,
+    isActive,
+    serverVersion,
+    lastSyncedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ProductsLocalData &&
+          other.id == this.id &&
+          other.businessId == this.businessId &&
+          other.name == this.name &&
+          other.description == this.description &&
+          other.priceMinor == this.priceMinor &&
+          other.category == this.category &&
+          other.isActive == this.isActive &&
+          other.serverVersion == this.serverVersion &&
+          other.lastSyncedAt == this.lastSyncedAt);
+}
+
+class ProductsLocalCompanion extends UpdateCompanion<ProductsLocalData> {
+  final Value<String> id;
+  final Value<String> businessId;
+  final Value<String> name;
+  final Value<String?> description;
+  final Value<int> priceMinor;
+  final Value<String?> category;
+  final Value<int> isActive;
+  final Value<int> serverVersion;
+  final Value<int?> lastSyncedAt;
+  final Value<int> rowid;
+  const ProductsLocalCompanion({
+    this.id = const Value.absent(),
+    this.businessId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.description = const Value.absent(),
+    this.priceMinor = const Value.absent(),
+    this.category = const Value.absent(),
+    this.isActive = const Value.absent(),
+    this.serverVersion = const Value.absent(),
+    this.lastSyncedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ProductsLocalCompanion.insert({
+    required String id,
+    required String businessId,
+    required String name,
+    this.description = const Value.absent(),
+    required int priceMinor,
+    this.category = const Value.absent(),
+    this.isActive = const Value.absent(),
+    this.serverVersion = const Value.absent(),
+    this.lastSyncedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       businessId = Value(businessId),
+       name = Value(name),
+       priceMinor = Value(priceMinor);
+  static Insertable<ProductsLocalData> custom({
+    Expression<String>? id,
+    Expression<String>? businessId,
+    Expression<String>? name,
+    Expression<String>? description,
+    Expression<int>? priceMinor,
+    Expression<String>? category,
+    Expression<int>? isActive,
+    Expression<int>? serverVersion,
+    Expression<int>? lastSyncedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (businessId != null) 'business_id': businessId,
+      if (name != null) 'name': name,
+      if (description != null) 'description': description,
+      if (priceMinor != null) 'price_minor': priceMinor,
+      if (category != null) 'category': category,
+      if (isActive != null) 'is_active': isActive,
+      if (serverVersion != null) 'server_version': serverVersion,
+      if (lastSyncedAt != null) 'last_synced_at': lastSyncedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ProductsLocalCompanion copyWith({
+    Value<String>? id,
+    Value<String>? businessId,
+    Value<String>? name,
+    Value<String?>? description,
+    Value<int>? priceMinor,
+    Value<String?>? category,
+    Value<int>? isActive,
+    Value<int>? serverVersion,
+    Value<int?>? lastSyncedAt,
+    Value<int>? rowid,
+  }) {
+    return ProductsLocalCompanion(
+      id: id ?? this.id,
+      businessId: businessId ?? this.businessId,
+      name: name ?? this.name,
+      description: description ?? this.description,
+      priceMinor: priceMinor ?? this.priceMinor,
+      category: category ?? this.category,
+      isActive: isActive ?? this.isActive,
+      serverVersion: serverVersion ?? this.serverVersion,
+      lastSyncedAt: lastSyncedAt ?? this.lastSyncedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (businessId.present) {
+      map['business_id'] = Variable<String>(businessId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (description.present) {
+      map['description'] = Variable<String>(description.value);
+    }
+    if (priceMinor.present) {
+      map['price_minor'] = Variable<int>(priceMinor.value);
+    }
+    if (category.present) {
+      map['category'] = Variable<String>(category.value);
+    }
+    if (isActive.present) {
+      map['is_active'] = Variable<int>(isActive.value);
+    }
+    if (serverVersion.present) {
+      map['server_version'] = Variable<int>(serverVersion.value);
+    }
+    if (lastSyncedAt.present) {
+      map['last_synced_at'] = Variable<int>(lastSyncedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ProductsLocalCompanion(')
+          ..write('id: $id, ')
+          ..write('businessId: $businessId, ')
+          ..write('name: $name, ')
+          ..write('description: $description, ')
+          ..write('priceMinor: $priceMinor, ')
+          ..write('category: $category, ')
+          ..write('isActive: $isActive, ')
+          ..write('serverVersion: $serverVersion, ')
+          ..write('lastSyncedAt: $lastSyncedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ReceiptSequencesLocalTable extends ReceiptSequencesLocal
+    with TableInfo<$ReceiptSequencesLocalTable, ReceiptSequencesLocalData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ReceiptSequencesLocalTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _businessIdMeta = const VerificationMeta(
+    'businessId',
+  );
+  @override
+  late final GeneratedColumn<String> businessId = GeneratedColumn<String>(
+    'business_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _branchIdMeta = const VerificationMeta(
+    'branchId',
+  );
+  @override
+  late final GeneratedColumn<String> branchId = GeneratedColumn<String>(
+    'branch_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sequenceDateMeta = const VerificationMeta(
+    'sequenceDate',
+  );
+  @override
+  late final GeneratedColumn<String> sequenceDate = GeneratedColumn<String>(
+    'sequence_date',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _lastSequenceMeta = const VerificationMeta(
+    'lastSequence',
+  );
+  @override
+  late final GeneratedColumn<int> lastSequence = GeneratedColumn<int>(
+    'last_sequence',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    businessId,
+    branchId,
+    sequenceDate,
+    lastSequence,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'receipt_sequences_local';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ReceiptSequencesLocalData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('business_id')) {
+      context.handle(
+        _businessIdMeta,
+        businessId.isAcceptableOrUnknown(data['business_id']!, _businessIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_businessIdMeta);
+    }
+    if (data.containsKey('branch_id')) {
+      context.handle(
+        _branchIdMeta,
+        branchId.isAcceptableOrUnknown(data['branch_id']!, _branchIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_branchIdMeta);
+    }
+    if (data.containsKey('sequence_date')) {
+      context.handle(
+        _sequenceDateMeta,
+        sequenceDate.isAcceptableOrUnknown(
+          data['sequence_date']!,
+          _sequenceDateMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_sequenceDateMeta);
+    }
+    if (data.containsKey('last_sequence')) {
+      context.handle(
+        _lastSequenceMeta,
+        lastSequence.isAcceptableOrUnknown(
+          data['last_sequence']!,
+          _lastSequenceMeta,
+        ),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ReceiptSequencesLocalData map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ReceiptSequencesLocalData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      businessId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}business_id'],
+      )!,
+      branchId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}branch_id'],
+      )!,
+      sequenceDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sequence_date'],
+      )!,
+      lastSequence: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_sequence'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $ReceiptSequencesLocalTable createAlias(String alias) {
+    return $ReceiptSequencesLocalTable(attachedDatabase, alias);
+  }
+}
+
+class ReceiptSequencesLocalData extends DataClass
+    implements Insertable<ReceiptSequencesLocalData> {
+  final String id;
+  final String businessId;
+  final String branchId;
+
+  /// Format: YYYYMMDD (derived from business timezone, not device timezone)
+  final String sequenceDate;
+
+  /// Last used sequence number
+  final int lastSequence;
+  final int updatedAt;
+  const ReceiptSequencesLocalData({
+    required this.id,
+    required this.businessId,
+    required this.branchId,
+    required this.sequenceDate,
+    required this.lastSequence,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['business_id'] = Variable<String>(businessId);
+    map['branch_id'] = Variable<String>(branchId);
+    map['sequence_date'] = Variable<String>(sequenceDate);
+    map['last_sequence'] = Variable<int>(lastSequence);
+    map['updated_at'] = Variable<int>(updatedAt);
+    return map;
+  }
+
+  ReceiptSequencesLocalCompanion toCompanion(bool nullToAbsent) {
+    return ReceiptSequencesLocalCompanion(
+      id: Value(id),
+      businessId: Value(businessId),
+      branchId: Value(branchId),
+      sequenceDate: Value(sequenceDate),
+      lastSequence: Value(lastSequence),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory ReceiptSequencesLocalData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ReceiptSequencesLocalData(
+      id: serializer.fromJson<String>(json['id']),
+      businessId: serializer.fromJson<String>(json['businessId']),
+      branchId: serializer.fromJson<String>(json['branchId']),
+      sequenceDate: serializer.fromJson<String>(json['sequenceDate']),
+      lastSequence: serializer.fromJson<int>(json['lastSequence']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'businessId': serializer.toJson<String>(businessId),
+      'branchId': serializer.toJson<String>(branchId),
+      'sequenceDate': serializer.toJson<String>(sequenceDate),
+      'lastSequence': serializer.toJson<int>(lastSequence),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+    };
+  }
+
+  ReceiptSequencesLocalData copyWith({
+    String? id,
+    String? businessId,
+    String? branchId,
+    String? sequenceDate,
+    int? lastSequence,
+    int? updatedAt,
+  }) => ReceiptSequencesLocalData(
+    id: id ?? this.id,
+    businessId: businessId ?? this.businessId,
+    branchId: branchId ?? this.branchId,
+    sequenceDate: sequenceDate ?? this.sequenceDate,
+    lastSequence: lastSequence ?? this.lastSequence,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  ReceiptSequencesLocalData copyWithCompanion(
+    ReceiptSequencesLocalCompanion data,
+  ) {
+    return ReceiptSequencesLocalData(
+      id: data.id.present ? data.id.value : this.id,
+      businessId: data.businessId.present
+          ? data.businessId.value
+          : this.businessId,
+      branchId: data.branchId.present ? data.branchId.value : this.branchId,
+      sequenceDate: data.sequenceDate.present
+          ? data.sequenceDate.value
+          : this.sequenceDate,
+      lastSequence: data.lastSequence.present
+          ? data.lastSequence.value
+          : this.lastSequence,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ReceiptSequencesLocalData(')
+          ..write('id: $id, ')
+          ..write('businessId: $businessId, ')
+          ..write('branchId: $branchId, ')
+          ..write('sequenceDate: $sequenceDate, ')
+          ..write('lastSequence: $lastSequence, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    businessId,
+    branchId,
+    sequenceDate,
+    lastSequence,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ReceiptSequencesLocalData &&
+          other.id == this.id &&
+          other.businessId == this.businessId &&
+          other.branchId == this.branchId &&
+          other.sequenceDate == this.sequenceDate &&
+          other.lastSequence == this.lastSequence &&
+          other.updatedAt == this.updatedAt);
+}
+
+class ReceiptSequencesLocalCompanion
+    extends UpdateCompanion<ReceiptSequencesLocalData> {
+  final Value<String> id;
+  final Value<String> businessId;
+  final Value<String> branchId;
+  final Value<String> sequenceDate;
+  final Value<int> lastSequence;
+  final Value<int> updatedAt;
+  final Value<int> rowid;
+  const ReceiptSequencesLocalCompanion({
+    this.id = const Value.absent(),
+    this.businessId = const Value.absent(),
+    this.branchId = const Value.absent(),
+    this.sequenceDate = const Value.absent(),
+    this.lastSequence = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ReceiptSequencesLocalCompanion.insert({
+    required String id,
+    required String businessId,
+    required String branchId,
+    required String sequenceDate,
+    this.lastSequence = const Value.absent(),
+    required int updatedAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       businessId = Value(businessId),
+       branchId = Value(branchId),
+       sequenceDate = Value(sequenceDate),
+       updatedAt = Value(updatedAt);
+  static Insertable<ReceiptSequencesLocalData> custom({
+    Expression<String>? id,
+    Expression<String>? businessId,
+    Expression<String>? branchId,
+    Expression<String>? sequenceDate,
+    Expression<int>? lastSequence,
+    Expression<int>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (businessId != null) 'business_id': businessId,
+      if (branchId != null) 'branch_id': branchId,
+      if (sequenceDate != null) 'sequence_date': sequenceDate,
+      if (lastSequence != null) 'last_sequence': lastSequence,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ReceiptSequencesLocalCompanion copyWith({
+    Value<String>? id,
+    Value<String>? businessId,
+    Value<String>? branchId,
+    Value<String>? sequenceDate,
+    Value<int>? lastSequence,
+    Value<int>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return ReceiptSequencesLocalCompanion(
+      id: id ?? this.id,
+      businessId: businessId ?? this.businessId,
+      branchId: branchId ?? this.branchId,
+      sequenceDate: sequenceDate ?? this.sequenceDate,
+      lastSequence: lastSequence ?? this.lastSequence,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (businessId.present) {
+      map['business_id'] = Variable<String>(businessId.value);
+    }
+    if (branchId.present) {
+      map['branch_id'] = Variable<String>(branchId.value);
+    }
+    if (sequenceDate.present) {
+      map['sequence_date'] = Variable<String>(sequenceDate.value);
+    }
+    if (lastSequence.present) {
+      map['last_sequence'] = Variable<int>(lastSequence.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ReceiptSequencesLocalCompanion(')
+          ..write('id: $id, ')
+          ..write('businessId: $businessId, ')
+          ..write('branchId: $branchId, ')
+          ..write('sequenceDate: $sequenceDate, ')
+          ..write('lastSequence: $lastSequence, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $CartLocalTable extends CartLocal
+    with TableInfo<$CartLocalTable, CartLocalData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CartLocalTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _businessIdMeta = const VerificationMeta(
+    'businessId',
+  );
+  @override
+  late final GeneratedColumn<String> businessId = GeneratedColumn<String>(
+    'business_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    check: () => const CustomExpression(
+      "status IN ('ACTIVE', 'CHECKED_OUT', 'ABANDONED')",
+    ),
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    businessId,
+    status,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'cart_local';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<CartLocalData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('business_id')) {
+      context.handle(
+        _businessIdMeta,
+        businessId.isAcceptableOrUnknown(data['business_id']!, _businessIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_businessIdMeta);
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_statusMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  CartLocalData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CartLocalData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      businessId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}business_id'],
+      )!,
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $CartLocalTable createAlias(String alias) {
+    return $CartLocalTable(attachedDatabase, alias);
+  }
+}
+
+class CartLocalData extends DataClass implements Insertable<CartLocalData> {
+  final String id;
+  final String businessId;
+  final String status;
+  final int createdAt;
+  final int updatedAt;
+  const CartLocalData({
+    required this.id,
+    required this.businessId,
+    required this.status,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['business_id'] = Variable<String>(businessId);
+    map['status'] = Variable<String>(status);
+    map['created_at'] = Variable<int>(createdAt);
+    map['updated_at'] = Variable<int>(updatedAt);
+    return map;
+  }
+
+  CartLocalCompanion toCompanion(bool nullToAbsent) {
+    return CartLocalCompanion(
+      id: Value(id),
+      businessId: Value(businessId),
+      status: Value(status),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory CartLocalData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CartLocalData(
+      id: serializer.fromJson<String>(json['id']),
+      businessId: serializer.fromJson<String>(json['businessId']),
+      status: serializer.fromJson<String>(json['status']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'businessId': serializer.toJson<String>(businessId),
+      'status': serializer.toJson<String>(status),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+    };
+  }
+
+  CartLocalData copyWith({
+    String? id,
+    String? businessId,
+    String? status,
+    int? createdAt,
+    int? updatedAt,
+  }) => CartLocalData(
+    id: id ?? this.id,
+    businessId: businessId ?? this.businessId,
+    status: status ?? this.status,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  CartLocalData copyWithCompanion(CartLocalCompanion data) {
+    return CartLocalData(
+      id: data.id.present ? data.id.value : this.id,
+      businessId: data.businessId.present
+          ? data.businessId.value
+          : this.businessId,
+      status: data.status.present ? data.status.value : this.status,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CartLocalData(')
+          ..write('id: $id, ')
+          ..write('businessId: $businessId, ')
+          ..write('status: $status, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, businessId, status, createdAt, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CartLocalData &&
+          other.id == this.id &&
+          other.businessId == this.businessId &&
+          other.status == this.status &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class CartLocalCompanion extends UpdateCompanion<CartLocalData> {
+  final Value<String> id;
+  final Value<String> businessId;
+  final Value<String> status;
+  final Value<int> createdAt;
+  final Value<int> updatedAt;
+  final Value<int> rowid;
+  const CartLocalCompanion({
+    this.id = const Value.absent(),
+    this.businessId = const Value.absent(),
+    this.status = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  CartLocalCompanion.insert({
+    required String id,
+    required String businessId,
+    required String status,
+    required int createdAt,
+    required int updatedAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       businessId = Value(businessId),
+       status = Value(status),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<CartLocalData> custom({
+    Expression<String>? id,
+    Expression<String>? businessId,
+    Expression<String>? status,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (businessId != null) 'business_id': businessId,
+      if (status != null) 'status': status,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  CartLocalCompanion copyWith({
+    Value<String>? id,
+    Value<String>? businessId,
+    Value<String>? status,
+    Value<int>? createdAt,
+    Value<int>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return CartLocalCompanion(
+      id: id ?? this.id,
+      businessId: businessId ?? this.businessId,
+      status: status ?? this.status,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (businessId.present) {
+      map['business_id'] = Variable<String>(businessId.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CartLocalCompanion(')
+          ..write('id: $id, ')
+          ..write('businessId: $businessId, ')
+          ..write('status: $status, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $CartItemsLocalTable extends CartItemsLocal
+    with TableInfo<$CartItemsLocalTable, CartItemsLocalData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CartItemsLocalTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _cartIdMeta = const VerificationMeta('cartId');
+  @override
+  late final GeneratedColumn<String> cartId = GeneratedColumn<String>(
+    'cart_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES cart_local (id)',
+    ),
+  );
+  static const VerificationMeta _productIdMeta = const VerificationMeta(
+    'productId',
+  );
+  @override
+  late final GeneratedColumn<String> productId = GeneratedColumn<String>(
+    'product_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES products_local (id)',
+    ),
+  );
+  static const VerificationMeta _quantityMeta = const VerificationMeta(
+    'quantity',
+  );
+  @override
+  late final GeneratedColumn<int> quantity = GeneratedColumn<int>(
+    'quantity',
+    aliasedName,
+    false,
+    check: () => const CustomExpression('quantity >= 1'),
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _unitPriceMinorMeta = const VerificationMeta(
+    'unitPriceMinor',
+  );
+  @override
+  late final GeneratedColumn<int> unitPriceMinor = GeneratedColumn<int>(
+    'unit_price_minor',
+    aliasedName,
+    false,
+    check: () => const CustomExpression('unit_price_minor >= 0'),
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _addedAtMeta = const VerificationMeta(
+    'addedAt',
+  );
+  @override
+  late final GeneratedColumn<int> addedAt = GeneratedColumn<int>(
+    'added_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    cartId,
+    productId,
+    quantity,
+    unitPriceMinor,
+    addedAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'cart_items_local';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<CartItemsLocalData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('cart_id')) {
+      context.handle(
+        _cartIdMeta,
+        cartId.isAcceptableOrUnknown(data['cart_id']!, _cartIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_cartIdMeta);
+    }
+    if (data.containsKey('product_id')) {
+      context.handle(
+        _productIdMeta,
+        productId.isAcceptableOrUnknown(data['product_id']!, _productIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_productIdMeta);
+    }
+    if (data.containsKey('quantity')) {
+      context.handle(
+        _quantityMeta,
+        quantity.isAcceptableOrUnknown(data['quantity']!, _quantityMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_quantityMeta);
+    }
+    if (data.containsKey('unit_price_minor')) {
+      context.handle(
+        _unitPriceMinorMeta,
+        unitPriceMinor.isAcceptableOrUnknown(
+          data['unit_price_minor']!,
+          _unitPriceMinorMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_unitPriceMinorMeta);
+    }
+    if (data.containsKey('added_at')) {
+      context.handle(
+        _addedAtMeta,
+        addedAt.isAcceptableOrUnknown(data['added_at']!, _addedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_addedAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  CartItemsLocalData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CartItemsLocalData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      cartId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}cart_id'],
+      )!,
+      productId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}product_id'],
+      )!,
+      quantity: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}quantity'],
+      )!,
+      unitPriceMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}unit_price_minor'],
+      )!,
+      addedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}added_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $CartItemsLocalTable createAlias(String alias) {
+    return $CartItemsLocalTable(attachedDatabase, alias);
+  }
+}
+
+class CartItemsLocalData extends DataClass
+    implements Insertable<CartItemsLocalData> {
+  final String id;
+  final String cartId;
+  final String productId;
+
+  /// Quantity >= 1 (INTEGER)
+  final int quantity;
+
+  /// Frozen price snapshot at time of add to cart.
+  /// Does NOT update when catalog refreshes.
+  final int unitPriceMinor;
+  final int addedAt;
+  final int updatedAt;
+  const CartItemsLocalData({
+    required this.id,
+    required this.cartId,
+    required this.productId,
+    required this.quantity,
+    required this.unitPriceMinor,
+    required this.addedAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['cart_id'] = Variable<String>(cartId);
+    map['product_id'] = Variable<String>(productId);
+    map['quantity'] = Variable<int>(quantity);
+    map['unit_price_minor'] = Variable<int>(unitPriceMinor);
+    map['added_at'] = Variable<int>(addedAt);
+    map['updated_at'] = Variable<int>(updatedAt);
+    return map;
+  }
+
+  CartItemsLocalCompanion toCompanion(bool nullToAbsent) {
+    return CartItemsLocalCompanion(
+      id: Value(id),
+      cartId: Value(cartId),
+      productId: Value(productId),
+      quantity: Value(quantity),
+      unitPriceMinor: Value(unitPriceMinor),
+      addedAt: Value(addedAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory CartItemsLocalData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CartItemsLocalData(
+      id: serializer.fromJson<String>(json['id']),
+      cartId: serializer.fromJson<String>(json['cartId']),
+      productId: serializer.fromJson<String>(json['productId']),
+      quantity: serializer.fromJson<int>(json['quantity']),
+      unitPriceMinor: serializer.fromJson<int>(json['unitPriceMinor']),
+      addedAt: serializer.fromJson<int>(json['addedAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'cartId': serializer.toJson<String>(cartId),
+      'productId': serializer.toJson<String>(productId),
+      'quantity': serializer.toJson<int>(quantity),
+      'unitPriceMinor': serializer.toJson<int>(unitPriceMinor),
+      'addedAt': serializer.toJson<int>(addedAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+    };
+  }
+
+  CartItemsLocalData copyWith({
+    String? id,
+    String? cartId,
+    String? productId,
+    int? quantity,
+    int? unitPriceMinor,
+    int? addedAt,
+    int? updatedAt,
+  }) => CartItemsLocalData(
+    id: id ?? this.id,
+    cartId: cartId ?? this.cartId,
+    productId: productId ?? this.productId,
+    quantity: quantity ?? this.quantity,
+    unitPriceMinor: unitPriceMinor ?? this.unitPriceMinor,
+    addedAt: addedAt ?? this.addedAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  CartItemsLocalData copyWithCompanion(CartItemsLocalCompanion data) {
+    return CartItemsLocalData(
+      id: data.id.present ? data.id.value : this.id,
+      cartId: data.cartId.present ? data.cartId.value : this.cartId,
+      productId: data.productId.present ? data.productId.value : this.productId,
+      quantity: data.quantity.present ? data.quantity.value : this.quantity,
+      unitPriceMinor: data.unitPriceMinor.present
+          ? data.unitPriceMinor.value
+          : this.unitPriceMinor,
+      addedAt: data.addedAt.present ? data.addedAt.value : this.addedAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CartItemsLocalData(')
+          ..write('id: $id, ')
+          ..write('cartId: $cartId, ')
+          ..write('productId: $productId, ')
+          ..write('quantity: $quantity, ')
+          ..write('unitPriceMinor: $unitPriceMinor, ')
+          ..write('addedAt: $addedAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    cartId,
+    productId,
+    quantity,
+    unitPriceMinor,
+    addedAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CartItemsLocalData &&
+          other.id == this.id &&
+          other.cartId == this.cartId &&
+          other.productId == this.productId &&
+          other.quantity == this.quantity &&
+          other.unitPriceMinor == this.unitPriceMinor &&
+          other.addedAt == this.addedAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class CartItemsLocalCompanion extends UpdateCompanion<CartItemsLocalData> {
+  final Value<String> id;
+  final Value<String> cartId;
+  final Value<String> productId;
+  final Value<int> quantity;
+  final Value<int> unitPriceMinor;
+  final Value<int> addedAt;
+  final Value<int> updatedAt;
+  final Value<int> rowid;
+  const CartItemsLocalCompanion({
+    this.id = const Value.absent(),
+    this.cartId = const Value.absent(),
+    this.productId = const Value.absent(),
+    this.quantity = const Value.absent(),
+    this.unitPriceMinor = const Value.absent(),
+    this.addedAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  CartItemsLocalCompanion.insert({
+    required String id,
+    required String cartId,
+    required String productId,
+    required int quantity,
+    required int unitPriceMinor,
+    required int addedAt,
+    required int updatedAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       cartId = Value(cartId),
+       productId = Value(productId),
+       quantity = Value(quantity),
+       unitPriceMinor = Value(unitPriceMinor),
+       addedAt = Value(addedAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<CartItemsLocalData> custom({
+    Expression<String>? id,
+    Expression<String>? cartId,
+    Expression<String>? productId,
+    Expression<int>? quantity,
+    Expression<int>? unitPriceMinor,
+    Expression<int>? addedAt,
+    Expression<int>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (cartId != null) 'cart_id': cartId,
+      if (productId != null) 'product_id': productId,
+      if (quantity != null) 'quantity': quantity,
+      if (unitPriceMinor != null) 'unit_price_minor': unitPriceMinor,
+      if (addedAt != null) 'added_at': addedAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  CartItemsLocalCompanion copyWith({
+    Value<String>? id,
+    Value<String>? cartId,
+    Value<String>? productId,
+    Value<int>? quantity,
+    Value<int>? unitPriceMinor,
+    Value<int>? addedAt,
+    Value<int>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return CartItemsLocalCompanion(
+      id: id ?? this.id,
+      cartId: cartId ?? this.cartId,
+      productId: productId ?? this.productId,
+      quantity: quantity ?? this.quantity,
+      unitPriceMinor: unitPriceMinor ?? this.unitPriceMinor,
+      addedAt: addedAt ?? this.addedAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (cartId.present) {
+      map['cart_id'] = Variable<String>(cartId.value);
+    }
+    if (productId.present) {
+      map['product_id'] = Variable<String>(productId.value);
+    }
+    if (quantity.present) {
+      map['quantity'] = Variable<int>(quantity.value);
+    }
+    if (unitPriceMinor.present) {
+      map['unit_price_minor'] = Variable<int>(unitPriceMinor.value);
+    }
+    if (addedAt.present) {
+      map['added_at'] = Variable<int>(addedAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CartItemsLocalCompanion(')
+          ..write('id: $id, ')
+          ..write('cartId: $cartId, ')
+          ..write('productId: $productId, ')
+          ..write('quantity: $quantity, ')
+          ..write('unitPriceMinor: $unitPriceMinor, ')
+          ..write('addedAt: $addedAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $BusinessSettingsLocalTable extends BusinessSettingsLocal
+    with TableInfo<$BusinessSettingsLocalTable, BusinessSettingsLocalData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $BusinessSettingsLocalTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _businessIdMeta = const VerificationMeta(
+    'businessId',
+  );
+  @override
+  late final GeneratedColumn<String> businessId = GeneratedColumn<String>(
+    'business_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _branchIdMeta = const VerificationMeta(
+    'branchId',
+  );
+  @override
+  late final GeneratedColumn<String> branchId = GeneratedColumn<String>(
+    'branch_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('__BUSINESS__'),
+  );
+  static const VerificationMeta _taxRateBpsMeta = const VerificationMeta(
+    'taxRateBps',
+  );
+  @override
+  late final GeneratedColumn<int> taxRateBps = GeneratedColumn<int>(
+    'tax_rate_bps',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _currencyCodeMeta = const VerificationMeta(
+    'currencyCode',
+  );
+  @override
+  late final GeneratedColumn<String> currencyCode = GeneratedColumn<String>(
+    'currency_code',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('IDR'),
+  );
+  static const VerificationMeta _currencyMinorUnitsMeta =
+      const VerificationMeta('currencyMinorUnits');
+  @override
+  late final GeneratedColumn<int> currencyMinorUnits = GeneratedColumn<int>(
+    'currency_minor_units',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _timezoneMeta = const VerificationMeta(
+    'timezone',
+  );
+  @override
+  late final GeneratedColumn<String> timezone = GeneratedColumn<String>(
+    'timezone',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('Asia/Jakarta'),
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    businessId,
+    branchId,
+    taxRateBps,
+    currencyCode,
+    currencyMinorUnits,
+    timezone,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'business_settings_local';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<BusinessSettingsLocalData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('business_id')) {
+      context.handle(
+        _businessIdMeta,
+        businessId.isAcceptableOrUnknown(data['business_id']!, _businessIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_businessIdMeta);
+    }
+    if (data.containsKey('branch_id')) {
+      context.handle(
+        _branchIdMeta,
+        branchId.isAcceptableOrUnknown(data['branch_id']!, _branchIdMeta),
+      );
+    }
+    if (data.containsKey('tax_rate_bps')) {
+      context.handle(
+        _taxRateBpsMeta,
+        taxRateBps.isAcceptableOrUnknown(
+          data['tax_rate_bps']!,
+          _taxRateBpsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('currency_code')) {
+      context.handle(
+        _currencyCodeMeta,
+        currencyCode.isAcceptableOrUnknown(
+          data['currency_code']!,
+          _currencyCodeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('currency_minor_units')) {
+      context.handle(
+        _currencyMinorUnitsMeta,
+        currencyMinorUnits.isAcceptableOrUnknown(
+          data['currency_minor_units']!,
+          _currencyMinorUnitsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('timezone')) {
+      context.handle(
+        _timezoneMeta,
+        timezone.isAcceptableOrUnknown(data['timezone']!, _timezoneMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  BusinessSettingsLocalData map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return BusinessSettingsLocalData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      businessId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}business_id'],
+      )!,
+      branchId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}branch_id'],
+      )!,
+      taxRateBps: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}tax_rate_bps'],
+      )!,
+      currencyCode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}currency_code'],
+      )!,
+      currencyMinorUnits: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}currency_minor_units'],
+      )!,
+      timezone: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}timezone'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $BusinessSettingsLocalTable createAlias(String alias) {
+    return $BusinessSettingsLocalTable(attachedDatabase, alias);
+  }
+}
+
+class BusinessSettingsLocalData extends DataClass
+    implements Insertable<BusinessSettingsLocalData> {
+  final String id;
+  final String businessId;
+
+  /// Branch UUID or '__BUSINESS__' sentinel for business-level settings.
+  /// Real branch_id MUST NOT equal '__BUSINESS__' (ASSUMPTION-BRANCH-001).
+  final String branchId;
+
+  /// Tax rate in basis points. 11% = 1100 bps. INTEGER only.
+  final int taxRateBps;
+  final String currencyCode;
+  final int currencyMinorUnits;
+
+  /// IANA timezone identifier. Authoritative for receipt_date (TZ rule).
+  final String timezone;
+  final int updatedAt;
+  const BusinessSettingsLocalData({
+    required this.id,
+    required this.businessId,
+    required this.branchId,
+    required this.taxRateBps,
+    required this.currencyCode,
+    required this.currencyMinorUnits,
+    required this.timezone,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['business_id'] = Variable<String>(businessId);
+    map['branch_id'] = Variable<String>(branchId);
+    map['tax_rate_bps'] = Variable<int>(taxRateBps);
+    map['currency_code'] = Variable<String>(currencyCode);
+    map['currency_minor_units'] = Variable<int>(currencyMinorUnits);
+    map['timezone'] = Variable<String>(timezone);
+    map['updated_at'] = Variable<int>(updatedAt);
+    return map;
+  }
+
+  BusinessSettingsLocalCompanion toCompanion(bool nullToAbsent) {
+    return BusinessSettingsLocalCompanion(
+      id: Value(id),
+      businessId: Value(businessId),
+      branchId: Value(branchId),
+      taxRateBps: Value(taxRateBps),
+      currencyCode: Value(currencyCode),
+      currencyMinorUnits: Value(currencyMinorUnits),
+      timezone: Value(timezone),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory BusinessSettingsLocalData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return BusinessSettingsLocalData(
+      id: serializer.fromJson<String>(json['id']),
+      businessId: serializer.fromJson<String>(json['businessId']),
+      branchId: serializer.fromJson<String>(json['branchId']),
+      taxRateBps: serializer.fromJson<int>(json['taxRateBps']),
+      currencyCode: serializer.fromJson<String>(json['currencyCode']),
+      currencyMinorUnits: serializer.fromJson<int>(json['currencyMinorUnits']),
+      timezone: serializer.fromJson<String>(json['timezone']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'businessId': serializer.toJson<String>(businessId),
+      'branchId': serializer.toJson<String>(branchId),
+      'taxRateBps': serializer.toJson<int>(taxRateBps),
+      'currencyCode': serializer.toJson<String>(currencyCode),
+      'currencyMinorUnits': serializer.toJson<int>(currencyMinorUnits),
+      'timezone': serializer.toJson<String>(timezone),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+    };
+  }
+
+  BusinessSettingsLocalData copyWith({
+    String? id,
+    String? businessId,
+    String? branchId,
+    int? taxRateBps,
+    String? currencyCode,
+    int? currencyMinorUnits,
+    String? timezone,
+    int? updatedAt,
+  }) => BusinessSettingsLocalData(
+    id: id ?? this.id,
+    businessId: businessId ?? this.businessId,
+    branchId: branchId ?? this.branchId,
+    taxRateBps: taxRateBps ?? this.taxRateBps,
+    currencyCode: currencyCode ?? this.currencyCode,
+    currencyMinorUnits: currencyMinorUnits ?? this.currencyMinorUnits,
+    timezone: timezone ?? this.timezone,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  BusinessSettingsLocalData copyWithCompanion(
+    BusinessSettingsLocalCompanion data,
+  ) {
+    return BusinessSettingsLocalData(
+      id: data.id.present ? data.id.value : this.id,
+      businessId: data.businessId.present
+          ? data.businessId.value
+          : this.businessId,
+      branchId: data.branchId.present ? data.branchId.value : this.branchId,
+      taxRateBps: data.taxRateBps.present
+          ? data.taxRateBps.value
+          : this.taxRateBps,
+      currencyCode: data.currencyCode.present
+          ? data.currencyCode.value
+          : this.currencyCode,
+      currencyMinorUnits: data.currencyMinorUnits.present
+          ? data.currencyMinorUnits.value
+          : this.currencyMinorUnits,
+      timezone: data.timezone.present ? data.timezone.value : this.timezone,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BusinessSettingsLocalData(')
+          ..write('id: $id, ')
+          ..write('businessId: $businessId, ')
+          ..write('branchId: $branchId, ')
+          ..write('taxRateBps: $taxRateBps, ')
+          ..write('currencyCode: $currencyCode, ')
+          ..write('currencyMinorUnits: $currencyMinorUnits, ')
+          ..write('timezone: $timezone, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    businessId,
+    branchId,
+    taxRateBps,
+    currencyCode,
+    currencyMinorUnits,
+    timezone,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is BusinessSettingsLocalData &&
+          other.id == this.id &&
+          other.businessId == this.businessId &&
+          other.branchId == this.branchId &&
+          other.taxRateBps == this.taxRateBps &&
+          other.currencyCode == this.currencyCode &&
+          other.currencyMinorUnits == this.currencyMinorUnits &&
+          other.timezone == this.timezone &&
+          other.updatedAt == this.updatedAt);
+}
+
+class BusinessSettingsLocalCompanion
+    extends UpdateCompanion<BusinessSettingsLocalData> {
+  final Value<String> id;
+  final Value<String> businessId;
+  final Value<String> branchId;
+  final Value<int> taxRateBps;
+  final Value<String> currencyCode;
+  final Value<int> currencyMinorUnits;
+  final Value<String> timezone;
+  final Value<int> updatedAt;
+  final Value<int> rowid;
+  const BusinessSettingsLocalCompanion({
+    this.id = const Value.absent(),
+    this.businessId = const Value.absent(),
+    this.branchId = const Value.absent(),
+    this.taxRateBps = const Value.absent(),
+    this.currencyCode = const Value.absent(),
+    this.currencyMinorUnits = const Value.absent(),
+    this.timezone = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  BusinessSettingsLocalCompanion.insert({
+    required String id,
+    required String businessId,
+    this.branchId = const Value.absent(),
+    this.taxRateBps = const Value.absent(),
+    this.currencyCode = const Value.absent(),
+    this.currencyMinorUnits = const Value.absent(),
+    this.timezone = const Value.absent(),
+    required int updatedAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       businessId = Value(businessId),
+       updatedAt = Value(updatedAt);
+  static Insertable<BusinessSettingsLocalData> custom({
+    Expression<String>? id,
+    Expression<String>? businessId,
+    Expression<String>? branchId,
+    Expression<int>? taxRateBps,
+    Expression<String>? currencyCode,
+    Expression<int>? currencyMinorUnits,
+    Expression<String>? timezone,
+    Expression<int>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (businessId != null) 'business_id': businessId,
+      if (branchId != null) 'branch_id': branchId,
+      if (taxRateBps != null) 'tax_rate_bps': taxRateBps,
+      if (currencyCode != null) 'currency_code': currencyCode,
+      if (currencyMinorUnits != null)
+        'currency_minor_units': currencyMinorUnits,
+      if (timezone != null) 'timezone': timezone,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  BusinessSettingsLocalCompanion copyWith({
+    Value<String>? id,
+    Value<String>? businessId,
+    Value<String>? branchId,
+    Value<int>? taxRateBps,
+    Value<String>? currencyCode,
+    Value<int>? currencyMinorUnits,
+    Value<String>? timezone,
+    Value<int>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return BusinessSettingsLocalCompanion(
+      id: id ?? this.id,
+      businessId: businessId ?? this.businessId,
+      branchId: branchId ?? this.branchId,
+      taxRateBps: taxRateBps ?? this.taxRateBps,
+      currencyCode: currencyCode ?? this.currencyCode,
+      currencyMinorUnits: currencyMinorUnits ?? this.currencyMinorUnits,
+      timezone: timezone ?? this.timezone,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (businessId.present) {
+      map['business_id'] = Variable<String>(businessId.value);
+    }
+    if (branchId.present) {
+      map['branch_id'] = Variable<String>(branchId.value);
+    }
+    if (taxRateBps.present) {
+      map['tax_rate_bps'] = Variable<int>(taxRateBps.value);
+    }
+    if (currencyCode.present) {
+      map['currency_code'] = Variable<String>(currencyCode.value);
+    }
+    if (currencyMinorUnits.present) {
+      map['currency_minor_units'] = Variable<int>(currencyMinorUnits.value);
+    }
+    if (timezone.present) {
+      map['timezone'] = Variable<String>(timezone.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BusinessSettingsLocalCompanion(')
+          ..write('id: $id, ')
+          ..write('businessId: $businessId, ')
+          ..write('branchId: $branchId, ')
+          ..write('taxRateBps: $taxRateBps, ')
+          ..write('currencyCode: $currencyCode, ')
+          ..write('currencyMinorUnits: $currencyMinorUnits, ')
+          ..write('timezone: $timezone, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -2361,6 +4990,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $PaymentsLocalTable paymentsLocal = $PaymentsLocalTable(this);
   late final $LocalIdempotencyKeysTable localIdempotencyKeys =
       $LocalIdempotencyKeysTable(this);
+  late final $ProductsLocalTable productsLocal = $ProductsLocalTable(this);
+  late final $ReceiptSequencesLocalTable receiptSequencesLocal =
+      $ReceiptSequencesLocalTable(this);
+  late final $CartLocalTable cartLocal = $CartLocalTable(this);
+  late final $CartItemsLocalTable cartItemsLocal = $CartItemsLocalTable(this);
+  late final $BusinessSettingsLocalTable businessSettingsLocal =
+      $BusinessSettingsLocalTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -2370,6 +5006,11 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     saleItemsLocal,
     paymentsLocal,
     localIdempotencyKeys,
+    productsLocal,
+    receiptSequencesLocal,
+    cartLocal,
+    cartItemsLocal,
+    businessSettingsLocal,
   ];
 }
 
@@ -2380,6 +5021,9 @@ typedef $$SalesLocalTableCreateCompanionBuilder =
       required String branchId,
       required String cashierId,
       Value<String?> customerId,
+      Value<String?> receiptNumber,
+      Value<int?> receiptSequence,
+      Value<String?> receiptDate,
       required String status,
       required int subtotalMinor,
       Value<int> discountMinor,
@@ -2400,6 +5044,9 @@ typedef $$SalesLocalTableUpdateCompanionBuilder =
       Value<String> branchId,
       Value<String> cashierId,
       Value<String?> customerId,
+      Value<String?> receiptNumber,
+      Value<int?> receiptSequence,
+      Value<String?> receiptDate,
       Value<String> status,
       Value<int> subtotalMinor,
       Value<int> discountMinor,
@@ -2492,6 +5139,21 @@ class $$SalesLocalTableFilterComposer
 
   ColumnFilters<String> get customerId => $composableBuilder(
     column: $table.customerId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get receiptNumber => $composableBuilder(
+    column: $table.receiptNumber,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get receiptSequence => $composableBuilder(
+    column: $table.receiptSequence,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get receiptDate => $composableBuilder(
+    column: $table.receiptDate,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2635,6 +5297,21 @@ class $$SalesLocalTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get receiptNumber => $composableBuilder(
+    column: $table.receiptNumber,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get receiptSequence => $composableBuilder(
+    column: $table.receiptSequence,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get receiptDate => $composableBuilder(
+    column: $table.receiptDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get status => $composableBuilder(
     column: $table.status,
     builder: (column) => ColumnOrderings(column),
@@ -2718,6 +5395,21 @@ class $$SalesLocalTableAnnotationComposer
 
   GeneratedColumn<String> get customerId => $composableBuilder(
     column: $table.customerId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get receiptNumber => $composableBuilder(
+    column: $table.receiptNumber,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get receiptSequence => $composableBuilder(
+    column: $table.receiptSequence,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get receiptDate => $composableBuilder(
+    column: $table.receiptDate,
     builder: (column) => column,
   );
 
@@ -2851,6 +5543,9 @@ class $$SalesLocalTableTableManager
                 Value<String> branchId = const Value.absent(),
                 Value<String> cashierId = const Value.absent(),
                 Value<String?> customerId = const Value.absent(),
+                Value<String?> receiptNumber = const Value.absent(),
+                Value<int?> receiptSequence = const Value.absent(),
+                Value<String?> receiptDate = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 Value<int> subtotalMinor = const Value.absent(),
                 Value<int> discountMinor = const Value.absent(),
@@ -2869,6 +5564,9 @@ class $$SalesLocalTableTableManager
                 branchId: branchId,
                 cashierId: cashierId,
                 customerId: customerId,
+                receiptNumber: receiptNumber,
+                receiptSequence: receiptSequence,
+                receiptDate: receiptDate,
                 status: status,
                 subtotalMinor: subtotalMinor,
                 discountMinor: discountMinor,
@@ -2889,6 +5587,9 @@ class $$SalesLocalTableTableManager
                 required String branchId,
                 required String cashierId,
                 Value<String?> customerId = const Value.absent(),
+                Value<String?> receiptNumber = const Value.absent(),
+                Value<int?> receiptSequence = const Value.absent(),
+                Value<String?> receiptDate = const Value.absent(),
                 required String status,
                 required int subtotalMinor,
                 Value<int> discountMinor = const Value.absent(),
@@ -2907,6 +5608,9 @@ class $$SalesLocalTableTableManager
                 branchId: branchId,
                 cashierId: cashierId,
                 customerId: customerId,
+                receiptNumber: receiptNumber,
+                receiptSequence: receiptSequence,
+                receiptDate: receiptDate,
                 status: status,
                 subtotalMinor: subtotalMinor,
                 discountMinor: discountMinor,
@@ -3391,6 +6095,7 @@ typedef $$PaymentsLocalTableCreateCompanionBuilder =
       Value<String> verificationStatus,
       required int createdAt,
       Value<int?> syncedAt,
+      Value<int?> changeMinor,
       Value<int> rowid,
     });
 typedef $$PaymentsLocalTableUpdateCompanionBuilder =
@@ -3403,6 +6108,7 @@ typedef $$PaymentsLocalTableUpdateCompanionBuilder =
       Value<String> verificationStatus,
       Value<int> createdAt,
       Value<int?> syncedAt,
+      Value<int?> changeMinor,
       Value<int> rowid,
     });
 
@@ -3480,6 +6186,11 @@ class $$PaymentsLocalTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<int> get changeMinor => $composableBuilder(
+    column: $table.changeMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
   $$SalesLocalTableFilterComposer get clientTransactionId {
     final $$SalesLocalTableFilterComposer composer = $composerBuilder(
       composer: this,
@@ -3548,6 +6259,11 @@ class $$PaymentsLocalTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get changeMinor => $composableBuilder(
+    column: $table.changeMinor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$SalesLocalTableOrderingComposer get clientTransactionId {
     final $$SalesLocalTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -3612,6 +6328,11 @@ class $$PaymentsLocalTableAnnotationComposer
   GeneratedColumn<int> get syncedAt =>
       $composableBuilder(column: $table.syncedAt, builder: (column) => column);
 
+  GeneratedColumn<int> get changeMinor => $composableBuilder(
+    column: $table.changeMinor,
+    builder: (column) => column,
+  );
+
   $$SalesLocalTableAnnotationComposer get clientTransactionId {
     final $$SalesLocalTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -3672,6 +6393,7 @@ class $$PaymentsLocalTableTableManager
                 Value<String> verificationStatus = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
                 Value<int?> syncedAt = const Value.absent(),
+                Value<int?> changeMinor = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => PaymentsLocalCompanion(
                 clientPaymentId: clientPaymentId,
@@ -3682,6 +6404,7 @@ class $$PaymentsLocalTableTableManager
                 verificationStatus: verificationStatus,
                 createdAt: createdAt,
                 syncedAt: syncedAt,
+                changeMinor: changeMinor,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -3694,6 +6417,7 @@ class $$PaymentsLocalTableTableManager
                 Value<String> verificationStatus = const Value.absent(),
                 required int createdAt,
                 Value<int?> syncedAt = const Value.absent(),
+                Value<int?> changeMinor = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => PaymentsLocalCompanion.insert(
                 clientPaymentId: clientPaymentId,
@@ -3704,6 +6428,7 @@ class $$PaymentsLocalTableTableManager
                 verificationStatus: verificationStatus,
                 createdAt: createdAt,
                 syncedAt: syncedAt,
+                changeMinor: changeMinor,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -3974,6 +6699,1690 @@ typedef $$LocalIdempotencyKeysTableProcessedTableManager =
       LocalIdempotencyKey,
       PrefetchHooks Function()
     >;
+typedef $$ProductsLocalTableCreateCompanionBuilder =
+    ProductsLocalCompanion Function({
+      required String id,
+      required String businessId,
+      required String name,
+      Value<String?> description,
+      required int priceMinor,
+      Value<String?> category,
+      Value<int> isActive,
+      Value<int> serverVersion,
+      Value<int?> lastSyncedAt,
+      Value<int> rowid,
+    });
+typedef $$ProductsLocalTableUpdateCompanionBuilder =
+    ProductsLocalCompanion Function({
+      Value<String> id,
+      Value<String> businessId,
+      Value<String> name,
+      Value<String?> description,
+      Value<int> priceMinor,
+      Value<String?> category,
+      Value<int> isActive,
+      Value<int> serverVersion,
+      Value<int?> lastSyncedAt,
+      Value<int> rowid,
+    });
+
+final class $$ProductsLocalTableReferences
+    extends
+        BaseReferences<_$AppDatabase, $ProductsLocalTable, ProductsLocalData> {
+  $$ProductsLocalTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static MultiTypedResultKey<$CartItemsLocalTable, List<CartItemsLocalData>>
+  _cartItemsLocalRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.cartItemsLocal,
+    aliasName: 'products_local__id__cart_items_local__product_id',
+  );
+
+  $$CartItemsLocalTableProcessedTableManager get cartItemsLocalRefs {
+    final manager = $$CartItemsLocalTableTableManager(
+      $_db,
+      $_db.cartItemsLocal,
+    ).filter((f) => f.productId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_cartItemsLocalRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$ProductsLocalTableFilterComposer
+    extends Composer<_$AppDatabase, $ProductsLocalTable> {
+  $$ProductsLocalTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get businessId => $composableBuilder(
+    column: $table.businessId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get priceMinor => $composableBuilder(
+    column: $table.priceMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get category => $composableBuilder(
+    column: $table.category,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get isActive => $composableBuilder(
+    column: $table.isActive,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get serverVersion => $composableBuilder(
+    column: $table.serverVersion,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lastSyncedAt => $composableBuilder(
+    column: $table.lastSyncedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  Expression<bool> cartItemsLocalRefs(
+    Expression<bool> Function($$CartItemsLocalTableFilterComposer f) f,
+  ) {
+    final $$CartItemsLocalTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.cartItemsLocal,
+      getReferencedColumn: (t) => t.productId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CartItemsLocalTableFilterComposer(
+            $db: $db,
+            $table: $db.cartItemsLocal,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$ProductsLocalTableOrderingComposer
+    extends Composer<_$AppDatabase, $ProductsLocalTable> {
+  $$ProductsLocalTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get businessId => $composableBuilder(
+    column: $table.businessId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get priceMinor => $composableBuilder(
+    column: $table.priceMinor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get category => $composableBuilder(
+    column: $table.category,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get isActive => $composableBuilder(
+    column: $table.isActive,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get serverVersion => $composableBuilder(
+    column: $table.serverVersion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lastSyncedAt => $composableBuilder(
+    column: $table.lastSyncedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ProductsLocalTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ProductsLocalTable> {
+  $$ProductsLocalTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get businessId => $composableBuilder(
+    column: $table.businessId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get priceMinor => $composableBuilder(
+    column: $table.priceMinor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get category =>
+      $composableBuilder(column: $table.category, builder: (column) => column);
+
+  GeneratedColumn<int> get isActive =>
+      $composableBuilder(column: $table.isActive, builder: (column) => column);
+
+  GeneratedColumn<int> get serverVersion => $composableBuilder(
+    column: $table.serverVersion,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get lastSyncedAt => $composableBuilder(
+    column: $table.lastSyncedAt,
+    builder: (column) => column,
+  );
+
+  Expression<T> cartItemsLocalRefs<T extends Object>(
+    Expression<T> Function($$CartItemsLocalTableAnnotationComposer a) f,
+  ) {
+    final $$CartItemsLocalTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.cartItemsLocal,
+      getReferencedColumn: (t) => t.productId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CartItemsLocalTableAnnotationComposer(
+            $db: $db,
+            $table: $db.cartItemsLocal,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$ProductsLocalTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ProductsLocalTable,
+          ProductsLocalData,
+          $$ProductsLocalTableFilterComposer,
+          $$ProductsLocalTableOrderingComposer,
+          $$ProductsLocalTableAnnotationComposer,
+          $$ProductsLocalTableCreateCompanionBuilder,
+          $$ProductsLocalTableUpdateCompanionBuilder,
+          (ProductsLocalData, $$ProductsLocalTableReferences),
+          ProductsLocalData,
+          PrefetchHooks Function({bool cartItemsLocalRefs})
+        > {
+  $$ProductsLocalTableTableManager(_$AppDatabase db, $ProductsLocalTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ProductsLocalTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ProductsLocalTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ProductsLocalTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> businessId = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String?> description = const Value.absent(),
+                Value<int> priceMinor = const Value.absent(),
+                Value<String?> category = const Value.absent(),
+                Value<int> isActive = const Value.absent(),
+                Value<int> serverVersion = const Value.absent(),
+                Value<int?> lastSyncedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ProductsLocalCompanion(
+                id: id,
+                businessId: businessId,
+                name: name,
+                description: description,
+                priceMinor: priceMinor,
+                category: category,
+                isActive: isActive,
+                serverVersion: serverVersion,
+                lastSyncedAt: lastSyncedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String businessId,
+                required String name,
+                Value<String?> description = const Value.absent(),
+                required int priceMinor,
+                Value<String?> category = const Value.absent(),
+                Value<int> isActive = const Value.absent(),
+                Value<int> serverVersion = const Value.absent(),
+                Value<int?> lastSyncedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ProductsLocalCompanion.insert(
+                id: id,
+                businessId: businessId,
+                name: name,
+                description: description,
+                priceMinor: priceMinor,
+                category: category,
+                isActive: isActive,
+                serverVersion: serverVersion,
+                lastSyncedAt: lastSyncedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$ProductsLocalTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({cartItemsLocalRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [
+                if (cartItemsLocalRefs) db.cartItemsLocal,
+              ],
+              addJoins: null,
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (cartItemsLocalRefs)
+                    await $_getPrefetchedData<
+                      ProductsLocalData,
+                      $ProductsLocalTable,
+                      CartItemsLocalData
+                    >(
+                      currentTable: table,
+                      referencedTable: $$ProductsLocalTableReferences
+                          ._cartItemsLocalRefsTable(db),
+                      managerFromTypedResult: (p0) =>
+                          $$ProductsLocalTableReferences(
+                            db,
+                            table,
+                            p0,
+                          ).cartItemsLocalRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where((e) => e.productId == item.id),
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$ProductsLocalTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ProductsLocalTable,
+      ProductsLocalData,
+      $$ProductsLocalTableFilterComposer,
+      $$ProductsLocalTableOrderingComposer,
+      $$ProductsLocalTableAnnotationComposer,
+      $$ProductsLocalTableCreateCompanionBuilder,
+      $$ProductsLocalTableUpdateCompanionBuilder,
+      (ProductsLocalData, $$ProductsLocalTableReferences),
+      ProductsLocalData,
+      PrefetchHooks Function({bool cartItemsLocalRefs})
+    >;
+typedef $$ReceiptSequencesLocalTableCreateCompanionBuilder =
+    ReceiptSequencesLocalCompanion Function({
+      required String id,
+      required String businessId,
+      required String branchId,
+      required String sequenceDate,
+      Value<int> lastSequence,
+      required int updatedAt,
+      Value<int> rowid,
+    });
+typedef $$ReceiptSequencesLocalTableUpdateCompanionBuilder =
+    ReceiptSequencesLocalCompanion Function({
+      Value<String> id,
+      Value<String> businessId,
+      Value<String> branchId,
+      Value<String> sequenceDate,
+      Value<int> lastSequence,
+      Value<int> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$ReceiptSequencesLocalTableFilterComposer
+    extends Composer<_$AppDatabase, $ReceiptSequencesLocalTable> {
+  $$ReceiptSequencesLocalTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get businessId => $composableBuilder(
+    column: $table.businessId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get branchId => $composableBuilder(
+    column: $table.branchId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sequenceDate => $composableBuilder(
+    column: $table.sequenceDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lastSequence => $composableBuilder(
+    column: $table.lastSequence,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$ReceiptSequencesLocalTableOrderingComposer
+    extends Composer<_$AppDatabase, $ReceiptSequencesLocalTable> {
+  $$ReceiptSequencesLocalTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get businessId => $composableBuilder(
+    column: $table.businessId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get branchId => $composableBuilder(
+    column: $table.branchId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sequenceDate => $composableBuilder(
+    column: $table.sequenceDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lastSequence => $composableBuilder(
+    column: $table.lastSequence,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ReceiptSequencesLocalTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ReceiptSequencesLocalTable> {
+  $$ReceiptSequencesLocalTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get businessId => $composableBuilder(
+    column: $table.businessId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get branchId =>
+      $composableBuilder(column: $table.branchId, builder: (column) => column);
+
+  GeneratedColumn<String> get sequenceDate => $composableBuilder(
+    column: $table.sequenceDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get lastSequence => $composableBuilder(
+    column: $table.lastSequence,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$ReceiptSequencesLocalTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ReceiptSequencesLocalTable,
+          ReceiptSequencesLocalData,
+          $$ReceiptSequencesLocalTableFilterComposer,
+          $$ReceiptSequencesLocalTableOrderingComposer,
+          $$ReceiptSequencesLocalTableAnnotationComposer,
+          $$ReceiptSequencesLocalTableCreateCompanionBuilder,
+          $$ReceiptSequencesLocalTableUpdateCompanionBuilder,
+          (
+            ReceiptSequencesLocalData,
+            BaseReferences<
+              _$AppDatabase,
+              $ReceiptSequencesLocalTable,
+              ReceiptSequencesLocalData
+            >,
+          ),
+          ReceiptSequencesLocalData,
+          PrefetchHooks Function()
+        > {
+  $$ReceiptSequencesLocalTableTableManager(
+    _$AppDatabase db,
+    $ReceiptSequencesLocalTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ReceiptSequencesLocalTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$ReceiptSequencesLocalTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$ReceiptSequencesLocalTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> businessId = const Value.absent(),
+                Value<String> branchId = const Value.absent(),
+                Value<String> sequenceDate = const Value.absent(),
+                Value<int> lastSequence = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ReceiptSequencesLocalCompanion(
+                id: id,
+                businessId: businessId,
+                branchId: branchId,
+                sequenceDate: sequenceDate,
+                lastSequence: lastSequence,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String businessId,
+                required String branchId,
+                required String sequenceDate,
+                Value<int> lastSequence = const Value.absent(),
+                required int updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => ReceiptSequencesLocalCompanion.insert(
+                id: id,
+                businessId: businessId,
+                branchId: branchId,
+                sequenceDate: sequenceDate,
+                lastSequence: lastSequence,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$ReceiptSequencesLocalTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ReceiptSequencesLocalTable,
+      ReceiptSequencesLocalData,
+      $$ReceiptSequencesLocalTableFilterComposer,
+      $$ReceiptSequencesLocalTableOrderingComposer,
+      $$ReceiptSequencesLocalTableAnnotationComposer,
+      $$ReceiptSequencesLocalTableCreateCompanionBuilder,
+      $$ReceiptSequencesLocalTableUpdateCompanionBuilder,
+      (
+        ReceiptSequencesLocalData,
+        BaseReferences<
+          _$AppDatabase,
+          $ReceiptSequencesLocalTable,
+          ReceiptSequencesLocalData
+        >,
+      ),
+      ReceiptSequencesLocalData,
+      PrefetchHooks Function()
+    >;
+typedef $$CartLocalTableCreateCompanionBuilder =
+    CartLocalCompanion Function({
+      required String id,
+      required String businessId,
+      required String status,
+      required int createdAt,
+      required int updatedAt,
+      Value<int> rowid,
+    });
+typedef $$CartLocalTableUpdateCompanionBuilder =
+    CartLocalCompanion Function({
+      Value<String> id,
+      Value<String> businessId,
+      Value<String> status,
+      Value<int> createdAt,
+      Value<int> updatedAt,
+      Value<int> rowid,
+    });
+
+final class $$CartLocalTableReferences
+    extends BaseReferences<_$AppDatabase, $CartLocalTable, CartLocalData> {
+  $$CartLocalTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static MultiTypedResultKey<$CartItemsLocalTable, List<CartItemsLocalData>>
+  _cartItemsLocalRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.cartItemsLocal,
+    aliasName: 'cart_local__id__cart_items_local__cart_id',
+  );
+
+  $$CartItemsLocalTableProcessedTableManager get cartItemsLocalRefs {
+    final manager = $$CartItemsLocalTableTableManager(
+      $_db,
+      $_db.cartItemsLocal,
+    ).filter((f) => f.cartId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_cartItemsLocalRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$CartLocalTableFilterComposer
+    extends Composer<_$AppDatabase, $CartLocalTable> {
+  $$CartLocalTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get businessId => $composableBuilder(
+    column: $table.businessId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  Expression<bool> cartItemsLocalRefs(
+    Expression<bool> Function($$CartItemsLocalTableFilterComposer f) f,
+  ) {
+    final $$CartItemsLocalTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.cartItemsLocal,
+      getReferencedColumn: (t) => t.cartId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CartItemsLocalTableFilterComposer(
+            $db: $db,
+            $table: $db.cartItemsLocal,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$CartLocalTableOrderingComposer
+    extends Composer<_$AppDatabase, $CartLocalTable> {
+  $$CartLocalTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get businessId => $composableBuilder(
+    column: $table.businessId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$CartLocalTableAnnotationComposer
+    extends Composer<_$AppDatabase, $CartLocalTable> {
+  $$CartLocalTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get businessId => $composableBuilder(
+    column: $table.businessId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  Expression<T> cartItemsLocalRefs<T extends Object>(
+    Expression<T> Function($$CartItemsLocalTableAnnotationComposer a) f,
+  ) {
+    final $$CartItemsLocalTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.cartItemsLocal,
+      getReferencedColumn: (t) => t.cartId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CartItemsLocalTableAnnotationComposer(
+            $db: $db,
+            $table: $db.cartItemsLocal,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$CartLocalTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $CartLocalTable,
+          CartLocalData,
+          $$CartLocalTableFilterComposer,
+          $$CartLocalTableOrderingComposer,
+          $$CartLocalTableAnnotationComposer,
+          $$CartLocalTableCreateCompanionBuilder,
+          $$CartLocalTableUpdateCompanionBuilder,
+          (CartLocalData, $$CartLocalTableReferences),
+          CartLocalData,
+          PrefetchHooks Function({bool cartItemsLocalRefs})
+        > {
+  $$CartLocalTableTableManager(_$AppDatabase db, $CartLocalTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CartLocalTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$CartLocalTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$CartLocalTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> businessId = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CartLocalCompanion(
+                id: id,
+                businessId: businessId,
+                status: status,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String businessId,
+                required String status,
+                required int createdAt,
+                required int updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => CartLocalCompanion.insert(
+                id: id,
+                businessId: businessId,
+                status: status,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$CartLocalTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({cartItemsLocalRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [
+                if (cartItemsLocalRefs) db.cartItemsLocal,
+              ],
+              addJoins: null,
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (cartItemsLocalRefs)
+                    await $_getPrefetchedData<
+                      CartLocalData,
+                      $CartLocalTable,
+                      CartItemsLocalData
+                    >(
+                      currentTable: table,
+                      referencedTable: $$CartLocalTableReferences
+                          ._cartItemsLocalRefsTable(db),
+                      managerFromTypedResult: (p0) =>
+                          $$CartLocalTableReferences(
+                            db,
+                            table,
+                            p0,
+                          ).cartItemsLocalRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where((e) => e.cartId == item.id),
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$CartLocalTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $CartLocalTable,
+      CartLocalData,
+      $$CartLocalTableFilterComposer,
+      $$CartLocalTableOrderingComposer,
+      $$CartLocalTableAnnotationComposer,
+      $$CartLocalTableCreateCompanionBuilder,
+      $$CartLocalTableUpdateCompanionBuilder,
+      (CartLocalData, $$CartLocalTableReferences),
+      CartLocalData,
+      PrefetchHooks Function({bool cartItemsLocalRefs})
+    >;
+typedef $$CartItemsLocalTableCreateCompanionBuilder =
+    CartItemsLocalCompanion Function({
+      required String id,
+      required String cartId,
+      required String productId,
+      required int quantity,
+      required int unitPriceMinor,
+      required int addedAt,
+      required int updatedAt,
+      Value<int> rowid,
+    });
+typedef $$CartItemsLocalTableUpdateCompanionBuilder =
+    CartItemsLocalCompanion Function({
+      Value<String> id,
+      Value<String> cartId,
+      Value<String> productId,
+      Value<int> quantity,
+      Value<int> unitPriceMinor,
+      Value<int> addedAt,
+      Value<int> updatedAt,
+      Value<int> rowid,
+    });
+
+final class $$CartItemsLocalTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $CartItemsLocalTable,
+          CartItemsLocalData
+        > {
+  $$CartItemsLocalTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $CartLocalTable _cartIdTable(_$AppDatabase db) =>
+      db.cartLocal.createAlias('cart_items_local__cart_id__cart_local__id');
+
+  $$CartLocalTableProcessedTableManager get cartId {
+    final $_column = $_itemColumn<String>('cart_id')!;
+
+    final manager = $$CartLocalTableTableManager(
+      $_db,
+      $_db.cartLocal,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_cartIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $ProductsLocalTable _productIdTable(_$AppDatabase db) => db
+      .productsLocal
+      .createAlias('cart_items_local__product_id__products_local__id');
+
+  $$ProductsLocalTableProcessedTableManager get productId {
+    final $_column = $_itemColumn<String>('product_id')!;
+
+    final manager = $$ProductsLocalTableTableManager(
+      $_db,
+      $_db.productsLocal,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_productIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$CartItemsLocalTableFilterComposer
+    extends Composer<_$AppDatabase, $CartItemsLocalTable> {
+  $$CartItemsLocalTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get quantity => $composableBuilder(
+    column: $table.quantity,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get unitPriceMinor => $composableBuilder(
+    column: $table.unitPriceMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get addedAt => $composableBuilder(
+    column: $table.addedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$CartLocalTableFilterComposer get cartId {
+    final $$CartLocalTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.cartId,
+      referencedTable: $db.cartLocal,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CartLocalTableFilterComposer(
+            $db: $db,
+            $table: $db.cartLocal,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ProductsLocalTableFilterComposer get productId {
+    final $$ProductsLocalTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.productId,
+      referencedTable: $db.productsLocal,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ProductsLocalTableFilterComposer(
+            $db: $db,
+            $table: $db.productsLocal,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$CartItemsLocalTableOrderingComposer
+    extends Composer<_$AppDatabase, $CartItemsLocalTable> {
+  $$CartItemsLocalTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get quantity => $composableBuilder(
+    column: $table.quantity,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get unitPriceMinor => $composableBuilder(
+    column: $table.unitPriceMinor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get addedAt => $composableBuilder(
+    column: $table.addedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$CartLocalTableOrderingComposer get cartId {
+    final $$CartLocalTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.cartId,
+      referencedTable: $db.cartLocal,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CartLocalTableOrderingComposer(
+            $db: $db,
+            $table: $db.cartLocal,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ProductsLocalTableOrderingComposer get productId {
+    final $$ProductsLocalTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.productId,
+      referencedTable: $db.productsLocal,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ProductsLocalTableOrderingComposer(
+            $db: $db,
+            $table: $db.productsLocal,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$CartItemsLocalTableAnnotationComposer
+    extends Composer<_$AppDatabase, $CartItemsLocalTable> {
+  $$CartItemsLocalTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get quantity =>
+      $composableBuilder(column: $table.quantity, builder: (column) => column);
+
+  GeneratedColumn<int> get unitPriceMinor => $composableBuilder(
+    column: $table.unitPriceMinor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get addedAt =>
+      $composableBuilder(column: $table.addedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  $$CartLocalTableAnnotationComposer get cartId {
+    final $$CartLocalTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.cartId,
+      referencedTable: $db.cartLocal,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CartLocalTableAnnotationComposer(
+            $db: $db,
+            $table: $db.cartLocal,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ProductsLocalTableAnnotationComposer get productId {
+    final $$ProductsLocalTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.productId,
+      referencedTable: $db.productsLocal,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ProductsLocalTableAnnotationComposer(
+            $db: $db,
+            $table: $db.productsLocal,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$CartItemsLocalTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $CartItemsLocalTable,
+          CartItemsLocalData,
+          $$CartItemsLocalTableFilterComposer,
+          $$CartItemsLocalTableOrderingComposer,
+          $$CartItemsLocalTableAnnotationComposer,
+          $$CartItemsLocalTableCreateCompanionBuilder,
+          $$CartItemsLocalTableUpdateCompanionBuilder,
+          (CartItemsLocalData, $$CartItemsLocalTableReferences),
+          CartItemsLocalData,
+          PrefetchHooks Function({bool cartId, bool productId})
+        > {
+  $$CartItemsLocalTableTableManager(
+    _$AppDatabase db,
+    $CartItemsLocalTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CartItemsLocalTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$CartItemsLocalTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$CartItemsLocalTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> cartId = const Value.absent(),
+                Value<String> productId = const Value.absent(),
+                Value<int> quantity = const Value.absent(),
+                Value<int> unitPriceMinor = const Value.absent(),
+                Value<int> addedAt = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CartItemsLocalCompanion(
+                id: id,
+                cartId: cartId,
+                productId: productId,
+                quantity: quantity,
+                unitPriceMinor: unitPriceMinor,
+                addedAt: addedAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String cartId,
+                required String productId,
+                required int quantity,
+                required int unitPriceMinor,
+                required int addedAt,
+                required int updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => CartItemsLocalCompanion.insert(
+                id: id,
+                cartId: cartId,
+                productId: productId,
+                quantity: quantity,
+                unitPriceMinor: unitPriceMinor,
+                addedAt: addedAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$CartItemsLocalTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({cartId = false, productId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (cartId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.cartId,
+                                referencedTable: $$CartItemsLocalTableReferences
+                                    ._cartIdTable(db),
+                                referencedColumn:
+                                    $$CartItemsLocalTableReferences
+                                        ._cartIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+                    if (productId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.productId,
+                                referencedTable: $$CartItemsLocalTableReferences
+                                    ._productIdTable(db),
+                                referencedColumn:
+                                    $$CartItemsLocalTableReferences
+                                        ._productIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$CartItemsLocalTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $CartItemsLocalTable,
+      CartItemsLocalData,
+      $$CartItemsLocalTableFilterComposer,
+      $$CartItemsLocalTableOrderingComposer,
+      $$CartItemsLocalTableAnnotationComposer,
+      $$CartItemsLocalTableCreateCompanionBuilder,
+      $$CartItemsLocalTableUpdateCompanionBuilder,
+      (CartItemsLocalData, $$CartItemsLocalTableReferences),
+      CartItemsLocalData,
+      PrefetchHooks Function({bool cartId, bool productId})
+    >;
+typedef $$BusinessSettingsLocalTableCreateCompanionBuilder =
+    BusinessSettingsLocalCompanion Function({
+      required String id,
+      required String businessId,
+      Value<String> branchId,
+      Value<int> taxRateBps,
+      Value<String> currencyCode,
+      Value<int> currencyMinorUnits,
+      Value<String> timezone,
+      required int updatedAt,
+      Value<int> rowid,
+    });
+typedef $$BusinessSettingsLocalTableUpdateCompanionBuilder =
+    BusinessSettingsLocalCompanion Function({
+      Value<String> id,
+      Value<String> businessId,
+      Value<String> branchId,
+      Value<int> taxRateBps,
+      Value<String> currencyCode,
+      Value<int> currencyMinorUnits,
+      Value<String> timezone,
+      Value<int> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$BusinessSettingsLocalTableFilterComposer
+    extends Composer<_$AppDatabase, $BusinessSettingsLocalTable> {
+  $$BusinessSettingsLocalTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get businessId => $composableBuilder(
+    column: $table.businessId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get branchId => $composableBuilder(
+    column: $table.branchId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get taxRateBps => $composableBuilder(
+    column: $table.taxRateBps,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get currencyCode => $composableBuilder(
+    column: $table.currencyCode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get currencyMinorUnits => $composableBuilder(
+    column: $table.currencyMinorUnits,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get timezone => $composableBuilder(
+    column: $table.timezone,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$BusinessSettingsLocalTableOrderingComposer
+    extends Composer<_$AppDatabase, $BusinessSettingsLocalTable> {
+  $$BusinessSettingsLocalTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get businessId => $composableBuilder(
+    column: $table.businessId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get branchId => $composableBuilder(
+    column: $table.branchId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get taxRateBps => $composableBuilder(
+    column: $table.taxRateBps,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get currencyCode => $composableBuilder(
+    column: $table.currencyCode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get currencyMinorUnits => $composableBuilder(
+    column: $table.currencyMinorUnits,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get timezone => $composableBuilder(
+    column: $table.timezone,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$BusinessSettingsLocalTableAnnotationComposer
+    extends Composer<_$AppDatabase, $BusinessSettingsLocalTable> {
+  $$BusinessSettingsLocalTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get businessId => $composableBuilder(
+    column: $table.businessId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get branchId =>
+      $composableBuilder(column: $table.branchId, builder: (column) => column);
+
+  GeneratedColumn<int> get taxRateBps => $composableBuilder(
+    column: $table.taxRateBps,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get currencyCode => $composableBuilder(
+    column: $table.currencyCode,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get currencyMinorUnits => $composableBuilder(
+    column: $table.currencyMinorUnits,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get timezone =>
+      $composableBuilder(column: $table.timezone, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$BusinessSettingsLocalTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $BusinessSettingsLocalTable,
+          BusinessSettingsLocalData,
+          $$BusinessSettingsLocalTableFilterComposer,
+          $$BusinessSettingsLocalTableOrderingComposer,
+          $$BusinessSettingsLocalTableAnnotationComposer,
+          $$BusinessSettingsLocalTableCreateCompanionBuilder,
+          $$BusinessSettingsLocalTableUpdateCompanionBuilder,
+          (
+            BusinessSettingsLocalData,
+            BaseReferences<
+              _$AppDatabase,
+              $BusinessSettingsLocalTable,
+              BusinessSettingsLocalData
+            >,
+          ),
+          BusinessSettingsLocalData,
+          PrefetchHooks Function()
+        > {
+  $$BusinessSettingsLocalTableTableManager(
+    _$AppDatabase db,
+    $BusinessSettingsLocalTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$BusinessSettingsLocalTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$BusinessSettingsLocalTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$BusinessSettingsLocalTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> businessId = const Value.absent(),
+                Value<String> branchId = const Value.absent(),
+                Value<int> taxRateBps = const Value.absent(),
+                Value<String> currencyCode = const Value.absent(),
+                Value<int> currencyMinorUnits = const Value.absent(),
+                Value<String> timezone = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => BusinessSettingsLocalCompanion(
+                id: id,
+                businessId: businessId,
+                branchId: branchId,
+                taxRateBps: taxRateBps,
+                currencyCode: currencyCode,
+                currencyMinorUnits: currencyMinorUnits,
+                timezone: timezone,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String businessId,
+                Value<String> branchId = const Value.absent(),
+                Value<int> taxRateBps = const Value.absent(),
+                Value<String> currencyCode = const Value.absent(),
+                Value<int> currencyMinorUnits = const Value.absent(),
+                Value<String> timezone = const Value.absent(),
+                required int updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => BusinessSettingsLocalCompanion.insert(
+                id: id,
+                businessId: businessId,
+                branchId: branchId,
+                taxRateBps: taxRateBps,
+                currencyCode: currencyCode,
+                currencyMinorUnits: currencyMinorUnits,
+                timezone: timezone,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$BusinessSettingsLocalTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $BusinessSettingsLocalTable,
+      BusinessSettingsLocalData,
+      $$BusinessSettingsLocalTableFilterComposer,
+      $$BusinessSettingsLocalTableOrderingComposer,
+      $$BusinessSettingsLocalTableAnnotationComposer,
+      $$BusinessSettingsLocalTableCreateCompanionBuilder,
+      $$BusinessSettingsLocalTableUpdateCompanionBuilder,
+      (
+        BusinessSettingsLocalData,
+        BaseReferences<
+          _$AppDatabase,
+          $BusinessSettingsLocalTable,
+          BusinessSettingsLocalData
+        >,
+      ),
+      BusinessSettingsLocalData,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -3986,4 +8395,14 @@ class $AppDatabaseManager {
       $$PaymentsLocalTableTableManager(_db, _db.paymentsLocal);
   $$LocalIdempotencyKeysTableTableManager get localIdempotencyKeys =>
       $$LocalIdempotencyKeysTableTableManager(_db, _db.localIdempotencyKeys);
+  $$ProductsLocalTableTableManager get productsLocal =>
+      $$ProductsLocalTableTableManager(_db, _db.productsLocal);
+  $$ReceiptSequencesLocalTableTableManager get receiptSequencesLocal =>
+      $$ReceiptSequencesLocalTableTableManager(_db, _db.receiptSequencesLocal);
+  $$CartLocalTableTableManager get cartLocal =>
+      $$CartLocalTableTableManager(_db, _db.cartLocal);
+  $$CartItemsLocalTableTableManager get cartItemsLocal =>
+      $$CartItemsLocalTableTableManager(_db, _db.cartItemsLocal);
+  $$BusinessSettingsLocalTableTableManager get businessSettingsLocal =>
+      $$BusinessSettingsLocalTableTableManager(_db, _db.businessSettingsLocal);
 }
