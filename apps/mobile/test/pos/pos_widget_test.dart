@@ -11,6 +11,19 @@ import 'package:biz_erp_mobile/sales/domain/checkout/checkout_models.dart';
 import 'package:biz_erp_mobile/core/demo_context.dart';
 import 'package:biz_erp_mobile/pos/presentation/pos_controller.dart';
 import 'package:biz_erp_mobile/pos/presentation/pos_screen.dart';
+import 'package:biz_erp_mobile/core/hardware/printing/bluetooth_printer_adapter.dart';
+import 'package:biz_erp_mobile/core/hardware/printing/printer_preferences.dart';
+import 'package:biz_erp_mobile/core/hardware/printing/printing_service.dart';
+import 'package:biz_erp_mobile/core/hardware/printing/printer_device.dart';
+
+class _DummyPrefs implements PrinterPreferences {
+  @override
+  Future<PrinterDevice?> loadLastPrinter() async => null;
+  @override
+  Future<void> saveLastPrinter(PrinterDevice device) async {}
+  @override
+  Future<void> clearLastPrinter() async {}
+}
 
 void main() {
   late AppDatabase db;
@@ -34,11 +47,17 @@ void main() {
       ),
     );
 
+    final printingService = PrintingService(
+      adapter: BluetoothPrinterAdapter(),
+      prefs: _DummyPrefs(),
+    );
+
     controller = PosController(
       productRepo: prodRepo,
       cartRepo: cartRepo,
       calcEngine: SaleCalculationEngine(),
       checkoutService: checkoutService,
+      printingService: printingService, // TAMBAHKAN INI
     );
     await controller.init();
   });

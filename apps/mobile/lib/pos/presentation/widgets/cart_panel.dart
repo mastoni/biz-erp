@@ -233,7 +233,11 @@ class CartPanel extends StatelessWidget {
       if (success && context.mounted) {
         showDialog(
           context: context,
-          builder: (_) => ReceiptDialog(result: controller.lastReceipt!),
+          builder: (_) => ReceiptDialog(
+            result: controller.lastReceipt!,
+            receiptData: controller.lastReceiptData!,
+            printingService: controller.printingService,
+          ),
         );
       }
     }

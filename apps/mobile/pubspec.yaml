@@ -1,5 +1,5 @@
 name: biz_erp_mobile
-description: "BizERP Mobile POS"
+description: 'BizERP Mobile POS'
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -18,7 +18,7 @@ dependencies:
   uuid: ^4.5.1
   path_provider: ^2.1.6
   path: ^1.9.1
-
+  permission_handler: ^11.3.1
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -26,7 +26,7 @@ dev_dependencies:
   drift_dev: ^2.34.5
   build_runner: ^2.4.13
   integration_test:
-    sdk: flutter 
+    sdk: flutter
 
 flutter:
   uses-material-design: true

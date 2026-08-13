@@ -9,12 +9,20 @@ import 'package:biz_erp_mobile/sales/domain/calculation/calc_models.dart';
 import 'package:biz_erp_mobile/sales/domain/calculation/sale_calculation_engine.dart';
 import 'package:biz_erp_mobile/sales/domain/checkout/checkout_models.dart';
 import 'package:biz_erp_mobile/core/demo_context.dart';
+import 'package:biz_erp_mobile/core/hardware/printing/printing_service.dart';
+import 'package:biz_erp_mobile/core/hardware/printing/receipt_data.dart';
 
 class PosController extends ChangeNotifier {
   final ProductRepository _productRepo;
   final CartRepository _cartRepo;
   final SaleCalculationEngine _calcEngine;
   final CheckoutService _checkoutService;
+
+  final PrintingService _printingService;
+  PrintingService get printingService => _printingService;
+
+  ReceiptData? _lastReceiptData;
+  ReceiptData? get lastReceiptData => _lastReceiptData;
 
   List<Product> _products = [];
   CartWithItems? _currentCart;
@@ -34,6 +42,7 @@ class PosController extends ChangeNotifier {
     required this._cartRepo,
     required this._calcEngine,
     required this._checkoutService,
+    required this._printingService,
   });
 
   // Getters
@@ -170,6 +179,7 @@ class PosController extends ChangeNotifier {
 
       // SUCCESS
       _lastReceipt = result;
+      _lastReceiptData = _buildReceiptData(result);
       _pendingIdempotencyKey = null; // Reset for next sale
       _isLoading = false;
       notifyListeners();
@@ -183,5 +193,48 @@ class PosController extends ChangeNotifier {
       notifyListeners();
       return false;
     }
+  }
+
+  /// Snapshot struk dari data transaksi yang sudah COMMIT.
+  /// Harga/qty dari cart snapshot (identik sale_items_local),
+  /// total dari hasil kalkulasi (identik sales_local).
+  ReceiptData? _buildReceiptData(CheckoutResult result) {
+    final calc = _calculation;
+    final cart = _currentCart;
+    if (calc == null || cart == null) return null;
+
+    final items = cart.items
+        .map(
+          (item) => ReceiptItemData(
+            productId: item.productId,
+            displayName: _resolveProductName(item.productId),
+            quantity: item.quantity,
+            unitPriceMinor: item.unitPriceMinor,
+          ),
+        )
+        .toList();
+
+    return ReceiptData(
+      receiptNumber: result.receiptNumber,
+      businessName: DemoContext.businessName,
+      branchName: DemoContext.branchName,
+      cashierId: DemoContext.cashierId,
+      createdAtEpochMs: DateTime.now().millisecondsSinceEpoch,
+      subtotalMinor: calc.subtotalMinor,
+      discountMinor: calc.discountMinor,
+      taxMinor: calc.taxMinor,
+      totalMinor: result.grandTotalMinor,
+      cashReceivedMinor: result.grandTotalMinor + result.changeMinor,
+      changeMinor: result.changeMinor,
+      items: items,
+    );
+  }
+
+  /// Nama hanya untuk display; fallback jika produk hilang/berubah.
+  String _resolveProductName(String productId) {
+    final prod = _products.where((p) => p.id == productId).firstOrNull;
+    if (prod != null) return prod.name;
+    final short = productId.replaceAll('-', '').substring(0, 6).toUpperCase();
+    return 'ITEM-$short';
   }
 }

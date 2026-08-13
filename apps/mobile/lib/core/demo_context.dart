@@ -6,6 +6,8 @@ class DemoContext {
   static const String cashierId = 'CASHIER-001';
   static const String deviceId = 'DEVICE-001';
   static const int taxRateBps = 1100; // 11% Tax
+  static const String businessName = 'WARUNG DEMO BIZERP';
+  static const String branchName = 'CABANG UTAMA';
 
   /// Simple IDR formatter (no decimals, dot separator)
   static String formatIDR(int minor) {

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:drift/drift.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
@@ -11,6 +12,9 @@ import 'package:biz_erp_mobile/sales/data/checkout_service.dart';
 import 'package:biz_erp_mobile/sales/domain/calculation/sale_calculation_engine.dart';
 import 'package:biz_erp_mobile/pos/presentation/pos_controller.dart';
 import 'package:biz_erp_mobile/pos/presentation/pos_screen.dart';
+import 'package:biz_erp_mobile/core/hardware/printing/bluetooth_printer_adapter.dart';
+import 'package:biz_erp_mobile/core/hardware/printing/printer_preferences.dart';
+import 'package:biz_erp_mobile/core/hardware/printing/printing_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,15 +34,22 @@ Future<void> main() async {
   final calcEngine = SaleCalculationEngine();
   final checkoutService = CheckoutService(db, calcEngine);
 
+  // Phase 2.2.1: Printing service (silent, non-blocking)
+  final printingService = PrintingService(
+    adapter: BluetoothPrinterAdapter(),
+    prefs: FilePrinterPreferences(baseDir: appDir),
+  );
+
   // 4. Init Controller
   final controller = PosController(
     productRepo: productRepo,
     cartRepo: cartRepo,
     calcEngine: calcEngine,
     checkoutService: checkoutService,
+    printingService: printingService,
   );
   await controller.init();
-
+  unawaited(printingService.autoReconnectLast());
   runApp(MyApp(controller: controller));
 }
 
