@@ -10,6 +10,7 @@ class ProductsLocal extends Table {
   TextColumn get businessId => text()();
   TextColumn get name => text()();
   TextColumn get description => text().nullable()();
+  TextColumn get barcode => text().nullable()();
 
   /// Price in minor units (INTEGER, no floating point)
   IntColumn get priceMinor =>

@@ -10,6 +10,7 @@ class Product {
   final bool isActive;
   final int serverVersion;
   final int? lastSyncedAt;
+  final String? barcode;
 
   const Product({
     required this.id,
@@ -21,5 +22,6 @@ class Product {
     required this.isActive,
     required this.serverVersion,
     this.lastSyncedAt,
+    this.barcode,
   });
 }

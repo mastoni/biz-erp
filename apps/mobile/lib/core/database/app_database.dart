@@ -37,12 +37,16 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.memory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) async {
       await m.createAll();
+      await m.database.customStatement(
+        'CREATE INDEX IF NOT EXISTS idx_products_business_barcode '
+        'ON products_local (business_id, barcode)',
+      );
       await customStatement(
         'CREATE UNIQUE INDEX IF NOT EXISTS idx_one_active_cart_per_business '
         'ON cart_local(business_id) WHERE status = \'ACTIVE\'',
@@ -71,6 +75,27 @@ class AppDatabase extends _$AppDatabase {
         await m.addColumn(
           localIdempotencyKeys,
           localIdempotencyKeys.requestFingerprint,
+        );
+      }
+      if (from < 4) {
+        // Cek apakah kolom barcode sudah ada (mungkin fresh install sudah buat via createAll)
+        final columns = await m.database
+            .customSelect(
+              "PRAGMA table_info(products_local)",
+              readsFrom: const {},
+            )
+            .get();
+        final hasBarcode = columns.any(
+          (row) => row.read<String>('name') == 'barcode',
+        );
+        if (!hasBarcode) {
+          await m.database.customStatement(
+            'ALTER TABLE products_local ADD COLUMN barcode TEXT',
+          );
+        }
+        await m.database.customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_products_business_barcode '
+          'ON products_local (business_id, barcode)',
         );
       }
     },

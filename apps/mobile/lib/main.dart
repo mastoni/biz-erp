@@ -15,6 +15,7 @@ import 'package:biz_erp_mobile/pos/presentation/pos_screen.dart';
 import 'package:biz_erp_mobile/core/hardware/printing/bluetooth_printer_adapter.dart';
 import 'package:biz_erp_mobile/core/hardware/printing/printer_preferences.dart';
 import 'package:biz_erp_mobile/core/hardware/printing/printing_service.dart';
+import 'package:biz_erp_mobile/core/hardware/scanning/scanner_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -49,8 +50,14 @@ Future<void> main() async {
     printingService: printingService,
   );
   await controller.init();
+  final scannerService = ScannerService(
+    productRepo: productRepo,
+    businessId: DemoContext.businessId,
+    addToCart: (productId) => controller.addToCart(productId),
+  );
+  scannerService.start();
   unawaited(printingService.autoReconnectLast());
-  runApp(MyApp(controller: controller));
+  runApp(MyApp(controller: controller, scannerService: scannerService));
 }
 
 Future<void> _seedDemoData(AppDatabase db) async {
@@ -65,7 +72,11 @@ Future<void> _seedDemoData(AppDatabase db) async {
         priceMinor: 18000,
         serverVersion: const Value(1),
         lastSyncedAt: Value(now),
+        barcode: const Value('8991002123456'),
       ),
+      // Roti Bakar  → barcode: const Value('8991002123457')
+      // Air Mineral → barcode: const Value('8996001112223')
+      // Gorengan    → TANPA barcode (nullable proof)
       ProductsLocalCompanion.insert(
         id: 'b2222222-2222-2222-2222-222222222222',
         businessId: DemoContext.businessId,
@@ -99,20 +110,16 @@ Future<void> _seedDemoData(AppDatabase db) async {
 
 class MyApp extends StatelessWidget {
   final PosController controller;
-  const MyApp({super.key, required this.controller});
+  final ScannerService? scannerService;
+
+  const MyApp({super.key, required this.controller, this.scannerService});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'BizERP POS',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.blueGrey,
-          brightness: Brightness.light,
-        ),
-        useMaterial3: true,
-      ),
-      home: PosScreen(controller: controller),
+      theme: ThemeData(primarySwatch: Colors.blueGrey, useMaterial3: true),
+      home: PosScreen(controller: controller, scannerService: scannerService),
     );
   }
 }
