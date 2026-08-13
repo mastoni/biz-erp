@@ -8,6 +8,8 @@ class DemoContext {
   static const int taxRateBps = 1100; // 11% Tax
   static const String businessName = 'WARUNG DEMO BIZERP';
   static const String branchName = 'CABANG UTAMA';
+  static const String currencyCode = 'IDR';
+  static const int currencyMinorUnits = 0;
 
   /// Simple IDR formatter (no decimals, dot separator)
   static String formatIDR(int minor) {

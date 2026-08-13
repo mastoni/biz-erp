@@ -1,30 +1,30 @@
+import 'dart:async';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
-import 'tables/business_settings_local.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
+
 import 'tables/cart_items_local.dart';
-import 'tables/cart_local.dart';
-import 'tables/local_idempotency_keys.dart';
-import 'tables/payments_local.dart';
+import 'tables/carts_local.dart';
+import 'tables/idempotency_records_local.dart';
+import 'tables/products_categories_local.dart';
 import 'tables/products_local.dart';
-import 'tables/receipt_sequences_local.dart';
 import 'tables/sale_items_local.dart';
 import 'tables/sales_local.dart';
-import 'tables/sync_meta.dart';
 import 'tables/sync_outbox.dart';
+import 'tables/sync_meta.dart';
 
 part 'app_database.g.dart';
 
 @DriftDatabase(
   tables: [
     ProductsLocal,
-    BusinessSettingsLocal,
-    CartLocal,
+    ProductsCategoriesLocal,
+    CartsLocal,
     CartItemsLocal,
     SalesLocal,
     SaleItemsLocal,
-    PaymentsLocal,
-    ReceiptSequencesLocal,
-    LocalIdempotencyKeys,
+    IdempotencyRecordsLocal,
     SyncOutbox,
     SyncMeta,
   ],
@@ -98,34 +98,9 @@ class AppDatabase extends _$AppDatabase {
         );
       }
       if (from < 5) {
-        // Cek apakah tabel sync_outbox sudah ada
-        final tables = await customSelect(
-          "SELECT name FROM sqlite_master WHERE type='table' AND name='sync_outbox'",
-        ).get();
-        if (tables.isEmpty) {
-          await m.createTable(syncOutbox);
-        }
-
-        // Cek apakah tabel sync_meta sudah ada
-        final metaTables = await customSelect(
-          "SELECT name FROM sqlite_master WHERE type='table' AND name='sync_meta'",
-        ).get();
-        if (metaTables.isEmpty) {
-          await m.createTable(syncMeta);
-        }
-
-        // Cek apakah kolom local_status sudah ada di products_local
-        final columns = await customSelect(
-          "PRAGMA table_info(products_local)",
-        ).get();
-        final hasLocalStatus = columns.any(
-          (row) => row.read<String>('name') == 'local_status',
-        );
-        if (!hasLocalStatus) {
-          await customStatement(
-            "ALTER TABLE products_local ADD COLUMN local_status TEXT NOT NULL DEFAULT 'synced'",
-          );
-        }
+        await m.createTable(syncOutbox);
+        await m.createTable(syncMeta);
+        await m.addColumn(productsLocal, productsLocal.localStatus);
       }
     },
     beforeOpen: (details) async {

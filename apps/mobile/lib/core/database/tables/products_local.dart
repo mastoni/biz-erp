@@ -11,6 +11,8 @@ class ProductsLocal extends Table {
   TextColumn get name => text()();
   TextColumn get description => text().nullable()();
   TextColumn get barcode => text().nullable()();
+  TextColumn get localStatus =>
+      text().withDefault(const Constant('synced'))(); // synced|dirty|deleted
 
   /// Price in minor units (INTEGER, no floating point)
   IntColumn get priceMinor =>

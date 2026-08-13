@@ -121,9 +121,9 @@ void main() {
   });
 
   group('MIG-002: schemaVersion is correct', () {
-    test('schemaVersion is 4', () async {
+    test('schemaVersion is 5', () async {
       final db = AppDatabase.memory();
-      expect(db.schemaVersion, equals(4));
+      expect(db.schemaVersion, equals(5));
       await db.close();
     });
 
@@ -132,7 +132,7 @@ void main() {
       await db.customSelect('SELECT 1').get(); // Trigger creation
 
       final result = await db.customSelect('PRAGMA user_version').get();
-      expect(result.first.read<int>('user_version'), equals(4));
+      expect(result.first.read<int>('user_version'), equals(5));
 
       await db.close();
     });
@@ -238,6 +238,35 @@ void main() {
         tempDir.deleteSync(recursive: true);
       }
     });
+
+    test(
+      'MIG-V5: sync_outbox + sync_meta ada, localStatus default synced',
+      () async {
+        final db = AppDatabase(NativeDatabase.memory());
+        await db.customSelect('SELECT 1').get();
+
+        final tables = await db
+            .customSelect(
+              "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('sync_outbox','sync_meta')",
+            )
+            .get();
+        expect(tables.length, 2);
+
+        await db
+            .into(db.productsLocal)
+            .insert(
+              ProductsLocalCompanion.insert(
+                id: 'a1111111-1111-4111-a111-111111111111',
+                businessId: '11111111-1111-1111-1111-111111111111',
+                name: 'X',
+                priceMinor: 100,
+              ),
+            );
+        final row = await db.select(db.productsLocal).getSingle();
+        expect(row.localStatus, 'synced');
+        await db.close();
+      },
+    );
   });
 
   group('MIG-006: Payment records remain unchanged', () {
@@ -341,7 +370,7 @@ void main() {
         // Reopen and verify version unchanged
         final db2 = AppDatabase(NativeDatabase(dbFile));
         final result = await db2.customSelect('PRAGMA user_version').get();
-        expect(result.first.read<int>('user_version'), equals(4));
+        expect(result.first.read<int>('user_version'), equals(5));
 
         await db2.close();
       } finally {
@@ -390,7 +419,7 @@ void main() {
     // });
 
     test('MIG-010: Migration is idempotent', () async {
-      // Buat DB dengan schema V4
+      // Buat DB dengan schema V5
       final db = AppDatabase(NativeDatabase.memory());
       await db.customSelect('SELECT 1').get(); // trigger migration
       await db.close();
@@ -398,7 +427,7 @@ void main() {
       // Buka ulang - migration tidak harus dijalankan lagi
       final db2 = AppDatabase(NativeDatabase.memory());
       final version = await db2.customSelect('PRAGMA user_version').getSingle();
-      expect(version.read<int>('user_version'), 4);
+      expect(version.read<int>('user_version'), 5);
       await db2.close();
     });
   });

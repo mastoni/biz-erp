@@ -3,6 +3,7 @@ import 'package:biz_erp_mobile/core/database/app_database.dart';
 import 'package:biz_erp_mobile/products/domain/product.dart';
 import 'package:biz_erp_mobile/products/domain/product_exceptions.dart';
 import 'package:biz_erp_mobile/products/domain/barcode_lookup.dart';
+import 'package:biz_erp_mobile/core/sync/sync_models.dart';
 
 /// Repository for local product catalog cache.
 /// Enforces business isolation, UUID validation, and soft-delete policy.
@@ -143,5 +144,59 @@ class ProductRepository {
       return BarcodeLookup(BarcodeLookupStatus.inactive, product);
     }
     return BarcodeLookup(BarcodeLookupStatus.found, product);
+  }
+
+  Future<void> markDirty(String id) async {
+    await (_db.update(_db.productsLocal)..where((t) => t.id.equals(id))).write(
+      const ProductsLocalCompanion(localStatus: Value('dirty')),
+    );
+  }
+
+  Future<int> maxServerVersion(String businessId) async {
+    final row = await _db
+        .customSelect(
+          'SELECT COALESCE(MAX(server_version), 0) AS v FROM products_local WHERE business_id = ?',
+          variables: [Variable.withString(businessId)],
+        )
+        .getSingle();
+    return row.read<int>('v');
+  }
+
+  /// Apply hasil pull server. Skip jika local masih dirty (policy B).
+  Future<bool> applyServerSync(ProductDto dto, String businessId) async {
+    final existing = await (_db.select(
+      _db.productsLocal,
+    )..where((t) => t.id.equals(dto.id))).getSingleOrNull();
+    if (existing != null && existing.localStatus != 'synced') {
+      return false; // keep local dirty change
+    }
+    await _db
+        .into(_db.productsLocal)
+        .insertOnConflictUpdate(
+          ProductsLocalCompanion.insert(
+            id: dto.id,
+            businessId: businessId,
+            name: dto.name,
+            description: Value(dto.description),
+            barcode: Value(dto.barcode),
+            priceMinor: dto.priceMinor,
+            category: Value(dto.category),
+            isActive: Value(dto.isActive ? 1 : 0),
+            serverVersion: Value(dto.serverVersion),
+            lastSyncedAt: Value(DateTime.now().millisecondsSinceEpoch),
+            localStatus: const Value('synced'),
+          ),
+        );
+    return true;
+  }
+
+  /// Setelah push sukses: tandai synced + version server terbaru.
+  Future<void> markSyncedAfterPush(String id, int serverVersion) async {
+    await (_db.update(_db.productsLocal)..where((t) => t.id.equals(id))).write(
+      ProductsLocalCompanion(
+        localStatus: const Value('synced'),
+        serverVersion: Value(serverVersion),
+      ),
+    );
   }
 }
