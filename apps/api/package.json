@@ -5,6 +5,7 @@
   "description": "BizERP Sync API backend for Phase 3.0.2",
   "main": "dist/server.js",
   "scripts": {
+    "seed:e2e": "tsx scripts/seed-e2e.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "dev": "tsx watch src/server.ts",

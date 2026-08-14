@@ -1,4 +1,4 @@
-// apps/mobile/lib/core/sync/http_sync_api_client.dart
+﻿// apps/mobile/lib/core/sync/http_sync_api_client.dart
 
 import 'dart:convert';
 import 'package:http/http.dart' as http;
@@ -25,7 +25,7 @@ class HttpSyncApiClient implements SyncApiClient {
 
   Map<String, String> get _headers => {
     'Content-Type': 'application/json',
-    if (_businessId != null) 'X-Business-Id': _businessId!,
+    if (_businessId != null) 'X-Demo-Business-Id': _businessId!,
     if (_authToken != null) 'Authorization': 'Bearer $_authToken',
   };
 
@@ -48,7 +48,7 @@ class HttpSyncApiClient implements SyncApiClient {
     required int sinceVersion,
     int limit = 500,
   }) async {
-    final uri = Uri.parse('$baseUrl/api/products').replace(
+    final uri = Uri.parse('$baseUrl/v1/sync/products').replace(
       queryParameters: {
         'business_id': businessId,
         'after_version': sinceVersion.toString(),
@@ -92,7 +92,7 @@ class HttpSyncApiClient implements SyncApiClient {
     required int sinceMs,
     int limit = 100,
   }) async {
-    final uri = Uri.parse('$baseUrl/api/sales').replace(
+    final uri = Uri.parse('$baseUrl/v1/sync/sales').replace(
       queryParameters: {
         'business_id': businessId,
         'since': sinceMs.toString(),
@@ -132,7 +132,7 @@ class HttpSyncApiClient implements SyncApiClient {
     ProductDto product, {
     int? ifMatchVersion,
   }) async {
-    final uri = Uri.parse('$baseUrl/api/products');
+    final uri = Uri.parse('$baseUrl/v1/sync/products');
     final body = {
       'business_id': _businessId ?? '',
       'id': product.id,
@@ -206,7 +206,7 @@ class HttpSyncApiClient implements SyncApiClient {
   Future<List<SalePushResultItem>> pushSalesBatch(List<SaleDto> sales) async {
     if (sales.isEmpty) return [];
 
-    final uri = Uri.parse('$baseUrl/api/sales/batch');
+    final uri = Uri.parse('$baseUrl/v1/sync/sales/batch');
     final body = {
       'business_id': _businessId ?? '',
       'sales': sales.map((s) => s.toJson()).toList(),

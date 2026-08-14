@@ -1,6 +1,6 @@
-import { Pool } from 'pg'
+﻿import { Pool } from 'pg'
 import { SalesBatchRequest, validateSalesBatch } from '../dto/sale_dto'
-import { SalesBatchResponse, SaleSyncResult } from '../dto/sync_dto'
+import { SalesBatchResponse, SaleSyncResult, SaleSyncListResponse } from '../dto/sync_dto'
 import { ApiError } from '../errors/api_error'
 import { ConflictError } from '../errors/conflict_error'
 import { ValidationError } from '../errors/validation_error'
@@ -55,8 +55,6 @@ export function createSalesSyncService(pool: Pool) {
               if (!product) {
                 throw new ValidationError('Sale item references product outside this business', {
                   item_index: index,
-                  sale_item_index: itemIndex,
-                  product_id: saleItem.product_id
                 })
               }
             }
@@ -97,6 +95,12 @@ export function createSalesSyncService(pool: Pool) {
           created_count: createdCount,
           replayed_count: results.length - createdCount
         }
+      })
+    },
+
+    async pullSales(businessId: string, sinceMs: number, limit: number): Promise<SaleSyncListResponse> {
+      return withTransaction(pool, async (client) => {
+        return saleRepository.findSalesSince(client, businessId, sinceMs, limit)
       })
     }
   }
