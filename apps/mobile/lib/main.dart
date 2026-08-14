@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:drift/drift.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
@@ -87,6 +87,8 @@ Future<void> main() async {
     networkMonitor: networkMonitor,
     syncEngine: syncEngine,
     outbox: syncOutboxRepo,
+    productRepository: productRepo,
+    businessId: DemoContext.businessId,
   );
 
   runApp(MyApp(
@@ -110,9 +112,9 @@ Future<void> _seedDemoData(AppDatabase db) async {
         lastSyncedAt: Value(now),
         barcode: const Value('8991002123456'),
       ),
-      // Roti Bakar  â†’ barcode: const Value('8991002123457')
-      // Air Mineral â†’ barcode: const Value('8996001112223')
-      // Gorengan    â†’ TANPA barcode (nullable proof)
+      // Roti Bakar  Ã¢â€ â€™ barcode: const Value('8991002123457')
+      // Air Mineral Ã¢â€ â€™ barcode: const Value('8996001112223')
+      // Gorengan    Ã¢â€ â€™ TANPA barcode (nullable proof)
       ProductsLocalCompanion.insert(
         id: 'b2222222-2222-2222-2222-222222222222',
         businessId: DemoContext.businessId,

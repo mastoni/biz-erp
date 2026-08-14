@@ -3,7 +3,8 @@ import 'package:biz_erp_mobile/core/sync/sync_status_notifier.dart';
 
 class SyncStatusIndicator extends StatelessWidget {
   final SyncStatusNotifier notifier;
-  const SyncStatusIndicator({super.key, required this.notifier});
+  final VoidCallback? onTap;
+  const SyncStatusIndicator({super.key, required this.notifier, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -46,25 +47,31 @@ class SyncStatusIndicator extends StatelessWidget {
             break;
         }
 
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8.0),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, color: color, size: 20),
-              const SizedBox(width: 6),
-              Text(text, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500)),
-              if (showSyncButton && notifier.isOnline) ...[
-                const SizedBox(width: 4),
-                IconButton(
-                  icon: const Icon(Icons.sync, color: Colors.white, size: 20),
-                  tooltip: 'Sync Now',
-                  onPressed: notifier.syncNow,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                ),
+        final hasConflicts = notifier.conflicts.isNotEmpty;
+
+        return InkWell(
+          onTap: hasConflicts && onTap != null ? onTap : null,
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, color: color, size: 20),
+                const SizedBox(width: 6),
+                Text(text, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500)),
+                if (showSyncButton && notifier.isOnline) ...[
+                  const SizedBox(width: 4),
+                  IconButton(
+                    icon: const Icon(Icons.sync, color: Colors.white, size: 20),
+                    tooltip: 'Sync Now',
+                    onPressed: notifier.syncNow,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         );
       },

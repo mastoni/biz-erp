@@ -1,3 +1,5 @@
+﻿import 'sync_conflict_models.dart';
+import '../../products/data/product_repository.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'network_monitor.dart';
@@ -18,6 +20,8 @@ class SyncStatusNotifier extends ChangeNotifier {
     required this.networkMonitor,
     required this.syncEngine,
     required this.outbox,
+    required this.productRepository,
+    required this.businessId,
   }) {
     _init();
   }
@@ -25,12 +29,16 @@ class SyncStatusNotifier extends ChangeNotifier {
   final NetworkMonitor networkMonitor;
   final SyncEngine syncEngine;
   final SyncOutboxRepository outbox;
+  final ProductRepository productRepository;
+  final String businessId;
 
   StreamSubscription<bool>? _connectivitySub;
 
   bool _isOnline = false;
   bool _isSyncing = false;
   SyncCounts _counts = SyncCounts(0, 0, 0);
+  List<SyncConflictInfo> _conflicts = [];
+  List<SyncConflictInfo> get conflicts => _conflicts;
 
   void _init() {
     syncEngine.addListener(_onEngineChanged);
@@ -39,22 +47,50 @@ class SyncStatusNotifier extends ChangeNotifier {
       _evaluateState();
     });
 
-    networkMonitor.apiReachable().then((reachable) {
+    networkMonitor.apiReachable().then((reachable) async {
       _isOnline = reachable;
+      await _refreshConflicts();
       _evaluateState();
     });
-    outbox.counts().then((c) {
+    outbox.counts().then((c) async {
       _counts = c;
+      await _refreshConflicts();
       _evaluateState();
     });
   }
 
   void _onEngineChanged() {
-    outbox.counts().then((c) {
+    outbox.counts().then((c) async {
       _counts = c;
-      _isSyncing = false;
+      await _refreshConflicts();
       _evaluateState();
     });
+  }
+
+  Future<void> _refreshConflicts() async {
+    final conflictItems = await outbox.getConflicts();
+    final infos = <SyncConflictInfo>[];
+    for (final item in conflictItems) {
+      dynamic localProduct;
+      if (item.entityType == 'product' && item.idempotencyKey != null) {
+        try {
+          localProduct = await productRepository.getProductById(item.idempotencyKey!, businessId);
+        } catch (_) {}
+      }
+      infos.add(SyncConflictInfo.fromOutboxAndLocal(item, localProduct));
+    }
+    _conflicts = infos;
+  }
+
+  Future<void> discardConflict(String outboxId) async {
+    await outbox.discardConflict(outboxId);
+    await _refreshConflicts();
+    _counts = await outbox.counts();
+    _evaluateState();
+  }
+
+  void _evaluateState() {
+    notifyListeners();
   }
 
   SyncState get currentState {
@@ -79,12 +115,9 @@ class SyncStatusNotifier extends ChangeNotifier {
     } finally {
       _isSyncing = false;
       _counts = await outbox.counts();
+      await _refreshConflicts();
       _evaluateState();
     }
-  }
-
-  void _evaluateState() {
-    notifyListeners();
   }
 
   @override

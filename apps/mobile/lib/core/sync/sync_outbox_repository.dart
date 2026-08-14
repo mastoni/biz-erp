@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
@@ -21,6 +21,7 @@ class SyncOutboxRepository {
             entityType: 'product',
             operation: 'upsert',
             payloadJson: jsonEncode(product.toJson()),
+            idempotencyKey: Value(product.id), // <-- TAMBAHKAN BARIS INI
             nextAttemptAt: 0,
             createdAt: DateTime.now().millisecondsSinceEpoch,
           ),
@@ -129,5 +130,40 @@ class SyncOutboxRepository {
       rows.where((r) => r.status == 'conflict').length,
       rows.where((r) => r.status == 'failed').length,
     );
+  }
+
+  Future<List<SyncOutboxItem>> getConflicts() async {
+    final rows =
+        await (_db.select(_db.syncOutbox)
+              ..where((t) => t.status.equals('conflict'))
+              ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]))
+            .get();
+    return rows
+        .map(
+          (r) => SyncOutboxItem(
+            id: r.id,
+            entityType: r.entityType,
+            operation: r.operation,
+            payloadJson: r.payloadJson,
+            idempotencyKey: r.idempotencyKey,
+            attemptCount: r.attemptCount,
+            nextAttemptAt: r.nextAttemptAt,
+            lastError: r.lastError,
+            status: r.status,
+            createdAt: r.createdAt,
+          ),
+        )
+        .toList();
+  }
+
+  Future<void> discardConflict(String outboxId) async {
+    final row = await (_db.select(
+      _db.syncOutbox,
+    )..where((t) => t.id.equals(outboxId))).getSingleOrNull();
+    if (row != null && row.status == 'conflict') {
+      await (_db.delete(
+        _db.syncOutbox,
+      )..where((t) => t.id.equals(outboxId))).go();
+    }
   }
 }

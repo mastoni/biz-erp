@@ -6,6 +6,8 @@ import 'package:biz_erp_mobile/core/sync/network_monitor.dart';
 import 'package:biz_erp_mobile/core/sync/sync_engine.dart';
 import 'package:biz_erp_mobile/core/sync/sync_outbox_repository.dart';
 import 'package:biz_erp_mobile/core/sync/sync_models.dart';
+import 'package:biz_erp_mobile/products/data/product_repository.dart';
+import 'package:biz_erp_mobile/products/domain/product.dart';
 
 class FakeNetworkMonitor implements NetworkMonitor {
   final StreamController<bool> controller = StreamController<bool>.broadcast();
@@ -18,8 +20,23 @@ class FakeNetworkMonitor implements NetworkMonitor {
 
 class FakeSyncOutboxRepository implements SyncOutboxRepository {
   SyncCounts currentCounts = SyncCounts(0, 0, 0);
+  List<SyncOutboxItem> conflicts = [];
+
   @override
   Future<SyncCounts> counts() async => currentCounts;
+
+  @override
+  Future<List<SyncOutboxItem>> getConflicts() async => conflicts;
+
+  @override
+  Future<void> discardConflict(String outboxId) async {
+    final before = conflicts.length;
+    conflicts.removeWhere((c) => c.id == outboxId);
+    final after = conflicts.length;
+    if (before != after) {
+      currentCounts = SyncCounts(currentCounts.pending, currentCounts.conflict - 1, currentCounts.failed);
+    }
+  }
 
   @override
   Future<String> enqueueProductUpsert(ProductDto product) async => 'id';
@@ -33,6 +50,14 @@ class FakeSyncOutboxRepository implements SyncOutboxRepository {
   Future<void> markRetry(String id, int now, String error) async {}
   @override
   Future<void> markSynced(String id) async {}
+}
+
+class FakeProductRepository implements ProductRepository {
+  @override
+  Future<Product?> getProductById(String id, String businessId) async => null;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class FakeSyncEngine extends ChangeNotifier implements SyncEngine {
@@ -51,19 +76,24 @@ void main() {
   late FakeNetworkMonitor fakeNetwork;
   late FakeSyncEngine fakeEngine;
   late FakeSyncOutboxRepository fakeOutbox;
+  late FakeProductRepository fakeProductRepo;
 
   setUp(() {
     fakeNetwork = FakeNetworkMonitor();
     fakeEngine = FakeSyncEngine();
     fakeOutbox = FakeSyncOutboxRepository();
+    fakeProductRepo = FakeProductRepository();
 
     fakeNetwork.reachable = true;
     fakeOutbox.currentCounts = SyncCounts(0, 0, 0);
+    fakeOutbox.conflicts = [];
 
     notifier = SyncStatusNotifier(
       networkMonitor: fakeNetwork,
       syncEngine: fakeEngine,
       outbox: fakeOutbox,
+      productRepository: fakeProductRepo,
+      businessId: 'test-biz',
     );
   });
 
@@ -76,26 +106,24 @@ void main() {
     await Future.delayed(const Duration(milliseconds: 50));
     expect(notifier.currentState, SyncState.synced);
     expect(notifier.isOnline, isTrue);
+    expect(notifier.conflicts, isEmpty);
   });
 
   test('Priority: OFFLINE > SYNCING > FAILED > PENDING > SYNCED', () async {
     await Future.delayed(const Duration(milliseconds: 50));
 
-    // 1. PENDING
     fakeOutbox.currentCounts = SyncCounts(5, 0, 0);
     fakeEngine.notifyListeners();
     await Future.delayed(const Duration(milliseconds: 50));
     expect(notifier.currentState, SyncState.pending);
     expect(notifier.pendingCount, 5);
 
-    // 2. FAILED overrides PENDING
     fakeOutbox.currentCounts = SyncCounts(5, 1, 2);
     fakeEngine.notifyListeners();
     await Future.delayed(const Duration(milliseconds: 50));
     expect(notifier.currentState, SyncState.failed);
     expect(notifier.failedCount, 3);
 
-    // 3. OFFLINE overrides FAILED
     fakeNetwork.controller.add(false);
     await Future.delayed(const Duration(milliseconds: 50));
     expect(notifier.currentState, SyncState.offline);
@@ -112,6 +140,38 @@ void main() {
 
     await syncFuture;
     expect(fakeEngine.syncNowCallCount, 1);
+    expect(notifier.currentState, SyncState.synced);
+  });
+
+  test('Conflicts are exposed and refresh after dismiss', () async {
+    await Future.delayed(const Duration(milliseconds: 50));
+    expect(notifier.conflicts, isEmpty);
+
+    fakeOutbox.conflicts = [
+      SyncOutboxItem(
+        id: 'outbox-1',
+        entityType: 'product',
+        operation: 'upsert',
+        payloadJson: '{}',
+        idempotencyKey: 'prod-1',
+        attemptCount: 1,
+        nextAttemptAt: 0,
+        lastError: 'VERSION_CONFLICT',
+        status: 'conflict',
+        createdAt: DateTime.now().millisecondsSinceEpoch,
+      )
+    ];
+    fakeOutbox.currentCounts = SyncCounts(0, 1, 0);
+    fakeEngine.notifyListeners();
+    await Future.delayed(const Duration(milliseconds: 50));
+
+    expect(notifier.conflicts.length, 1);
+    expect(notifier.conflicts.first.outboxId, 'outbox-1');
+    expect(notifier.currentState, SyncState.failed);
+
+    await notifier.discardConflict('outbox-1');
+    await Future.delayed(const Duration(milliseconds: 50));
+    expect(notifier.conflicts, isEmpty);
     expect(notifier.currentState, SyncState.synced);
   });
 }
