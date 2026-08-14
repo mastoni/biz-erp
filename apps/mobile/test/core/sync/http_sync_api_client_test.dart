@@ -451,5 +451,78 @@ void main() {
         throwsA(isA<MalformedResponseException>()),
       );
     });
+
+    test('HTTP-017: push product uses correct URL with ID', () async {
+      final mockClient = MockClient((request) async {
+        expect(request.url.path, '/v1/sync/products/prod-1');
+        expect(request.method, 'PUT');
+        return http.Response(jsonEncode({'server_version': 6}), 200);
+      });
+
+      final client = HttpSyncApiClient(
+        baseUrl: baseUrl,
+        client: mockClient,
+        businessId: businessId,
+      );
+
+      final product = ProductDto(
+        id: 'prod-1',
+        name: 'Product 1',
+        priceMinor: 1000,
+        isActive: true,
+        serverVersion: 5,
+      );
+
+      await client.pushProduct(product);
+    });
+
+    test('HTTP-018: push product handles 404 Not Found', () async {
+      final mockClient = MockClient((request) async {
+        return http.Response('Not Found', 404);
+      });
+
+      final client = HttpSyncApiClient(
+        baseUrl: baseUrl,
+        client: mockClient,
+        businessId: businessId,
+      );
+
+      final product = ProductDto(
+        id: 'prod-unknown',
+        name: 'Unknown',
+        priceMinor: 1000,
+        isActive: true,
+        serverVersion: 1,
+      );
+
+      final result = await client.pushProduct(product);
+      expect(result.ok, isFalse);
+      expect(result.conflict, isFalse);
+      expect(result.error, contains('404'));
+    });
+
+    test('HTTP-019: push product handles 401/403 Tenant Mismatch', () async {
+      final mockClient = MockClient((request) async {
+        return http.Response('Unauthorized', 401);
+      });
+
+      final client = HttpSyncApiClient(
+        baseUrl: baseUrl,
+        client: mockClient,
+        businessId: businessId,
+      );
+
+      final product = ProductDto(
+        id: 'prod-1',
+        name: 'Product 1',
+        priceMinor: 1000,
+        isActive: true,
+        serverVersion: 1,
+      );
+
+      final result = await client.pushProduct(product);
+      expect(result.ok, isFalse);
+      expect(result.error, contains('401'));
+    });
   });
 }

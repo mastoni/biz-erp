@@ -3,12 +3,15 @@ import 'package:biz_erp_mobile/core/hardware/scanning/scanner_service.dart';
 import 'pos_controller.dart';
 import 'widgets/product_grid.dart';
 import 'widgets/cart_panel.dart';
+import 'package:biz_erp_mobile/core/sync/sync_status_notifier.dart';
+import 'widgets/sync_status_indicator.dart';
 
 class PosScreen extends StatefulWidget {
   final PosController controller;
   final ScannerService? scannerService; // optional agar test lama tetap jalan
+  final SyncStatusNotifier? syncStatusNotifier;
 
-  const PosScreen({super.key, required this.controller, this.scannerService});
+  const PosScreen({super.key, required this.controller, this.scannerService, this.syncStatusNotifier});
 
   @override
   State<PosScreen> createState() => _PosScreenState();
@@ -71,7 +74,10 @@ class _PosScreenState extends State<PosScreen> {
         title: const Text('BizERP POS'),
         backgroundColor: Colors.blueGrey[800],
         foregroundColor: Colors.white,
-      ),
+      actions: [
+          if (widget.syncStatusNotifier != null) SyncStatusIndicator(notifier: widget.syncStatusNotifier!),
+        ],
+        ),
       body: LayoutBuilder(
         builder: (context, constraints) {
           if (constraints.maxWidth > 600) {

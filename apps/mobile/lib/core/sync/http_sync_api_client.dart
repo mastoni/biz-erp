@@ -1,4 +1,4 @@
-﻿// apps/mobile/lib/core/sync/http_sync_api_client.dart
+// apps/mobile/lib/core/sync/http_sync_api_client.dart
 
 import 'dart:convert';
 import 'package:http/http.dart' as http;
@@ -132,7 +132,7 @@ class HttpSyncApiClient implements SyncApiClient {
     ProductDto product, {
     int? ifMatchVersion,
   }) async {
-    final uri = Uri.parse('$baseUrl/v1/sync/products');
+    final uri = Uri.parse('$baseUrl/v1/sync/products/${product.id}');
     final body = {
       'business_id': _businessId ?? '',
       'id': product.id,
@@ -184,10 +184,15 @@ class HttpSyncApiClient implements SyncApiClient {
           error: json['error'] as String? ?? 'Validation error',
         );
       } else if (response.statusCode >= 500) {
-        throw HttpException(
+        if (response.statusCode == 404 || response.statusCode == 401 || response.statusCode == 403) {
+        return ProductPushResult(ok: false, error: 'HTTP ${response.statusCode}');
+      }
+      throw HttpException(
           'Server error: HTTP ${response.statusCode}',
           statusCode: response.statusCode,
         );
+      } else if (response.statusCode == 404 || response.statusCode == 401 || response.statusCode == 403) {
+        return ProductPushResult(ok: false, error: 'HTTP ${response.statusCode}');
       } else {
         throw HttpException(
           'Unexpected error: HTTP ${response.statusCode}',

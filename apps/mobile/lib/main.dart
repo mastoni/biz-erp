@@ -14,6 +14,14 @@ import 'package:biz_erp_mobile/pos/presentation/pos_controller.dart';
 import 'package:biz_erp_mobile/pos/presentation/pos_screen.dart';
 import 'package:biz_erp_mobile/core/hardware/printing/bluetooth_printer_adapter.dart';
 import 'package:biz_erp_mobile/core/hardware/printing/printer_preferences.dart';
+import 'package:biz_erp_mobile/core/sync/sync_config.dart';
+import 'package:biz_erp_mobile/core/sync/http_sync_api_client.dart';
+import 'package:biz_erp_mobile/core/sync/network_monitor.dart';
+import 'package:biz_erp_mobile/core/sync/sync_engine.dart';
+import 'package:biz_erp_mobile/core/sync/sync_meta_repository.dart';
+import 'package:biz_erp_mobile/core/sync/sync_outbox_repository.dart';
+import 'package:biz_erp_mobile/core/sync/sync_status_notifier.dart';
+import 'package:biz_erp_mobile/sales/data/sales_sync_repository.dart';
 import 'package:biz_erp_mobile/core/hardware/printing/printing_service.dart';
 import 'package:biz_erp_mobile/core/hardware/scanning/scanner_service.dart';
 
@@ -57,7 +65,35 @@ Future<void> main() async {
   );
   scannerService.start();
   unawaited(printingService.autoReconnectLast());
-  runApp(MyApp(controller: controller, scannerService: scannerService));
+
+  // Phase 3.1: Sync Services
+  final syncMetaRepo = SyncMetaRepository(db);
+  final syncOutboxRepo = SyncOutboxRepository(db);
+  final salesSyncRepo = SalesSyncRepository(db);
+  final apiClient = HttpSyncApiClient(
+    baseUrl: SyncConfig.baseUrl,
+    businessId: DemoContext.businessId,
+  );
+  final networkMonitor = NetworkMonitor(api: apiClient);
+  final syncEngine = SyncEngine(
+    outbox: syncOutboxRepo,
+    meta: syncMetaRepo,
+    api: apiClient,
+    products: productRepo,
+    salesSync: salesSyncRepo,
+    businessId: DemoContext.businessId,
+  );
+  final syncStatusNotifier = SyncStatusNotifier(
+    networkMonitor: networkMonitor,
+    syncEngine: syncEngine,
+    outbox: syncOutboxRepo,
+  );
+
+  runApp(MyApp(
+    controller: controller,
+    scannerService: scannerService,
+    syncStatusNotifier: syncStatusNotifier,
+  ));
 }
 
 Future<void> _seedDemoData(AppDatabase db) async {
@@ -74,9 +110,9 @@ Future<void> _seedDemoData(AppDatabase db) async {
         lastSyncedAt: Value(now),
         barcode: const Value('8991002123456'),
       ),
-      // Roti Bakar  → barcode: const Value('8991002123457')
-      // Air Mineral → barcode: const Value('8996001112223')
-      // Gorengan    → TANPA barcode (nullable proof)
+      // Roti Bakar  â†’ barcode: const Value('8991002123457')
+      // Air Mineral â†’ barcode: const Value('8996001112223')
+      // Gorengan    â†’ TANPA barcode (nullable proof)
       ProductsLocalCompanion.insert(
         id: 'b2222222-2222-2222-2222-222222222222',
         businessId: DemoContext.businessId,
@@ -111,15 +147,16 @@ Future<void> _seedDemoData(AppDatabase db) async {
 class MyApp extends StatelessWidget {
   final PosController controller;
   final ScannerService? scannerService;
+  final SyncStatusNotifier syncStatusNotifier;
 
-  const MyApp({super.key, required this.controller, this.scannerService});
+  const MyApp({super.key, required this.controller, this.scannerService, required this.syncStatusNotifier});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'BizERP POS',
       theme: ThemeData(primarySwatch: Colors.blueGrey, useMaterial3: true),
-      home: PosScreen(controller: controller, scannerService: scannerService),
+      home: PosScreen(controller: controller, scannerService: scannerService, syncStatusNotifier: syncStatusNotifier),
     );
   }
 }
