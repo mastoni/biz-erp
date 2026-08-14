@@ -1,4 +1,4 @@
-import 'package:drift/drift.dart';
+﻿import 'package:drift/drift.dart';
 import 'package:biz_erp_mobile/core/database/app_database.dart';
 import 'package:biz_erp_mobile/products/domain/product.dart';
 import 'package:biz_erp_mobile/products/domain/product_exceptions.dart';
@@ -38,7 +38,7 @@ class ProductRepository {
       isActive: row.isActive == 1,
       serverVersion: row.serverVersion,
       lastSyncedAt: row.lastSyncedAt,
-      barcode: row.barcode, // ← PASTIKAN BARIS INI ADA
+      barcode: row.barcode, // â† PASTIKAN BARIS INI ADA
     );
   }
 
@@ -196,6 +196,30 @@ class ProductRepository {
       ProductsLocalCompanion(
         localStatus: const Value('synced'),
         serverVersion: Value(serverVersion),
+      ),
+    );
+  }
+
+  /// EXPLICIT user action: overwrite local product with server version.
+  /// Policy B remains intact globally; this is user-initiated bypass.
+  Future<void> forceAcceptServerProduct(ProductDto dto, String businessId) async {
+    final existing = await getProductById(dto.id, businessId);
+    if (existing == null) {
+      throw ProductNotFoundException(dto.id, businessId);
+    }
+    await _db.into(_db.productsLocal).insertOnConflictUpdate(
+      ProductsLocalCompanion.insert(
+        id: dto.id,
+        businessId: businessId,
+        name: dto.name,
+        description: Value(dto.description),
+        barcode: Value(dto.barcode),
+        priceMinor: dto.priceMinor,
+        category: Value(dto.category),
+        isActive: Value(dto.isActive ? 1 : 0),
+        serverVersion: Value(dto.serverVersion),
+        lastSyncedAt: Value(DateTime.now().millisecondsSinceEpoch),
+        localStatus: const Value('synced'),
       ),
     );
   }

@@ -126,4 +126,17 @@ class SyncStatusNotifier extends ChangeNotifier {
     _connectivitySub?.cancel();
     super.dispose();
   }
+
+  Future<void> acceptServerConflict(String outboxId, ProductDto serverProduct) async {
+    // Step 1: Overwrite local product (atomic-ish: if this fails, outbox remains)
+    await productRepository.forceAcceptServerProduct(serverProduct, businessId);
+    
+    // Step 2: Remove conflict from outbox
+    await outbox.discardConflict(outboxId);
+    
+    // Step 3: Refresh state
+    await _refreshConflicts();
+    _counts = await outbox.counts();
+    _evaluateState();
+  }
 }

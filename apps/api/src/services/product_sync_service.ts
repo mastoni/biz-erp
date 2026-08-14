@@ -1,4 +1,4 @@
-import { Pool } from 'pg'
+﻿import { Pool } from 'pg'
 import { ProductDto, validateProductUpdate } from '../dto/product_dto'
 import { ProductSyncListResponse } from '../dto/sync_dto'
 import { ApiError } from '../errors/api_error'

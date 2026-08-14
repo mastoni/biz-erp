@@ -1,4 +1,4 @@
-// apps/mobile/lib/core/sync/http_sync_api_client.dart
+﻿// apps/mobile/lib/core/sync/http_sync_api_client.dart
 
 import 'dart:convert';
 import 'package:http/http.dart' as http;

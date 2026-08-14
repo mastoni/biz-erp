@@ -11,6 +11,7 @@ class SyncConflictInfo {
   final int? currentServerVersion;
   final String? lastError;
   final int createdAt;
+  final ProductDto? serverProduct;
 
   const SyncConflictInfo({
     required this.outboxId,
@@ -22,6 +23,7 @@ class SyncConflictInfo {
     this.currentServerVersion,
     this.lastError,
     required this.createdAt,
+    this.serverProduct,
   });
 
   static SyncConflictInfo fromOutboxAndLocal(
@@ -29,11 +31,15 @@ class SyncConflictInfo {
     dynamic localProduct,
   ) {
     int? currentServerVersion;
+    ProductDto? serverProduct;
     try {
       if (outbox.payloadJson.isNotEmpty && outbox.payloadJson != '{}') {
         final payload = jsonDecode(outbox.payloadJson) as Map<String, dynamic>;
         if (payload.containsKey('server_version')) {
           currentServerVersion = payload['server_version'] as int?;
+        }
+        if (payload.containsKey('id') && payload.containsKey('name')) {
+           serverProduct = ProductDto.fromJson(payload);
         }
       }
     } catch (_) {}
@@ -57,6 +63,7 @@ class SyncConflictInfo {
       currentServerVersion: currentServerVersion,
       lastError: outbox.lastError,
       createdAt: outbox.createdAt,
+      serverProduct: serverProduct,
     );
   }
 }
