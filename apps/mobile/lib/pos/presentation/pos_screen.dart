@@ -5,14 +5,19 @@ import 'widgets/product_grid.dart';
 import 'widgets/cart_panel.dart';
 import 'package:biz_erp_mobile/core/sync/sync_status_notifier.dart';
 import 'widgets/sync_status_indicator.dart';
+import 'package:biz_erp_mobile/products/data/product_repository.dart';
+import 'package:biz_erp_mobile/core/sync/sync_outbox_repository.dart';
+import 'package:biz_erp_mobile/products/presentation/product_list_screen.dart';
 import 'widgets/conflict_list_sheet.dart';
 
 class PosScreen extends StatefulWidget {
   final PosController controller;
   final ScannerService? scannerService; // optional agar test lama tetap jalan
   final SyncStatusNotifier? syncStatusNotifier;
+  final ProductRepository? productRepo;
+  final SyncOutboxRepository? outboxRepo;
 
-  const PosScreen({super.key, required this.controller, this.scannerService, this.syncStatusNotifier});
+  const PosScreen({super.key, required this.controller, this.scannerService, this.syncStatusNotifier, this.productRepo, this.outboxRepo});
 
   @override
   State<PosScreen> createState() => _PosScreenState();
@@ -71,6 +76,7 @@ class _PosScreenState extends State<PosScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      drawer: _buildDrawer(),
       appBar: AppBar(
         title: const Text('BizERP POS'),
         backgroundColor: Colors.blueGrey[800],
@@ -116,6 +122,52 @@ class _PosScreenState extends State<PosScreen> {
             ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildDrawer() {
+    return Drawer(
+      child: ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          DrawerHeader(
+            decoration: BoxDecoration(color: Colors.blueGrey[800]),
+            child: const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Text('BizERP POS', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                SizedBox(height: 4),
+                Text('Menu', style: TextStyle(color: Colors.white70, fontSize: 14)),
+              ],
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.inventory_2),
+            title: const Text('Daftar Produk'),
+            subtitle: const Text('Kelola produk & harga'),
+            onTap: () {
+              Navigator.pop(context);
+              if (widget.productRepo == null || widget.outboxRepo == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Manajemen produk belum diaktifkan')),
+                );
+                return;
+              }
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ProductListScreen(
+                    productRepo: widget.productRepo!,
+                    outboxRepo: widget.outboxRepo!,
+                    syncStatusNotifier: widget.syncStatusNotifier!,
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
       ),
     );
   }

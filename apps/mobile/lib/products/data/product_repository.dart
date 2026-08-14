@@ -4,6 +4,7 @@ import 'package:biz_erp_mobile/products/domain/product.dart';
 import 'package:biz_erp_mobile/products/domain/product_exceptions.dart';
 import 'package:biz_erp_mobile/products/domain/barcode_lookup.dart';
 import 'package:biz_erp_mobile/core/sync/sync_models.dart';
+import 'package:biz_erp_mobile/core/sync/sync_outbox_repository.dart';
 
 /// Repository for local product catalog cache.
 /// Enforces business isolation, UUID validation, and soft-delete policy.
@@ -12,7 +13,6 @@ class ProductRepository {
 
   ProductRepository(this._db);
 
-  // Drift singularizes the table name 'ProductsLocal' to 'ProductLocal'
   Product _mapToDomain(ProductsLocalData data) {
     return Product(
       id: data.id,
@@ -24,6 +24,8 @@ class ProductRepository {
       isActive: data.isActive == 1,
       serverVersion: data.serverVersion,
       lastSyncedAt: data.lastSyncedAt,
+      barcode: data.barcode,
+      localStatus: data.localStatus,
     );
   }
 
@@ -38,7 +40,8 @@ class ProductRepository {
       isActive: row.isActive == 1,
       serverVersion: row.serverVersion,
       lastSyncedAt: row.lastSyncedAt,
-      barcode: row.barcode, // â† PASTIKAN BARIS INI ADA
+      barcode: row.barcode,
+      localStatus: row.localStatus,
     );
   }
 
@@ -68,6 +71,75 @@ class ProductRepository {
         );
   }
 
+  /// UI-level update for existing products.
+  /// Sets localStatus = 'dirty' and enqueues to sync_outbox.
+  /// Atomic-ish: DB update first, then enqueue. If enqueue fails,
+  /// product remains dirty and error is surfaced to caller.
+  Future<void> updateProduct(
+    Product updated,
+    SyncOutboxRepository outbox,
+  ) async {
+    // 1. Validation (defensive, aligned with backend)
+    if (updated.name.trim().isEmpty) {
+      throw ArgumentError('Nama produk wajib diisi');
+    }
+    if (updated.name.length > 100) {
+      throw ArgumentError('Nama produk maksimal 100 karakter');
+    }
+    if (updated.priceMinor < 0) {
+      throw ArgumentError('Harga harus >= 0');
+    }
+
+    // 2. Verify exists & tenant isolation
+    final existing = await getProductById(updated.id, updated.businessId);
+    if (existing == null) {
+      throw ProductNotFoundException(updated.id, updated.businessId);
+    }
+
+    // 3. Duplicate barcode check (per business)
+    if (updated.barcode != null && updated.barcode!.trim().isNotEmpty) {
+      final lookup = await findByBarcode(updated.businessId, updated.barcode!.trim());
+      if (lookup.status == BarcodeLookupStatus.duplicate) {
+        throw ArgumentError('Barcode sudah digunakan produk lain');
+      }
+      if (lookup.status == BarcodeLookupStatus.found &&
+          lookup.product!.id != updated.id) {
+        throw ArgumentError('Barcode sudah digunakan produk lain');
+      }
+    }
+
+    // 4. Update local DB FIRST (preserves dirty state even if enqueue fails)
+    await _db.into(_db.productsLocal).insertOnConflictUpdate(
+      ProductsLocalCompanion(
+        id: Value(updated.id),
+        businessId: Value(updated.businessId),
+        name: Value(updated.name),
+        description: Value(updated.description),
+        priceMinor: Value(updated.priceMinor),
+        category: Value(updated.category),
+        isActive: Value(updated.isActive ? 1 : 0),
+        // PRESERVE existing serverVersion — only SyncEngine bumps it on push success
+        serverVersion: Value(existing.serverVersion),
+        lastSyncedAt: Value(existing.lastSyncedAt),
+        barcode: Value(updated.barcode?.trim().isEmpty == true ? null : updated.barcode?.trim()),
+        localStatus: const Value('dirty'),
+      ),
+    );
+
+    // 5. THEN enqueue to outbox. If this throws, product stays dirty (safe).
+    final dto = ProductDto(
+      id: updated.id,
+      name: updated.name,
+      description: updated.description,
+      barcode: updated.barcode?.trim().isEmpty == true ? null : updated.barcode?.trim(),
+      priceMinor: updated.priceMinor,
+      category: updated.category,
+      isActive: updated.isActive,
+      serverVersion: existing.serverVersion,
+    );
+    await outbox.enqueueProductUpsert(dto);
+  }
+
   /// Gets a product by ID, strictly scoped to business_id.
   Future<Product?> getProductById(String id, String businessId) async {
     final query = _db.select(_db.productsLocal)
@@ -83,7 +155,6 @@ class ProductRepository {
       ..where((t) => t.businessId.equals(businessId) & t.isActive.equals(1));
 
     final results = await query.get();
-    // Explicit lambda ensures type inference returns List<Product>
     return results.map((e) => _mapToDomain(e)).toList();
   }
 
@@ -97,10 +168,7 @@ class ProductRepository {
   }
 
   /// Soft-deletes a product (sets is_active = 0).
-  /// Physical DELETE is NOT allowed per Architecture Lock.
   Future<void> softDeleteProduct(String id, String businessId) async {
-    // _validateId(id);
-
     final existing = await getProductById(id, businessId);
     if (existing == null) {
       throw ProductNotFoundException(id, businessId);
@@ -113,8 +181,6 @@ class ProductRepository {
 
   /// Restores a soft-deleted product (sets is_active = 1).
   Future<void> restoreProduct(String id, String businessId) async {
-    // _validateId(id);
-
     final existing = await getProductById(id, businessId);
     if (existing == null) {
       throw ProductNotFoundException(id, businessId);
@@ -168,7 +234,7 @@ class ProductRepository {
       _db.productsLocal,
     )..where((t) => t.id.equals(dto.id))).getSingleOrNull();
     if (existing != null && existing.localStatus != 'synced') {
-      return false; // keep local dirty change
+      return false;
     }
     await _db
         .into(_db.productsLocal)

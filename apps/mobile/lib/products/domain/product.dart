@@ -1,4 +1,4 @@
-/// Domain representation of a Product.
+﻿/// Domain representation of a Product.
 /// Mirrors products_local but uses domain types (e.g., bool for isActive).
 class Product {
   final String id;
@@ -11,6 +11,9 @@ class Product {
   final int serverVersion;
   final int? lastSyncedAt;
   final String? barcode;
+  /// Sync status: 'synced' | 'dirty' | 'deleted'
+  /// Matches products_local.localStatus string values.
+  final String localStatus;
 
   const Product({
     required this.id,
@@ -23,5 +26,9 @@ class Product {
     required this.serverVersion,
     this.lastSyncedAt,
     this.barcode,
+    this.localStatus = 'synced',
   });
+
+  /// Convenience: is this product waiting to be pushed?
+  bool get isDirty => localStatus == 'dirty';
 }

@@ -150,8 +150,10 @@ class MyApp extends StatelessWidget {
   final PosController controller;
   final ScannerService? scannerService;
   final SyncStatusNotifier syncStatusNotifier;
+  final ProductRepository? productRepo;
+  final SyncOutboxRepository? outboxRepo;
 
-  const MyApp({super.key, required this.controller, this.scannerService, required this.syncStatusNotifier});
+  const MyApp({super.key, required this.controller, this.scannerService, required this.syncStatusNotifier, this.productRepo, this.outboxRepo});
 
   @override
   Widget build(BuildContext context) {
