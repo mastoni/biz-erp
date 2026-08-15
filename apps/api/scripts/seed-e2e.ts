@@ -1,4 +1,4 @@
-import 'dotenv/config'
+﻿import 'dotenv/config'
 import { Pool } from 'pg'
 
 async function main() {
@@ -19,7 +19,7 @@ async function main() {
 
   const pool = new Pool({ connectionString: databaseUrl })
 
-  const BUSINESS_ID = '11111111-1111-4111-8111-111111111111'
+  const BUSINESS_ID = '11111111-1111-1111-1111-111111111111'
   const PRODUCT_ID = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee'
   const PRODUCT_NAME = 'E2E Deterministic Product'
   const PRICE_MINOR = 10000
