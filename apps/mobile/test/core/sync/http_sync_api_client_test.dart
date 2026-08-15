@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -202,14 +202,18 @@ void main() {
       final mockClient = MockClient((request) async {
         return http.Response(
           jsonEncode({
-            'error': 'VERSION_CONFLICT',
-            'current': {
-              'id': 'prod-1',
-              'name': 'Product 1 Updated',
-              'price_minor': 1500,
-              'is_active': true,
-              'server_version': 6,
-            },
+            'error': {
+              'code': 'VERSION_CONFLICT',
+              'details': {
+                'current_product': {
+                  'id': 'prod-1',
+                  'name': 'Product 1 Updated',
+                  'price_minor': 1500,
+                  'is_active': true,
+                  'server_version': 6,
+                }
+              }
+            }
           }),
           409,
         );

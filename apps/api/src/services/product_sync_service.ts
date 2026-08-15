@@ -1,4 +1,4 @@
-﻿import { Pool } from 'pg'
+import { Pool } from 'pg'
 import { ProductDto, validateProductUpdate, validateProductCreate } from '../dto/product_dto'
 import { ProductSyncListResponse } from '../dto/sync_dto'
 import { ApiError } from '../errors/api_error'
@@ -96,7 +96,8 @@ export function createProductSyncService(pool: Pool) {
         if (Number(existing.server_version) !== request.expected_server_version) {
           throw new ConflictError('VERSION_CONFLICT', 'Product was modified by another device', {
             expected_server_version: request.expected_server_version,
-            current_server_version: existing.server_version
+            current_server_version: existing.server_version,
+            current_product: existing
           })
         }
 
@@ -112,7 +113,12 @@ export function createProductSyncService(pool: Pool) {
         const updated = await productRepository.update(client, request.business_id, productId, request.expected_server_version, patch)
 
         if (!updated) {
-          throw new ConflictError('VERSION_CONFLICT', 'Product was modified by another device')
+          const latest = await productRepository.findById(client, request.business_id, productId)
+          throw new ConflictError('VERSION_CONFLICT', 'Product was modified by another device', {
+            expected_server_version: request.expected_server_version,
+            current_server_version: latest?.server_version,
+            current_product: latest
+          })
         }
 
         return updated

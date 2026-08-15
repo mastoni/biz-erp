@@ -1,4 +1,4 @@
-﻿import path from 'path'
+import path from 'path'
 import { randomUUID } from 'crypto'
 import type { Express } from 'express'
 import { Pool } from 'pg'
@@ -222,6 +222,10 @@ describe('Phase 3.0.2 API', () => {
 
     expect(res.body.error.code).toBe('VERSION_CONFLICT')
     expect(res.body.error.message).toBe('Product was modified by another device')
+    expect(res.body.error.details.expected_server_version).toBe(999)
+    expect(res.body.error.details.current_server_version).toBe(1)
+    expect(res.body.error.details.current_product).toBeDefined()
+    expect(res.body.error.details.current_product.id).toBe(productId)
   })
 
   it('API-008 product update increments server_version', async () => {

@@ -160,14 +160,20 @@ class HttpSyncApiClient implements SyncApiClient {
         // VERSION_CONFLICT
         try {
           final json = jsonDecode(response.body) as Map<String, dynamic>;
-          final serverState = json['current'] != null
-              ? _parseProductDto(json['current'] as Map<String, dynamic>)
+          final errorObj = json['error'] as Map<String, dynamic>?;
+          final code = errorObj?['code'] as String? ?? 'VERSION_CONFLICT';
+          final details = errorObj?['details'] as Map<String, dynamic>?;
+          final currentProduct = details?['current_product'] as Map<String, dynamic>?;
+
+          final serverState = currentProduct != null
+              ? _parseProductDto(currentProduct)
               : null;
+
           return ProductPushResult(
             ok: false,
             conflict: true,
             serverState: serverState,
-            error: json['error'] as String? ?? 'VERSION_CONFLICT',
+            error: code,
           );
         } catch (e) {
           return ProductPushResult(

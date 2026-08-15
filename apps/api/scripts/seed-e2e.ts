@@ -1,4 +1,4 @@
-﻿import 'dotenv/config'
+import 'dotenv/config'
 import { Pool } from 'pg'
 
 async function main() {
@@ -30,26 +30,42 @@ async function main() {
       [BUSINESS_ID, 'E2E Test Business']
     )
 
-    await pool.query(
-      'INSERT INTO products (id, business_id, name, description, price_minor, category, barcode, is_active, server_version, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, now(), now()) ON CONFLICT (id) DO UPDATE SET is_active = EXCLUDED.is_active, price_minor = EXCLUDED.price_minor, name = EXCLUDED.name, updated_at = now()',
-      [
-        PRODUCT_ID,
-        BUSINESS_ID,
-        PRODUCT_NAME,
-        'Deterministic fixture for E2E testing',
-        PRICE_MINOR,
-        'E2E',
-        'E2E-BARCODE-001',
-        true,
-        1
-      ]
-    )
+    // 1. Seed Product A
+    await pool.query(`
+      INSERT INTO products (id, business_id, name, description, price_minor, category, barcode, is_active, server_version, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 1, now(), now())
+      ON CONFLICT (id) DO UPDATE SET is_active = EXCLUDED.is_active, price_minor = EXCLUDED.price_minor, name = EXCLUDED.name, updated_at = now()
+    `, [
+      'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+      BUSINESS_ID,
+      'E2E Deterministic Product',
+      'Deterministic fixture for E2E testing',
+      10000,
+      'E2E',
+      'E2E-BARCODE-001',
+      true
+    ])
+
+    // 2. Seed Product B
+    await pool.query(`
+      INSERT INTO products (id, business_id, name, description, price_minor, category, barcode, is_active, server_version, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 2, now(), now())
+      ON CONFLICT (id) DO UPDATE SET is_active = EXCLUDED.is_active, price_minor = EXCLUDED.price_minor, name = EXCLUDED.name, updated_at = now()
+    `, [
+      'bbbbbbbb-cccc-4ddd-8eee-ffffffffffff',
+      BUSINESS_ID,
+      'Scenario B Product',
+      'Test B',
+      20000,
+      'E2E',
+      'E2E-BARCODE-002',
+      true
+    ])
 
     console.log('E2E FIXTURE READY')
-    console.log('Business: ' + BUSINESS_ID)
-    console.log('Product:  ' + PRODUCT_ID)
-    console.log('Name:     ' + PRODUCT_NAME)
-    console.log('Price:    ' + PRICE_MINOR)
+    console.log('Business: 11111111-1111-1111-1111-111111111111')
+    console.log('Product A: aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee')
+    console.log('Product B: bbbbbbbb-cccc-4ddd-8eee-ffffffffffff')
   } catch (error) {
     console.error('Seed failed:', error)
     process.exit(1)
