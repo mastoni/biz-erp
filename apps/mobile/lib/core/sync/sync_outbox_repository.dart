@@ -166,4 +166,22 @@ class SyncOutboxRepository {
       )..where((t) => t.id.equals(outboxId))).go();
     }
   }
+
+  Future<String> enqueueProductCreate(ProductDto product) async {
+    final id = _uuid.v4();
+    await _db.into(_db.syncOutbox).insert(
+      SyncOutboxCompanion.insert(
+        id: id, entityType: 'product', operation: 'create',
+        payloadJson: jsonEncode(product.toJson()), idempotencyKey: Value(product.id),
+        nextAttemptAt: 0, createdAt: DateTime.now().millisecondsSinceEpoch,
+      ),
+    );
+    return id;
+  }
+
+  Future<void> markFailed(String id, String error) async {
+    await (_db.update(_db.syncOutbox)..where((t) => t.id.equals(id))).write(
+      SyncOutboxCompanion(status: const Value('failed'), lastError: Value(error)),
+    );
+  }
 }

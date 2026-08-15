@@ -1,4 +1,4 @@
-import 'package:drift/native.dart';
+﻿import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:biz_erp_mobile/core/database/app_database.dart';
 import 'package:biz_erp_mobile/core/sync/sync_api_client.dart';
@@ -13,6 +13,10 @@ import 'package:biz_erp_mobile/products/domain/product.dart';
 const biz = '11111111-1111-1111-1111-111111111111';
 
 class MockSyncApi implements SyncApiClient {
+  @override
+  Future<ProductPushResult> createProduct(ProductDto product, {required String idempotencyKey}) async {
+    return ProductPushResult(ok: true, serverVersion: 1);
+  }
   bool healthy = true;
   ProductPushResult Function(ProductDto, int?)? onPushProduct;
   List<SalePushResultItem> Function(List<SaleDto>)? onPushSales;
@@ -98,7 +102,7 @@ void main() {
   });
 
   test(
-    'SYNC-006 push product conflict → status conflict, local dipertahankan',
+    'SYNC-006 push product conflict â†’ status conflict, local dipertahankan',
     () async {
       api.onPushProduct = (dto, v) => ProductPushResult(
         conflict: true,
@@ -127,7 +131,7 @@ void main() {
     },
   );
 
-  test('SYNC-007 push sales batch created/duplicate → synced', () async {
+  test('SYNC-007 push sales batch created/duplicate â†’ synced', () async {
     final sale = SaleDto(
       id: 's1',
       idempotencyKey: 'key-1',
@@ -213,7 +217,7 @@ void main() {
     expect(cursor, 6000);
   });
 
-  test('SYNC-010 unreachable → tidak push, counts tetap pending', () async {
+  test('SYNC-010 unreachable â†’ tidak push, counts tetap pending', () async {
     api.healthy = false;
     await outbox.enqueueProductUpsert(
       ProductDto(

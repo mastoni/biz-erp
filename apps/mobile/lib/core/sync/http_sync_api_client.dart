@@ -1,4 +1,4 @@
-﻿// apps/mobile/lib/core/sync/http_sync_api_client.dart
+// apps/mobile/lib/core/sync/http_sync_api_client.dart
 
 import 'dart:convert';
 import 'package:http/http.dart' as http;
@@ -208,6 +208,28 @@ class HttpSyncApiClient implements SyncApiClient {
   }
 
   @override
+  Future<ProductPushResult> createProduct(ProductDto product, {required String idempotencyKey}) async {
+    final uri = Uri.parse('$baseUrl/v1/sync/products');
+    final body = { 'business_id': _businessId ?? '', 'id': product.id, 'name': product.name, 'description': product.description, 'barcode': product.barcode, 'price_minor': product.priceMinor, 'category': product.category, 'is_active': product.isActive };
+    try {
+      final response = await _client.post(uri, headers: {..._headers, 'Idempotency-Key': idempotencyKey}, body: jsonEncode(body)).timeout(_timeout);
+      if (response.statusCode == 201) {
+        final json = jsonDecode(response.body) as Map<String, dynamic>;
+        return ProductPushResult(ok: true, serverVersion: json['server_version'] as int?);
+      } else if (response.statusCode == 409) {
+        final json = jsonDecode(response.body) as Map<String, dynamic>;
+        final code = (json['error'] as Map<String, dynamic>?)?['code'] as String?;
+        if (code == 'BARCODE_CONFLICT' || code == 'IDEMPOTENCY_KEY_REUSE') return ProductPushResult(ok: false, error: code);
+        return ProductPushResult(ok: false, conflict: true, error: code ?? 'VERSION_CONFLICT');
+      } else if (response.statusCode == 400) {
+        return ProductPushResult(ok: false, error: 'VALIDATION_ERROR');
+      }
+      return ProductPushResult(ok: false, error: 'HTTP ${response.statusCode}');
+    } catch (e) {
+      return ProductPushResult(ok: false, error: e.toString());
+    }
+  }
+
   Future<List<SalePushResultItem>> pushSalesBatch(List<SaleDto> sales) async {
     if (sales.isEmpty) return [];
 

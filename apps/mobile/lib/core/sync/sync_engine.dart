@@ -98,16 +98,20 @@ class SyncEngine extends ChangeNotifier {
     );
     final now = DateTime.now().millisecondsSinceEpoch;
     try {
-      final res = await _api.pushProduct(
-        dto,
-        ifMatchVersion: dto.serverVersion,
-      );
+      ProductPushResult res;
+      if (item.operation == 'create') {
+        res = await _api.createProduct(dto, idempotencyKey: item.idempotencyKey!);
+      } else {
+        res = await _api.pushProduct(dto, ifMatchVersion: dto.serverVersion);
+      }
       if (res.ok) {
         await _outbox.markSynced(item.id);
         await _products.markSyncedAfterPush(
           dto.id,
           res.serverVersion ?? dto.serverVersion,
         );
+      } else if (res.error == 'BARCODE_CONFLICT' || res.error == 'VALIDATION_ERROR' || res.error == 'IDEMPOTENCY_KEY_REUSE') {
+        await _outbox.markFailed(item.id, res.error!);
       } else if (res.conflict) {
         // Policy B: keep local, jangan retry otomatis
         await _outbox.markConflict(

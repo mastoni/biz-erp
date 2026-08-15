@@ -1,4 +1,4 @@
-import 'sync_models.dart';
+﻿import 'sync_models.dart';
 
 /// Abstraksi transport sync. Implementasi HTTP nyata di Phase 3.0.3;
 /// 3.0.1 menggunakan mock di tests.
@@ -20,6 +20,12 @@ abstract class SyncApiClient {
   Future<ProductPushResult> pushProduct(
     ProductDto product, {
     int? ifMatchVersion,
+  });
+
+
+  Future<ProductPushResult> createProduct(
+    ProductDto product, {
+    required String idempotencyKey,
   });
 
   Future<List<SalePushResultItem>> pushSalesBatch(List<SaleDto> sales);

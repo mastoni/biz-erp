@@ -1,3 +1,4 @@
+import 'package:biz_erp_mobile/core/sync/sync_outbox_repository.dart';
 import 'dart:io';
 
 import 'package:drift/drift.dart' hide isNull;
@@ -19,6 +20,7 @@ void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
   late AppDatabase db;
   late ProductRepository productRepo;
+  late SyncOutboxRepository outbox;
   late CartRepository cartRepo;
   late CheckoutService checkoutService;
   late SaleCalculationEngine calcEngine;
@@ -34,6 +36,7 @@ void main() {
   setUp(() {
     db = AppDatabase(NativeDatabase.memory());
     productRepo = ProductRepository(db);
+    outbox = SyncOutboxRepository(db);
     cartRepo = CartRepository(db);
     calcEngine = SaleCalculationEngine();
     checkoutService = CheckoutService(db, calcEngine);
@@ -532,7 +535,7 @@ void main() {
 
     test('CHK-020: Inactive product in cart -> Still succeeds', () async {
       await seedProductAndCart(price: 10000);
-      await productRepo.softDeleteProduct(prod1, bizA);
+      await productRepo.softDeleteProduct(prod1, bizA, outbox);
 
       final req = await makeRequest(cash: 10000);
       final result = await checkoutService.checkout(req);

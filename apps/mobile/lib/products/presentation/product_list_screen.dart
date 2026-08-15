@@ -122,6 +122,14 @@ class _ProductListScreenState extends State<ProductListScreen> {
         backgroundColor: Colors.blueGrey[800],
         foregroundColor: Colors.white,
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          final saved = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => ProductEditScreen(productId: null, productRepo: widget.productRepo, outboxRepo: widget.outboxRepo)));
+          if (saved == true && mounted) _load();
+        },
+        backgroundColor: Colors.blueGrey[800],
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
       body: Column(
         children: [
           if (!isOnline)

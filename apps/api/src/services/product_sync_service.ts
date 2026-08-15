@@ -1,8 +1,10 @@
 ﻿import { Pool } from 'pg'
-import { ProductDto, validateProductUpdate } from '../dto/product_dto'
+import { ProductDto, validateProductUpdate, validateProductCreate } from '../dto/product_dto'
 import { ProductSyncListResponse } from '../dto/sync_dto'
 import { ApiError } from '../errors/api_error'
 import { ConflictError } from '../errors/conflict_error'
+import { BarcodeConflictError } from '../errors/barcode_conflict_error'
+import { idempotencyRepository } from '../repositories/idempotency_repository'
 import { ValidationError } from '../errors/validation_error'
 import { productRepository, ProductPatch } from '../repositories/product_repository'
 import { withTransaction } from '../db/transaction'
@@ -114,6 +116,39 @@ export function createProductSyncService(pool: Pool) {
         }
 
         return updated
+      })
+    },
+
+    async create(body: unknown, idempotencyKey: string, requestHash: string, demoBusinessId?: string): Promise<ProductDto> {
+      const request = validateProductCreate(body)
+      assertTenant(request.business_id, demoBusinessId)
+
+      return withTransaction(pool, async (client) => {
+        const existing = await idempotencyRepository.findActive(client, request.business_id, idempotencyKey)
+        if (existing) {
+          if (existing.request_hash !== requestHash) {
+            throw new ConflictError('IDEMPOTENCY_KEY_REUSE', 'Idempotency key was already used with a different request hash', { idempotency_key: idempotencyKey })
+          }
+          return existing.response_body as ProductDto
+        }
+
+        let created: ProductDto
+        try {
+          created = await productRepository.insert(client, {
+            id: request.id, business_id: request.business_id, name: request.name,
+            description: request.description ?? null, price_minor: request.price_minor,
+            category: request.category ?? null, barcode: request.barcode ?? null,
+            is_active: request.is_active ?? true
+          })
+        } catch (err: any) {
+          if (err.code === '23505' && err.constraint === 'idx_products_business_barcode_unique') {
+            throw new BarcodeConflictError(request.barcode ?? '')
+          }
+          throw err
+        }
+
+        await idempotencyRepository.insert(client, request.business_id, idempotencyKey, requestHash, 201, created)
+        return created
       })
     }
   }

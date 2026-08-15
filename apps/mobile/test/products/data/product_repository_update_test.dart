@@ -1,4 +1,5 @@
-﻿import 'package:drift/drift.dart' hide isNotNull;
+import 'dart:convert';
+import 'package:drift/drift.dart' hide isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:biz_erp_mobile/core/database/app_database.dart';
@@ -153,6 +154,57 @@ void main() {
       final p = await repo.getProductById(productId, businessId);
       expect(p!.localStatus, 'dirty');
       expect(p.name, 'Safe');
+    });
+  });
+
+  group('updateProduct - deactivate/restore sync', () {
+    test('PROD-C03: softDeleteProduct sets isActive=false, localStatus=dirty, enqueues upsert', () async {
+      await seedExisting();
+      await repo.softDeleteProduct(productId, businessId, outbox);
+
+      final p = await repo.getProductById(productId, businessId);
+      expect(p, isNotNull);
+      expect(p!.isActive, isFalse);
+      expect(p.localStatus, 'dirty');
+      expect(p.serverVersion, 5, reason: 'serverVersion must be preserved');
+      final allOutbox = await db.select(db.syncOutbox).get();
+      expect(allOutbox.length, 1);
+      expect(allOutbox.first.operation, 'upsert');
+      expect(allOutbox.first.idempotencyKey, productId);
+      expect(allOutbox.first.status, 'pending');
+
+      // Verify payload has is_active: 0 (integer, database stores as INTEGER)
+      final payloadJson = allOutbox.first.payloadJson;
+      final payload = jsonDecode(payloadJson) as Map<String, dynamic>;
+      expect(payload['is_active'] == 0 || payload['isActive'] == 0, isTrue,
+          reason: 'Payload should have is_active=0 (integer), got: $payload');
+    });
+
+    test('PROD-C04: restoreProduct sets isActive=true, localStatus=dirty, enqueues upsert', () async {
+      // Seed as inactive
+      await repo.upsertProduct(baseProduct(name: 'Inactive', serverVersion: 5));
+      await (db.update(db.productsLocal)..where((t) => t.id.equals(productId)))
+          .write(const ProductsLocalCompanion(isActive: Value(0), localStatus: Value('synced')));
+
+      await repo.restoreProduct(productId, businessId, outbox);
+
+      final p = await repo.getProductById(productId, businessId);
+      expect(p, isNotNull);
+      expect(p!.isActive, isTrue);
+      expect(p.localStatus, 'dirty');
+      expect(p.serverVersion, 5, reason: 'serverVersion must be preserved');
+
+      final allOutbox = await db.select(db.syncOutbox).get();
+      expect(allOutbox.length, 1);
+      expect(allOutbox.first.operation, 'upsert');
+      expect(allOutbox.first.idempotencyKey, productId);
+      expect(allOutbox.first.status, 'pending');
+
+      // Verify payload has is_active: 1 (integer, database stores as INTEGER)
+      final payloadJson = allOutbox.first.payloadJson;
+      final payload = jsonDecode(payloadJson) as Map<String, dynamic>;
+      expect(payload['is_active'] == 1 || payload['isActive'] == 1, isTrue,
+          reason: 'Payload should have is_active=1 (integer), got: $payload');
     });
   });
 }

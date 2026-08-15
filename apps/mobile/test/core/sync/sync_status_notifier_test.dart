@@ -19,6 +19,10 @@ class FakeNetworkMonitor implements NetworkMonitor {
 }
 
 class FakeSyncOutboxRepository implements SyncOutboxRepository {
+  @override
+  Future<String> enqueueProductCreate(ProductDto product) async => '';
+  @override
+  Future<void> markFailed(String id, String error) async {}
   SyncCounts currentCounts = SyncCounts(0, 0, 0);
   List<SyncOutboxItem> conflicts = [];
 

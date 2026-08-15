@@ -1,3 +1,4 @@
+import 'package:biz_erp_mobile/core/sync/sync_outbox_repository.dart';
 import 'dart:io';
 
 import 'package:drift/drift.dart' hide isNull;
@@ -14,6 +15,7 @@ void main() {
 
   late AppDatabase db;
   late ProductRepository productRepo;
+  late SyncOutboxRepository outbox;
   late CartRepository cartRepo;
 
   const bizA = 'biz-A';
@@ -23,6 +25,7 @@ void main() {
   setUp(() {
     db = AppDatabase(NativeDatabase.memory());
     productRepo = ProductRepository(db);
+    outbox = SyncOutboxRepository(db);
     cartRepo = CartRepository(db);
   });
 
@@ -171,7 +174,7 @@ void main() {
         final cart = await cartRepo.getOrCreateActiveCart(bizA);
         await cartRepo.addItem(cart.id, bizA, prod1, 1);
 
-        await productRepo.softDeleteProduct(prod1, bizA);
+        await productRepo.softDeleteProduct(prod1, bizA, outbox);
 
         final cartWithItems = await cartRepo.getCartWithItems(cart.id, bizA);
         expect(cartWithItems!.items.length, 1);

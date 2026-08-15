@@ -1,3 +1,4 @@
+﻿import 'package:biz_erp_mobile/core/sync/sync_outbox_repository.dart';
 import 'dart:io';
 
 import 'package:drift/native.dart';
@@ -9,6 +10,7 @@ import 'package:biz_erp_mobile/products/domain/product.dart';
 void main() {
   late AppDatabase db;
   late ProductRepository repo;
+  late SyncOutboxRepository outbox;
 
   const bizA = 'biz-A';
   const bizB = 'biz-B';
@@ -18,6 +20,7 @@ void main() {
   setUp(() {
     db = AppDatabase(NativeDatabase.memory());
     repo = ProductRepository(db);
+    outbox = SyncOutboxRepository(db);
   });
 
   tearDown(() async {
@@ -131,7 +134,7 @@ void main() {
 
     test('PROD-010 soft delete sets is_active = 0', () async {
       await repo.upsertProduct(makeProduct());
-      await repo.softDeleteProduct(validUuid, bizA);
+      await repo.softDeleteProduct(validUuid, bizA, outbox);
 
       final p = await repo.getProductById(validUuid, bizA);
       expect(p!.isActive, false);
@@ -139,7 +142,7 @@ void main() {
 
     test('PROD-011 soft-deleted product remains in database', () async {
       await repo.upsertProduct(makeProduct());
-      await repo.softDeleteProduct(validUuid, bizA);
+      await repo.softDeleteProduct(validUuid, bizA, outbox);
 
       final all = await repo.listAllProducts(bizA);
       expect(all.length, 1);
@@ -147,7 +150,7 @@ void main() {
 
     test('PROD-012 restore behavior', () async {
       await repo.upsertProduct(makeProduct(isActive: false));
-      await repo.restoreProduct(validUuid, bizA);
+      await repo.restoreProduct(validUuid, bizA, outbox);
 
       final p = await repo.getProductById(validUuid, bizA);
       expect(p!.isActive, true);

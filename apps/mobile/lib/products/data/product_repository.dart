@@ -168,27 +168,63 @@ class ProductRepository {
   }
 
   /// Soft-deletes a product (sets is_active = 0).
-  Future<void> softDeleteProduct(String id, String businessId) async {
+  /// Atomic: updates local DB and enqueues outbox in a single transaction.
+  Future<void> softDeleteProduct(String id, String businessId, SyncOutboxRepository outbox) async {
     final existing = await getProductById(id, businessId);
     if (existing == null) {
       throw ProductNotFoundException(id, businessId);
     }
 
-    await (_db.update(_db.productsLocal)
-          ..where((t) => t.id.equals(id) & t.businessId.equals(businessId)))
-        .write(const ProductsLocalCompanion(isActive: Value(0)));
+    await _db.transaction(() async {
+      await (_db.update(_db.productsLocal)
+            ..where((t) => t.id.equals(id) & t.businessId.equals(businessId)))
+          .write(const ProductsLocalCompanion(
+            isActive: Value(0),
+            localStatus: Value('dirty'),
+          ));
+
+      final dto = ProductDto(
+        id: existing.id,
+        name: existing.name,
+        description: existing.description,
+        barcode: existing.barcode,
+        priceMinor: existing.priceMinor,
+        category: existing.category,
+        isActive: false,
+        serverVersion: existing.serverVersion,
+      );
+      await outbox.enqueueProductUpsert(dto);
+    });
   }
 
   /// Restores a soft-deleted product (sets is_active = 1).
-  Future<void> restoreProduct(String id, String businessId) async {
+  /// Atomic: updates local DB and enqueues outbox in a single transaction.
+  Future<void> restoreProduct(String id, String businessId, SyncOutboxRepository outbox) async {
     final existing = await getProductById(id, businessId);
     if (existing == null) {
       throw ProductNotFoundException(id, businessId);
     }
 
-    await (_db.update(_db.productsLocal)
-          ..where((t) => t.id.equals(id) & t.businessId.equals(businessId)))
-        .write(const ProductsLocalCompanion(isActive: Value(1)));
+    await _db.transaction(() async {
+      await (_db.update(_db.productsLocal)
+            ..where((t) => t.id.equals(id) & t.businessId.equals(businessId)))
+          .write(const ProductsLocalCompanion(
+            isActive: Value(1),
+            localStatus: Value('dirty'),
+          ));
+
+      final dto = ProductDto(
+        id: existing.id,
+        name: existing.name,
+        description: existing.description,
+        barcode: existing.barcode,
+        priceMinor: existing.priceMinor,
+        category: existing.category,
+        isActive: true,
+        serverVersion: existing.serverVersion,
+      );
+      await outbox.enqueueProductUpsert(dto);
+    });
   }
 
   /// Lookup barcode: membedakan FOUND / NOT_FOUND / INACTIVE / DUPLICATE.
@@ -288,5 +324,36 @@ class ProductRepository {
         localStatus: const Value('synced'),
       ),
     );
+  }
+
+  /// Phase 3.5: Create product atomically with outbox
+  Future<void> createProduct(Product product, SyncOutboxRepository outbox) async {
+    if (product.name.trim().isEmpty) throw ArgumentError('Nama produk wajib diisi');
+    if (product.priceMinor < 0) throw ArgumentError('Harga harus >= 0');
+
+    if (product.barcode != null && product.barcode!.trim().isNotEmpty) {
+      final lookup = await findByBarcode(product.businessId, product.barcode!.trim());
+      if (lookup.status == BarcodeLookupStatus.found || lookup.status == BarcodeLookupStatus.duplicate) {
+        throw ArgumentError('Barcode sudah digunakan produk lain');
+      }
+    }
+
+    await _db.transaction(() async {
+      await _db.into(_db.productsLocal).insert(
+        ProductsLocalCompanion.insert(
+          id: product.id, businessId: product.businessId, name: product.name,
+          description: Value(product.description), priceMinor: product.priceMinor,
+          category: Value(product.category), isActive: Value(product.isActive ? 1 : 0),
+          serverVersion: const Value(0), lastSyncedAt: Value(product.lastSyncedAt),
+          barcode: Value(product.barcode), localStatus: const Value('dirty'),
+        ),
+      );
+      final dto = ProductDto(
+        id: product.id, name: product.name, description: product.description,
+        barcode: product.barcode, priceMinor: product.priceMinor,
+        category: product.category, isActive: product.isActive, serverVersion: 0,
+      );
+      await outbox.enqueueProductCreate(dto);
+    });
   }
 }

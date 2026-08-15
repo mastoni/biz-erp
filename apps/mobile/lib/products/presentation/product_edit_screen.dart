@@ -1,4 +1,5 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'package:uuid/uuid.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:biz_erp_mobile/core/demo_context.dart';
 import 'package:biz_erp_mobile/products/data/product_repository.dart';
@@ -6,7 +7,7 @@ import 'package:biz_erp_mobile/products/domain/product.dart';
 import 'package:biz_erp_mobile/core/sync/sync_outbox_repository.dart';
 
 class ProductEditScreen extends StatefulWidget {
-  final String productId;
+  final String? productId;
   final ProductRepository productRepo;
   final SyncOutboxRepository outboxRepo;
 
@@ -38,7 +39,13 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
   @override
   void initState() {
     super.initState();
-    _load();
+    if (widget.productId == null) {
+      _original = Product(id: const Uuid().v4(), businessId: DemoContext.businessId, name: '', priceMinor: 0, isActive: true, serverVersion: 0, localStatus: 'dirty');
+      _isActive = true;
+      _isLoading = false;
+    } else {
+      _load();
+    }
   }
 
   @override
@@ -52,9 +59,10 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
   }
 
   Future<void> _load() async {
+    if (widget.productId == null) return;
     try {
       final p = await widget.productRepo.getProductById(
-        widget.productId,
+        widget.productId!,
         DemoContext.businessId,
       );
       if (!mounted) return;
@@ -133,7 +141,12 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
     );
 
     try {
-      await widget.productRepo.updateProduct(updated, widget.outboxRepo);
+      if (widget.productId == null) {
+        final newP = Product(id: _original!.id, businessId: _original!.businessId, name: updated.name, description: updated.description, priceMinor: updated.priceMinor, category: updated.category, isActive: updated.isActive, serverVersion: 0, barcode: updated.barcode, localStatus: 'dirty');
+        await widget.productRepo.createProduct(newP, widget.outboxRepo);
+      } else {
+        await widget.productRepo.updateProduct(updated, widget.outboxRepo);
+      }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -168,7 +181,7 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Edit Produk'),
+          title: Text(widget.productId == null ? 'Produk Baru' : 'Edit Produk'),
           backgroundColor: Colors.blueGrey[800],
           foregroundColor: Colors.white,
           leading: IconButton(

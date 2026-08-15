@@ -1,4 +1,4 @@
-import { PoolClient } from 'pg'
+﻿import { PoolClient } from 'pg'
 import { ProductDto } from '../dto/product_dto'
 
 const PRODUCT_COLUMNS = `
@@ -100,5 +100,21 @@ export const productRepository = {
 
     const result = await client.query(sql, values)
     return (result.rows[0] as ProductDto | undefined) ?? null
+  },
+
+  async insert(client: PoolClient, product: {
+    id: string; business_id: string; name: string; description: string | null;
+    price_minor: number; category: string | null; barcode: string | null; is_active: boolean;
+  }): Promise<ProductDto> {
+    const sql = `
+      INSERT INTO products (id, business_id, name, description, price_minor, category, barcode, is_active, server_version, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 1, now(), now())
+      RETURNING ${PRODUCT_COLUMNS}
+    `
+    const result = await client.query(sql, [
+      product.id, product.business_id, product.name, product.description,
+      product.price_minor, product.category, product.barcode, product.is_active
+    ])
+    return result.rows[0] as ProductDto
   }
 }

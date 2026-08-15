@@ -130,3 +130,23 @@ export function validateProductUpdate(body: unknown): ProductUpdateRequest {
 
   return result
 }
+
+
+export interface ProductCreateRequest { id: string; business_id: string; name: string; description?: string | null; price_minor: number; category?: string | null; barcode?: string | null; is_active?: boolean; }
+
+export function validateProductCreate(body: unknown): ProductCreateRequest {
+  if (!isObject(body)) throw new ValidationError('Request body must be a JSON object')
+  const errors: Record<string, string> = {}
+  const id = body.id; const businessId = body.business_id; const name = body.name; const priceMinor = body.price_minor
+  if (typeof id !== 'string' || !isUuid(id)) errors.id = 'id must be a valid UUID'
+  if (typeof businessId !== 'string' || !isUuid(businessId)) errors.business_id = 'business_id must be a valid UUID'
+  if (typeof name !== 'string' || name.trim().length === 0) errors.name = 'name must be a non-empty string'
+  if (typeof priceMinor !== 'number' || !Number.isInteger(priceMinor) || priceMinor < 0) errors.price_minor = 'price_minor must be a non-negative integer'
+  const result: any = { id: typeof id === 'string' ? id.trim() : '', business_id: typeof businessId === 'string' ? businessId.trim() : '', name: typeof name === 'string' ? name.trim() : '', price_minor: typeof priceMinor === 'number' ? priceMinor : 0 }
+  if ('description' in body) { if (body.description === null) result.description = null; else if (typeof body.description === 'string') result.description = body.description; else errors.description = 'description must be a string or null' }
+  if ('category' in body) { if (body.category === null) result.category = null; else if (typeof body.category === 'string') result.category = body.category; else errors.category = 'category must be a string or null' }
+  if ('barcode' in body) { if (body.barcode === null || body.barcode === '') result.barcode = null; else if (typeof body.barcode === 'string') result.barcode = body.barcode.trim(); else errors.barcode = 'barcode must be a string or null' }
+  if ('is_active' in body) { if (typeof body.is_active === 'boolean') result.is_active = body.is_active; else errors.is_active = 'is_active must be a boolean' } else { result.is_active = true }
+  if (Object.keys(errors).length > 0) throw new ValidationError('Product create validation failed', errors)
+  return result
+}
