@@ -95,6 +95,8 @@ Future<void> main() async {
     controller: controller,
     scannerService: scannerService,
     syncStatusNotifier: syncStatusNotifier,
+    productRepo: productRepo,
+    outboxRepo: syncOutboxRepo,
   ));
 }
 
@@ -160,7 +162,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'BizERP POS',
       theme: ThemeData(primarySwatch: Colors.blueGrey, useMaterial3: true),
-      home: PosScreen(controller: controller, scannerService: scannerService, syncStatusNotifier: syncStatusNotifier),
+      home: PosScreen(controller: controller, scannerService: scannerService, syncStatusNotifier: syncStatusNotifier, productRepo: productRepo, outboxRepo: outboxRepo),
     );
   }
 }
