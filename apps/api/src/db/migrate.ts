@@ -1,4 +1,4 @@
-import 'dotenv/config'
+﻿import 'dotenv/config'
 import fs from 'fs'
 import path from 'path'
 import { Pool } from 'pg'
@@ -30,7 +30,6 @@ export async function runMigrations(pool: Pool, migrationsDir?: string): Promise
       }
 
       const sql = fs.readFileSync(path.join(dir, file), 'utf8')
-
       await client.query('BEGIN')
       try {
         await client.query(sql)
@@ -53,12 +52,10 @@ if (require.main === module) {
     console.error('DATABASE_URL is required')
     process.exit(1)
   }
-
   const pool = createPool(databaseUrl)
 
   runMigrations(pool)
     .then(() => {
-      console.log('Migration completed')
       return pool.end()
     })
     .catch(async (error) => {
