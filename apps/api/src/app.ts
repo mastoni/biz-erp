@@ -5,6 +5,7 @@ import { errorHandler } from './middleware/error_handler'
 import { notFound } from './middleware/not_found'
 import { requestId } from './middleware/request_id'
 import { createHealthRouter } from './routes/health_routes'
+import { createAuthRouter } from './routes/auth_routes'
 import { createProductSyncRouter } from './routes/product_sync_routes'
 import { createSalesSyncRouter } from './routes/sales_sync_routes'
 
@@ -17,6 +18,7 @@ export function createApp(pool: Pool): Express {
   app.use(requestId)
 
   app.use('/health', createHealthRouter(pool))
+  app.use('/v1/auth', createAuthRouter(pool))
   app.use('/v1/sync/products', createProductSyncRouter(pool))
   app.use('/v1/sync/sales', createSalesSyncRouter(pool))
 
