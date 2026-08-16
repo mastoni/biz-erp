@@ -1,0 +1,71 @@
+name: Staging Deployment
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install backend dependencies
+        working-directory: ./apps/api
+        run: npm ci
+
+      - name: Run backend tests
+        working-directory: ./apps/api
+        run: npm test
+
+      - name: Run backend typecheck
+        working-directory: ./apps/api
+        run: npm run typecheck
+
+      - name: Build backend
+        working-directory: ./apps/api
+        run: npm run build
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Run Flutter tests
+        working-directory: ./apps/mobile
+        run: |
+          flutter pub get
+          flutter test
+
+      - name: Build API Docker image
+        working-directory: ./apps/api
+        run: docker build -t bizerp-api:${{ github.sha }} .
+
+      # Note: Push to registry step would go here
+
+  deploy-staging:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Deploy to staging
+        run: |
+          echo "Deploying to staging..."
+          if [ -z "${{ secrets.STAGING_HOST }}" ]; then
+            echo "STAGING_HOST secret not found. Failing deployment rather than falling back."
+            exit 1
+          fi
+          # Deployment commands over SSH would go here
+          # They should start postgres, run migrations, and then start the API
+
+      - name: Health check
+        run: |
+          echo "Checking health..."
+          # wget -qO- https://staging.example.com/health
+          # Alternatively use internal SSH health check if domain unavailable

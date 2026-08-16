@@ -1,4 +1,4 @@
-﻿import 'dotenv/config'
+import 'dotenv/config'
 import fs from 'fs'
 import path from 'path'
 import { Pool } from 'pg'
@@ -47,12 +47,9 @@ export async function runMigrations(pool: Pool, migrationsDir?: string): Promise
 }
 
 if (require.main === module) {
-  const databaseUrl = process.env.DATABASE_URL
-  if (!databaseUrl) {
-    console.error('DATABASE_URL is required')
-    process.exit(1)
-  }
-  const pool = createPool(databaseUrl)
+  const { loadEnv } = require('../config/env')
+  const env = loadEnv()
+  const pool = createPool(env.databaseUrl)
 
   runMigrations(pool)
     .then(() => {

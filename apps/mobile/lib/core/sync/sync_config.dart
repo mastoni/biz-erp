@@ -8,12 +8,18 @@ class SyncConfig {
   // Production URL (replace with actual production URL)
   static const String productionUrl = 'https://api.biz-erp.com';
 
-  // Current environment
+  // Current environment URL provided via --dart-define
   static String get baseUrl {
-    // In development, use emulator URL
-    // In production, use production URL
+    const definedUrl = String.fromEnvironment('API_URL');
+    if (definedUrl.isNotEmpty) {
+      return definedUrl;
+    }
+    // Fallback for local development if not specified
     const isProduction = bool.fromEnvironment('dart.vm.product');
-    return isProduction ? productionUrl : androidEmulatorUrl;
+    if (isProduction) {
+      throw Exception('API_URL must be provided via --dart-define in release builds.');
+    }
+    return androidEmulatorUrl;
   }
 
   // Timeouts
