@@ -6,6 +6,7 @@ import 'sync_models.dart';
 import 'sync_outbox_repository.dart';
 import '../../products/data/product_repository.dart';
 import '../../sales/data/sales_sync_repository.dart';
+import 'http_sync_api_client.dart' show HttpException;
 
 class SyncSummary {
   final bool reachable;
@@ -55,9 +56,17 @@ class SyncEngine extends ChangeNotifier {
 
     if (reachable) {
       pushed = await _push();
-      final pull = await _pull();
-      pulledP = pull.$1;
-      pulledS = pull.$2;
+      try {
+        final pull = await _pull();
+        pulledP = pull.$1;
+        pulledS = pull.$2;
+      } on HttpException catch (e) {
+        if (e.statusCode == 401) {
+          // Graceful abort on auth error. Session expiry is handled by AuthStateNotifier.
+        } else {
+          rethrow;
+        }
+      }
     }
 
     final counts = await _outbox.counts();

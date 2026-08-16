@@ -104,6 +104,7 @@ Future<void> main() async {
     outbox: syncOutboxRepo,
     productRepository: productRepo,
     businessId: DemoContext.businessId,
+    authStateNotifier: authStateNotifier,
   );
 
   runApp(MyApp(

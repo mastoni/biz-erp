@@ -8,6 +8,28 @@ import 'package:biz_erp_mobile/core/sync/sync_outbox_repository.dart';
 import 'package:biz_erp_mobile/core/sync/sync_models.dart';
 import 'package:biz_erp_mobile/products/data/product_repository.dart';
 import 'package:biz_erp_mobile/products/domain/product.dart';
+import 'package:biz_erp_mobile/core/auth/auth_state_notifier.dart';
+import 'package:biz_erp_mobile/core/auth/auth_models.dart';
+import 'package:biz_erp_mobile/core/auth/auth_repository.dart';
+
+class FakeAuthRepository implements AuthRepository {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class FakeAuthStateNotifier extends AuthStateNotifier {
+  FakeAuthStateNotifier() : super(repository: FakeAuthRepository());
+
+  AuthStatus _fakeStatus = AuthStatus.authenticated;
+
+  @override
+  AuthStatus get status => _fakeStatus;
+
+  void setStatus(AuthStatus s) {
+    _fakeStatus = s;
+    notifyListeners();
+  }
+}
 
 class FakeNetworkMonitor implements NetworkMonitor {
   final StreamController<bool> controller = StreamController<bool>.broadcast();
@@ -81,12 +103,14 @@ void main() {
   late FakeSyncEngine fakeEngine;
   late FakeSyncOutboxRepository fakeOutbox;
   late FakeProductRepository fakeProductRepo;
+  late FakeAuthStateNotifier fakeAuth;
 
   setUp(() {
     fakeNetwork = FakeNetworkMonitor();
     fakeEngine = FakeSyncEngine();
     fakeOutbox = FakeSyncOutboxRepository();
     fakeProductRepo = FakeProductRepository();
+    fakeAuth = FakeAuthStateNotifier();
 
     fakeNetwork.reachable = true;
     fakeOutbox.currentCounts = SyncCounts(0, 0, 0);
@@ -98,6 +122,7 @@ void main() {
       outbox: fakeOutbox,
       productRepository: fakeProductRepo,
       businessId: 'test-biz',
+      authStateNotifier: fakeAuth,
     );
   });
 
@@ -145,6 +170,26 @@ void main() {
     await syncFuture;
     expect(fakeEngine.syncNowCallCount, 1);
     expect(notifier.currentState, SyncState.synced);
+  });
+
+  test('AUTH-GATE-003: unauthenticated blocks sync', () async {
+    fakeAuth.setStatus(AuthStatus.unauthenticated);
+    await notifier.syncNow();
+    expect(fakeEngine.syncNowCallCount, 0);
+  });
+
+  test('AUTH-GATE-004: sessionExpired blocks sync', () async {
+    fakeAuth.setStatus(AuthStatus.sessionExpired);
+    await notifier.syncNow();
+    expect(fakeEngine.syncNowCallCount, 0);
+  });
+
+  test('AUTH-GATE-011: re-login resumes sync', () async {
+    fakeAuth.setStatus(AuthStatus.sessionExpired);
+    await Future.delayed(const Duration(milliseconds: 50));
+    fakeAuth.setStatus(AuthStatus.authenticated);
+    await Future.delayed(const Duration(milliseconds: 50));
+    expect(fakeEngine.syncNowCallCount, 1);
   });
 
   test('Conflicts are exposed and refresh after dismiss', () async {

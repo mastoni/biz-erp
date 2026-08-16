@@ -1,4 +1,4 @@
-﻿import 'sync_conflict_models.dart';
+import 'sync_conflict_models.dart';
 import '../../products/data/product_repository.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
@@ -6,6 +6,9 @@ import 'network_monitor.dart';
 import 'sync_engine.dart';
 import 'sync_outbox_repository.dart';
 import 'sync_models.dart';
+
+import '../auth/auth_state_notifier.dart';
+import '../auth/auth_models.dart';
 
 enum SyncState {
   offline,
@@ -22,6 +25,7 @@ class SyncStatusNotifier extends ChangeNotifier {
     required this.outbox,
     required this.productRepository,
     required this.businessId,
+    required this.authStateNotifier,
   }) {
     _init();
   }
@@ -31,6 +35,7 @@ class SyncStatusNotifier extends ChangeNotifier {
   final SyncOutboxRepository outbox;
   final ProductRepository productRepository;
   final String businessId;
+  final AuthStateNotifier authStateNotifier;
 
   StreamSubscription<bool>? _connectivitySub;
 
@@ -42,6 +47,7 @@ class SyncStatusNotifier extends ChangeNotifier {
 
   void _init() {
     syncEngine.addListener(_onEngineChanged);
+    authStateNotifier.addListener(_onAuthChanged);
     _connectivitySub = networkMonitor.onConnectivityChanged.listen((isOnline) {
       _isOnline = isOnline;
       _evaluateState();
@@ -65,6 +71,14 @@ class SyncStatusNotifier extends ChangeNotifier {
       await _refreshConflicts();
       _evaluateState();
     });
+  }
+
+  void _onAuthChanged() {
+    if (authStateNotifier.status == AuthStatus.authenticated) {
+      if (_isOnline && !_isSyncing) {
+        syncNow();
+      }
+    }
   }
 
   Future<void> _refreshConflicts() async {
@@ -106,6 +120,7 @@ class SyncStatusNotifier extends ChangeNotifier {
   bool get isOnline => _isOnline;
 
   Future<void> syncNow() async {
+    if (authStateNotifier.status != AuthStatus.authenticated) return;
     if (_isSyncing) return;
     _isSyncing = true;
     _evaluateState();
@@ -123,6 +138,7 @@ class SyncStatusNotifier extends ChangeNotifier {
   @override
   void dispose() {
     syncEngine.removeListener(_onEngineChanged);
+    authStateNotifier.removeListener(_onAuthChanged);
     _connectivitySub?.cancel();
     super.dispose();
   }
