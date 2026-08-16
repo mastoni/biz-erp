@@ -8,6 +8,9 @@
         android:usesPermissionFlags="neverForLocation" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
 
+    <!-- Internet is required for production API communication -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <!-- Location required for Bluetooth scanning on older Android versions -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />

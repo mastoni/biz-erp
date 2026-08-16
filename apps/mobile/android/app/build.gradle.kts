@@ -1,3 +1,6 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
@@ -27,9 +30,33 @@ android {
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            val keystorePropertiesFile = rootProject.file("key.properties")
+            val keystoreProperties = Properties()
+
+            if (keystorePropertiesFile.exists()) {
+                keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+            }
+
+            val storeFileEnv = System.getenv("KEYSTORE_PATH")
+            val storePasswordEnv = System.getenv("KEYSTORE_PASSWORD")
+            val keyAliasEnv = System.getenv("KEY_ALIAS")
+            val keyPasswordEnv = System.getenv("KEY_PASSWORD")
+
+            val finalStoreFile = storeFileEnv ?: keystoreProperties.getProperty("storeFile")
+            val finalStorePassword = storePasswordEnv ?: keystoreProperties.getProperty("storePassword")
+            val finalKeyAlias = keyAliasEnv ?: keystoreProperties.getProperty("keyAlias")
+            val finalKeyPassword = keyPasswordEnv ?: keystoreProperties.getProperty("keyPassword")
+
+            if (finalStoreFile != null && finalStorePassword != null && finalKeyAlias != null && finalKeyPassword != null) {
+                signingConfig = signingConfigs.create("release").apply {
+                    storeFile = file(finalStoreFile)
+                    storePassword = finalStorePassword
+                    keyAlias = finalKeyAlias
+                    keyPassword = finalKeyPassword
+                }
+            } else {
+                throw GradleException("Release signing credentials not found. Ensure KEYSTORE_PATH, KEYSTORE_PASSWORD, KEY_ALIAS, and KEY_PASSWORD are set in the environment, or key.properties exists with storeFile, storePassword, keyAlias, and keyPassword.")
+            }
         }
     }
 }
