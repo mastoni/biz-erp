@@ -70,6 +70,24 @@ export function createJwtAuthMiddleware(jwtService: JwtService) {
   }
 }
 
+export function requireRole(...roles: Array<'OWNER' | 'CASHIER'>) {
+  return (req: Request, _res: Response, next: NextFunction): void => {
+    const authReq = req as AuthenticatedJwtRequest | SyncAuthenticatedRequest
+    if (!authReq.user) {
+      // Should not happen if requireSyncAuth or createJwtAuthMiddleware is placed before this
+      next(new ApiError(401, 'UNAUTHORIZED', 'Authentication required'))
+      return
+    }
+
+    if (!roles.includes(authReq.user.role)) {
+      next(new ApiError(403, 'INSUFFICIENT_PERMISSIONS', 'Insufficient permissions for this action'))
+      return
+    }
+
+    next()
+  }
+}
+
 export function requireSyncAuth(jwtService: JwtService) {
   return (req: SyncAuthenticatedRequest, _res: Response, next: NextFunction): void => {
     const authHeader = req.headers['authorization']

@@ -119,7 +119,7 @@ class SyncEngine extends ChangeNotifier {
           dto.id,
           res.serverVersion ?? dto.serverVersion,
         );
-      } else if (res.error == 'BARCODE_CONFLICT' || res.error == 'VALIDATION_ERROR' || res.error == 'IDEMPOTENCY_KEY_REUSE') {
+      } else if (res.error == 'BARCODE_CONFLICT' || res.error == 'VALIDATION_ERROR' || res.error == 'IDEMPOTENCY_KEY_REUSE' || res.error == 'INSUFFICIENT_PERMISSIONS') {
         await _outbox.markFailed(item.id, res.error!);
       } else if (res.conflict) {
         // Policy B: keep local, jangan retry otomatis
@@ -160,7 +160,11 @@ class SyncEngine extends ChangeNotifier {
       }
     } catch (e) {
       for (final item in items) {
-        await _outbox.markRetry(item.id, now, e.toString());
+        if (e is HttpException && e.statusCode == 403) {
+          await _outbox.markFailed(item.id, 'INSUFFICIENT_PERMISSIONS');
+        } else {
+          await _outbox.markRetry(item.id, now, e.toString());
+        }
       }
     }
   }

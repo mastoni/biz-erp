@@ -1,6 +1,6 @@
 import { RequestHandler, Router } from 'express'
 import { Pool } from 'pg'
-import { requireSyncAuth, SyncAuthenticatedRequest } from '../middleware/auth'
+import { requireSyncAuth, SyncAuthenticatedRequest, requireRole } from '../middleware/auth'
 import { createJwtService } from '../services/jwt_service'
 import { isUuid } from '../utils/uuid'
 import { ValidationError } from '../errors/validation_error'
@@ -25,6 +25,7 @@ export function createSalesSyncRouter(pool: Pool): Router {
 
   router.get(
     '/',
+    requireRole('OWNER') as RequestHandler,
     asyncHandler<SyncAuthenticatedRequest>(async (req, res) => {
       const businessId = req.query.business_id as string
       const sinceRaw = req.query.since as string | undefined
@@ -59,6 +60,7 @@ export function createSalesSyncRouter(pool: Pool): Router {
 
   router.post(
     '/batch',
+    requireRole('OWNER', 'CASHIER') as RequestHandler,
     asyncHandler<SyncAuthenticatedRequest>(async (req, res) => {
       const result = await service.syncBatch(req.body, req.tenantId!)
       res.status(200).json(result)

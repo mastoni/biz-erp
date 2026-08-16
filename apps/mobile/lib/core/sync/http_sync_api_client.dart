@@ -239,15 +239,20 @@ class HttpSyncApiClient implements SyncApiClient {
           error: json['error'] as String? ?? 'Validation error',
         );
       } else if (response.statusCode >= 500) {
-        if (response.statusCode == 404 || response.statusCode == 401 || response.statusCode == 403) {
-        return ProductPushResult(ok: false, error: 'HTTP ${response.statusCode}');
-      }
+        if (response.statusCode == 404 || response.statusCode == 401) {
+          return ProductPushResult(ok: false, error: 'HTTP ${response.statusCode}');
+        }
+        if (response.statusCode == 403) {
+          return ProductPushResult(ok: false, error: 'INSUFFICIENT_PERMISSIONS');
+        }
       throw HttpException(
           'Server error: HTTP ${response.statusCode}',
           statusCode: response.statusCode,
         );
-      } else if (response.statusCode == 404 || response.statusCode == 401 || response.statusCode == 403) {
+      } else if (response.statusCode == 404 || response.statusCode == 401) {
         return ProductPushResult(ok: false, error: 'HTTP ${response.statusCode}');
+      } else if (response.statusCode == 403) {
+        return ProductPushResult(ok: false, error: 'INSUFFICIENT_PERMISSIONS');
       } else {
         throw HttpException(
           'Unexpected error: HTTP ${response.statusCode}',
@@ -292,6 +297,8 @@ class HttpSyncApiClient implements SyncApiClient {
         return ProductPushResult(ok: false, conflict: true, error: code ?? 'VERSION_CONFLICT');
       } else if (response.statusCode == 400) {
         return ProductPushResult(ok: false, error: 'VALIDATION_ERROR');
+      } else if (response.statusCode == 403) {
+        return ProductPushResult(ok: false, error: 'INSUFFICIENT_PERMISSIONS');
       }
       return ProductPushResult(ok: false, error: 'HTTP ${response.statusCode}');
     } catch (e) {

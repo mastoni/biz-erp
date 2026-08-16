@@ -2,7 +2,7 @@ import { isUuid } from '../utils/uuid'
 import { ValidationError } from '../errors/validation_error'
 import { RequestHandler, Router } from 'express'
 import { Pool } from 'pg'
-import { requireSyncAuth, SyncAuthenticatedRequest } from '../middleware/auth'
+import { requireSyncAuth, SyncAuthenticatedRequest, requireRole } from '../middleware/auth'
 import { createProductSyncService } from '../services/product_sync_service'
 import { createJwtService } from '../services/jwt_service'
 import { asyncHandler } from '../utils/async_handler'
@@ -24,6 +24,7 @@ export function createProductSyncRouter(pool: Pool): Router {
 
   router.get(
     '/',
+    requireRole('OWNER', 'CASHIER') as RequestHandler,
     asyncHandler<SyncAuthenticatedRequest>(async (req, res) => {
       const result = await service.list(req.query, req.tenantId!)
       res.status(200).json(result)
@@ -33,6 +34,7 @@ export function createProductSyncRouter(pool: Pool): Router {
 
   router.post(
     '/',
+    requireRole('OWNER') as RequestHandler,
     asyncHandler<SyncAuthenticatedRequest>(async (req, res) => {
       const idempotencyKey = req.headers['idempotency-key']
       if (typeof idempotencyKey !== 'string' || !isUuid(idempotencyKey)) {
@@ -50,6 +52,7 @@ export function createProductSyncRouter(pool: Pool): Router {
 
   router.put(
     '/:id',
+    requireRole('OWNER') as RequestHandler,
     asyncHandler<SyncAuthenticatedRequest>(async (req, res) => {
       const result = await service.update(req.params.id, req.body, req.tenantId!)
       res.status(200).json(result)

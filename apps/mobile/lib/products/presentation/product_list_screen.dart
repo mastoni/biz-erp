@@ -13,6 +13,7 @@ class ProductListScreen extends StatefulWidget {
   final ProductRepository productRepo;
   final SyncOutboxRepository outboxRepo;
   final SyncStatusNotifier syncStatusNotifier;
+  final String userRole;
 
   const ProductListScreen({
     super.key,
@@ -20,6 +21,7 @@ class ProductListScreen extends StatefulWidget {
     required this.productRepo,
     required this.outboxRepo,
     required this.syncStatusNotifier,
+    required this.userRole,
   });
 
   @override
@@ -125,14 +127,14 @@ class _ProductListScreenState extends State<ProductListScreen> {
         backgroundColor: Colors.blueGrey[800],
         foregroundColor: Colors.white,
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: widget.userRole == 'OWNER' ? FloatingActionButton(
         onPressed: () async {
           final saved = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => ProductEditScreen(businessId: widget.businessId, productId: null, productRepo: widget.productRepo, outboxRepo: widget.outboxRepo)));
           if (saved == true && mounted) _load();
         },
         backgroundColor: Colors.blueGrey[800],
         child: const Icon(Icons.add, color: Colors.white),
-      ),
+      ) : null,
       body: Column(
         children: [
           if (!isOnline)
@@ -262,7 +264,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
       itemCount: filtered.length,
       itemBuilder: (context, i) => _ProductListItem(
         product: filtered[i],
-        onTap: () => _openEdit(filtered[i]),
+        onTap: widget.userRole == 'OWNER' ? () => _openEdit(filtered[i]) : null,
       ),
     );
   }
@@ -270,7 +272,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
 
 class _ProductListItem extends StatelessWidget {
   final Product product;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   const _ProductListItem({required this.product, required this.onTap});
 
   @override

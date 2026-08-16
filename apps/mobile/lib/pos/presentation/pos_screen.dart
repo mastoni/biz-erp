@@ -173,6 +173,7 @@ class _PosScreenState extends State<PosScreen> {
                     productRepo: widget.productRepo!,
                     outboxRepo: widget.outboxRepo!,
                     syncStatusNotifier: widget.syncStatusNotifier!,
+                    userRole: widget.authStateNotifier!.session?.role ?? 'CASHIER',
                   ),
                 ),
               );
