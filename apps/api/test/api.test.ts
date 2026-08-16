@@ -7,12 +7,15 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { createApp } from '../src/app'
 import { createPool } from '../src/db/pool'
 import { runMigrations } from '../src/db/migrate'
+import { seedTestUser, authenticateTestUser } from './auth_helper'
 
 const BUSINESS_A = '11111111-1111-4111-8111-111111111111'
 const BUSINESS_B = '22222222-2222-4222-8222-222222222222'
 
 let pool!: Pool
 let app!: Express
+let tokenA!: string
+let tokenB!: string
 
 async function resetDatabase(): Promise<void> {
   await pool.query(`
@@ -127,6 +130,14 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await resetDatabase()
+
+  const userA = await seedTestUser(pool, BUSINESS_A)
+  const authA = await authenticateTestUser(app, userA.email, userA.password, BUSINESS_A)
+  tokenA = authA.accessToken
+
+  const userB = await seedTestUser(pool, BUSINESS_B)
+  const authB = await authenticateTestUser(app, userB.email, userB.password, BUSINESS_B)
+  tokenB = authB.accessToken
 })
 
 describe('Phase 3.0.2 API', () => {
@@ -156,7 +167,7 @@ describe('Phase 3.0.2 API', () => {
     await seedProduct(BUSINESS_A, { name: 'Product A1' })
     await seedProduct(BUSINESS_A, { name: 'Product A2' })
 
-    const res = await request(app).get(`/v1/sync/products?business_id=${BUSINESS_A}`).set('X-Demo-Business-Id', BUSINESS_A).expect(200)
+    const res = await request(app).get(`/v1/sync/products?business_id=${BUSINESS_A}`).set('Authorization', `Bearer ${tokenA}`).expect(200)
 
     expect(Array.isArray(res.body.items)).toBe(true)
     expect(res.body.items).toHaveLength(2)
@@ -168,7 +179,7 @@ describe('Phase 3.0.2 API', () => {
     await seedProduct(BUSINESS_A, { serverVersion: 1 })
     const productV5 = await seedProduct(BUSINESS_A, { serverVersion: 5 })
 
-    const res = await request(app).get(`/v1/sync/products?business_id=${BUSINESS_A}&after_version=1`).set('X-Demo-Business-Id', BUSINESS_A).expect(200)
+    const res = await request(app).get(`/v1/sync/products?business_id=${BUSINESS_A}&after_version=1`).set('Authorization', `Bearer ${tokenA}`).expect(200)
 
     expect(res.body.items).toHaveLength(1)
     expect(res.body.items[0].id).toBe(productV5)
@@ -180,9 +191,9 @@ describe('Phase 3.0.2 API', () => {
     await seedProduct(BUSINESS_A, { name: 'A product' })
     await seedProduct(BUSINESS_B, { name: 'B product' })
 
-    const resA = await request(app).get(`/v1/sync/products?business_id=${BUSINESS_A}`).set('X-Demo-Business-Id', BUSINESS_A).expect(200)
+    const resA = await request(app).get(`/v1/sync/products?business_id=${BUSINESS_A}`).set('Authorization', `Bearer ${tokenA}`).expect(200)
 
-    const resB = await request(app).get(`/v1/sync/products?business_id=${BUSINESS_B}`).set('X-Demo-Business-Id', BUSINESS_B).expect(200)
+    const resB = await request(app).get(`/v1/sync/products?business_id=${BUSINESS_B}`).set('Authorization', `Bearer ${tokenB}`).expect(200)
 
     expect(resA.body.items).toHaveLength(1)
     expect(resB.body.items).toHaveLength(1)
@@ -195,7 +206,7 @@ describe('Phase 3.0.2 API', () => {
 
     const res = await request(app)
       .put(`/v1/sync/products/${productId}`)
-      .set('X-Demo-Business-Id', BUSINESS_A)
+      .set('Authorization', `Bearer ${tokenA}`)
       .send({
         business_id: BUSINESS_A,
         name: 'New Name',
@@ -212,7 +223,7 @@ describe('Phase 3.0.2 API', () => {
 
     const res = await request(app)
       .put(`/v1/sync/products/${productId}`)
-      .set('X-Demo-Business-Id', BUSINESS_A)
+      .set('Authorization', `Bearer ${tokenA}`)
       .send({
         business_id: BUSINESS_A,
         name: 'Conflict',
@@ -233,7 +244,7 @@ describe('Phase 3.0.2 API', () => {
 
     const res = await request(app)
       .put(`/v1/sync/products/${productId}`)
-      .set('X-Demo-Business-Id', BUSINESS_A)
+      .set('Authorization', `Bearer ${tokenA}`)
       .send({
         business_id: BUSINESS_A,
         name: 'Incremented',
@@ -248,7 +259,7 @@ describe('Phase 3.0.2 API', () => {
     const productId = await seedProduct(BUSINESS_A)
     const body = makeSaleBatch(productId)
 
-    const res = await request(app).post('/v1/sync/sales/batch').set('X-Demo-Business-Id', BUSINESS_A).send(body).expect(200)
+    const res = await request(app).post('/v1/sync/sales/batch').set('Authorization', `Bearer ${tokenA}`).send(body).expect(200)
 
     expect(res.body.results).toHaveLength(1)
     expect(res.body.results[0].status).toBe('created')
@@ -273,7 +284,7 @@ describe('Phase 3.0.2 API', () => {
       items: [validBatch.items[0], invalidItem]
     }
 
-    await request(app).post('/v1/sync/sales/batch').set('X-Demo-Business-Id', BUSINESS_A).send(body).expect(400)
+    await request(app).post('/v1/sync/sales/batch').set('Authorization', `Bearer ${tokenA}`).send(body).expect(400)
 
     expect(await countRows('sales')).toBe(0)
     expect(await countRows('sale_items')).toBe(0)
@@ -283,9 +294,9 @@ describe('Phase 3.0.2 API', () => {
     const productId = await seedProduct(BUSINESS_A)
     const body = makeSaleBatch(productId)
 
-    const first = await request(app).post('/v1/sync/sales/batch').set('X-Demo-Business-Id', BUSINESS_A).send(body).expect(200)
+    const first = await request(app).post('/v1/sync/sales/batch').set('Authorization', `Bearer ${tokenA}`).send(body).expect(200)
 
-    const second = await request(app).post('/v1/sync/sales/batch').set('X-Demo-Business-Id', BUSINESS_A).send(body).expect(200)
+    const second = await request(app).post('/v1/sync/sales/batch').set('Authorization', `Bearer ${tokenA}`).send(body).expect(200)
 
     expect(first.body.results[0].status).toBe('created')
     expect(second.body.results[0].status).toBe('replayed')
@@ -299,12 +310,12 @@ describe('Phase 3.0.2 API', () => {
     const productId = await seedProduct(BUSINESS_A)
     const body = makeSaleBatch(productId)
 
-    await request(app).post('/v1/sync/sales/batch').set('X-Demo-Business-Id', BUSINESS_A).send(body).expect(200)
+    await request(app).post('/v1/sync/sales/batch').set('Authorization', `Bearer ${tokenA}`).send(body).expect(200)
 
     const retry = JSON.parse(JSON.stringify(body))
     retry.items[0].request_hash = 'different-hash'
 
-    const res = await request(app).post('/v1/sync/sales/batch').set('X-Demo-Business-Id', BUSINESS_A).send(retry).expect(409)
+    const res = await request(app).post('/v1/sync/sales/batch').set('Authorization', `Bearer ${tokenA}`).send(retry).expect(409)
 
     expect(res.body.error.code).toBe('IDEMPOTENCY_KEY_REUSE')
     expect(await countRows('sales')).toBe(1)
@@ -314,7 +325,7 @@ describe('Phase 3.0.2 API', () => {
     const productB = await seedProduct(BUSINESS_B)
     const body = makeSaleBatch(productB, BUSINESS_A)
 
-    await request(app).post('/v1/sync/sales/batch').set('X-Demo-Business-Id', BUSINESS_A).send(body).expect(400)
+    await request(app).post('/v1/sync/sales/batch').set('Authorization', `Bearer ${tokenA}`).send(body).expect(400)
 
     expect(await countRows('sales')).toBe(0)
   })
@@ -323,7 +334,7 @@ describe('Phase 3.0.2 API', () => {
     const productId = await seedProduct(BUSINESS_A)
     const body = makeSaleBatch(productId)
 
-    await request(app).post('/v1/sync/sales/batch').set('X-Demo-Business-Id', BUSINESS_A).send(body).expect(200)
+    await request(app).post('/v1/sync/sales/batch').set('Authorization', `Bearer ${tokenA}`).send(body).expect(200)
 
     const saleResult = await pool.query('SELECT id FROM sales LIMIT 1')
     const saleId = saleResult.rows[0].id as string
@@ -336,7 +347,7 @@ describe('Phase 3.0.2 API', () => {
   it('API-015 invalid product UUID returns validation error', async () => {
     const res = await request(app)
       .put('/v1/sync/products/not-a-uuid')
-      .set('X-Demo-Business-Id', BUSINESS_A)
+      .set('Authorization', `Bearer ${tokenA}`)
       .send({
         business_id: BUSINESS_A,
         name: 'Test',
@@ -352,7 +363,7 @@ describe('Phase 3.0.2 API', () => {
 
     const res = await request(app)
       .put(`/v1/sync/products/${productId}`)
-      .set('X-Demo-Business-Id', BUSINESS_A)
+      .set('Authorization', `Bearer ${tokenA}`)
       .send({
         business_id: BUSINESS_A,
         price_minor: -1,
@@ -368,7 +379,7 @@ describe('Phase 3.0.2 API', () => {
     const body = makeSaleBatch(productId)
     body.items[0].sale_items[0].quantity = 0
 
-    const res = await request(app).post('/v1/sync/sales/batch').set('X-Demo-Business-Id', BUSINESS_A).send(body).expect(400)
+    const res = await request(app).post('/v1/sync/sales/batch').set('Authorization', `Bearer ${tokenA}`).send(body).expect(400)
 
     expect(res.body.error.code).toBe('VALIDATION_ERROR')
   })
@@ -378,7 +389,7 @@ describe('Phase 3.0.2 API', () => {
     const body = makeSaleBatch(productId)
     delete body.items[0].sale.receipt_number
 
-    const res = await request(app).post('/v1/sync/sales/batch').set('X-Demo-Business-Id', BUSINESS_A).send(body).expect(400)
+    const res = await request(app).post('/v1/sync/sales/batch').set('Authorization', `Bearer ${tokenA}`).send(body).expect(400)
 
     expect(res.body.error.code).toBe('VALIDATION_ERROR')
   })

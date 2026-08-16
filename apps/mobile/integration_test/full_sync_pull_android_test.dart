@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:integration_test/integration_test.dart';
+
 import 'package:http/http.dart' as http;
 import 'package:uuid/uuid.dart';
 import 'package:biz_erp_mobile/core/database/app_database.dart';
@@ -11,6 +11,12 @@ import 'package:biz_erp_mobile/core/sync/sync_meta_repository.dart';
 import 'package:biz_erp_mobile/core/sync/sync_outbox_repository.dart';
 import 'package:biz_erp_mobile/products/data/product_repository.dart';
 import 'package:biz_erp_mobile/sales/data/sales_sync_repository.dart';
+import 'package:biz_erp_mobile/core/auth/auth_secure_storage.dart';
+import 'package:biz_erp_mobile/core/auth/auth_api_client.dart';
+import 'package:biz_erp_mobile/core/auth/auth_repository.dart';
+import 'package:biz_erp_mobile/core/auth/auth_state_notifier.dart';
+import 'package:biz_erp_mobile/core/auth/auth_models.dart';
+import 'package:integration_test/integration_test.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -23,11 +29,30 @@ void main() {
     final syncOutboxRepo = SyncOutboxRepository(db);
     final salesSyncRepo = SalesSyncRepository(db);
 
-    final baseUrl = SyncConfig.baseUrl;
-    final businessId = '11111111-1111-4111-8111-111111111111';
+    final baseUrl = 'http://127.0.0.1:8080';
+    final businessId = '11111111-1111-1111-1111-111111111111';
     final productId = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
 
-    final apiClient = HttpSyncApiClient(baseUrl: baseUrl, businessId: businessId);
+    print('E2E BASE URL IS: $baseUrl');
+
+    // 0. Authenticate E2E User
+    final authStorage = AuthSecureStorage();
+    final authApiClient = AuthApiClient(baseUrl: baseUrl);
+    final authRepository = AuthRepository(storage: authStorage, apiClient: authApiClient);
+    final authStateNotifier = AuthStateNotifier(repository: authRepository);
+    await authStateNotifier.init();
+
+    await authStateNotifier.login('e2e@test.local', 'E2eTestPassword123!', businessId);
+    expect(authStateNotifier.status, AuthStatus.authenticated);
+    expect(authStateNotifier.session, isNotNull);
+    final accessToken = authStateNotifier.session!.accessToken;
+
+    final apiClient = HttpSyncApiClient(
+      baseUrl: baseUrl,
+      businessId: businessId,
+      tokenProvider: () => authStateNotifier.session?.accessToken,
+      onRefresh: authStateNotifier.refresh,
+    );
 
     // PRECONDITION: Push a sale to backend so we have something to pull
     final saleIdempotencyKey = uuid.v4();
@@ -63,7 +88,10 @@ void main() {
     print('Pushing test sale to backend...');
     final pushResponse = await http.post(
       Uri.parse('${baseUrl}/v1/sync/sales/batch'),
-      headers: {'Content-Type': 'application/json', 'X-Demo-Business-Id': businessId},
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $accessToken'
+      },
       body: jsonEncode(pushPayload),
     );
     print('Push Sale Status: ${pushResponse.statusCode}');
@@ -128,9 +156,9 @@ void main() {
       // Mismatch: header=businessId, query=otherBusinessId
       final res = await http.get(
         Uri.parse('${baseUrl}/v1/sync/products?business_id=$otherBusinessId&after_version=0&limit=100'),
-        headers: {'X-Demo-Business-Id': businessId}
+        headers: {'Authorization': 'Bearer $accessToken'}
       );
-      expect(res.statusCode, 401);
+      expect(res.statusCode, 403);
       print('Tenant Isolation PASS: ${res.statusCode}');
     } catch (e) {
       print('Tenant Isolation Error: $e');

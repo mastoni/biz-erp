@@ -8,8 +8,9 @@ async function main(): Promise<void> {
   const pool = createPool(env.databaseUrl)
   const app = createApp(pool)
 
-  const server = app.listen(env.port, () => {
-    console.log(`BizERP API listening on port ${env.port}`)
+  const host = process.env.HOST || '127.0.0.1'
+  const server = app.listen(env.port, host, () => {
+    console.log(`BizERP API listening on port ${env.port} (${host})`)
   })
 
   const shutdown = async (): Promise<void> => {

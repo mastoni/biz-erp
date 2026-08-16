@@ -33,10 +33,12 @@ void main() {
       if (request.url.path == '/v1/auth/login') {
         if (loginStatus == 200) {
           final res = loginResponse ?? {
-            'access_token': {'token': 'access_token_123', 'expires_in': 3600},
+            'access_token': 'access_token_123',
             'refresh_token': 'refresh_token_123',
             'user': {'id': 'user_123'},
-            'business': {'id': DemoContext.businessId, 'role': 'OWNER'},
+            'business': {'id': DemoContext.businessId},
+            'role': 'OWNER',
+            'expires_in': 3600,
           };
           return http.Response(jsonEncode(res), 200);
         } else {
@@ -194,10 +196,12 @@ void main() {
       mockClient = createMockClient(
         loginStatus: 200,
         loginResponse: {
-          'access_token': {'token': 'a', 'expires_in': 3600},
+          'access_token': 'a',
           'refresh_token': 'r',
           'user': {'id': 'u'},
-          'business': {'id': 'WRONG_BUSINESS', 'role': 'OWNER'},
+          'business': {'id': 'WRONG_BUSINESS'},
+          'role': 'OWNER',
+          'expires_in': 3600,
         },
       );
       apiClient = AuthApiClient(baseUrl: 'http://test', client: mockClient);

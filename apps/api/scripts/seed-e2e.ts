@@ -1,5 +1,6 @@
 import 'dotenv/config'
 import { Pool } from 'pg'
+import bcrypt from 'bcrypt'
 
 async function main() {
   const nodeEnv = process.env.NODE_ENV || 'development'
@@ -24,11 +25,31 @@ async function main() {
   const PRODUCT_NAME = 'E2E Deterministic Product'
   const PRICE_MINOR = 10000
 
+  const USER_ID = '99999999-9999-9999-9999-999999999999'
+  const USER_EMAIL = 'e2e@test.local'
+  const TEST_PASSWORD = 'E2eTestPassword123!'
+
   try {
+    await pool.query('TRUNCATE TABLE sales CASCADE')
+
     await pool.query(
       'INSERT INTO businesses (id, name) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING',
       [BUSINESS_ID, 'E2E Test Business']
     )
+
+    // 0. Seed User and Membership
+    const hash = await bcrypt.hash(TEST_PASSWORD, 10)
+    await pool.query(`
+      INSERT INTO users (id, email, password_hash, status)
+      VALUES ($1, $2, $3, 'ACTIVE')
+      ON CONFLICT (id) DO UPDATE SET password_hash = EXCLUDED.password_hash, status = EXCLUDED.status
+    `, [USER_ID, USER_EMAIL, hash])
+
+    await pool.query(`
+      INSERT INTO user_businesses (user_id, business_id, role, status)
+      VALUES ($1, $2, 'OWNER', 'ACTIVE')
+      ON CONFLICT (user_id, business_id) DO UPDATE SET role = EXCLUDED.role, status = EXCLUDED.status
+    `, [USER_ID, BUSINESS_ID])
 
     // 1. Seed Product A
     await pool.query(`
@@ -64,6 +85,7 @@ async function main() {
 
     console.log('E2E FIXTURE READY')
     console.log('Business: 11111111-1111-1111-1111-111111111111')
+    console.log('User: e2e@test.local / E2eTestPassword123!')
     console.log('Product A: aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee')
     console.log('Product B: bbbbbbbb-cccc-4ddd-8eee-ffffffffffff')
   } catch (error) {

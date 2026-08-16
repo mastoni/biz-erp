@@ -36,16 +36,16 @@ class AuthApiClient {
 
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body) as Map<String, dynamic>;
-        final tokenData = json['access_token'] as Map<String, dynamic>;
+        final accessToken = json['access_token'] as String;
         final user = json['user'] as Map<String, dynamic>;
         final business = json['business'] as Map<String, dynamic>;
         
         return AuthSession(
-          accessToken: tokenData['token'] as String,
+          accessToken: accessToken,
           refreshToken: json['refresh_token'] as String,
           userId: user['id'] as String,
           businessId: business['id'] as String,
-          role: business['role'] as String,
+          role: json['role'] as String,
         );
       } else {
         // Parse error
@@ -73,7 +73,8 @@ class AuthApiClient {
       }
     } on AuthException {
       rethrow;
-    } catch (e) {
+    } catch (e, stack) {
+      print('LOGIN EXCEPTION: $e\n$stack');
       throw AuthException('NETWORK_ERROR', 'Server sedang tidak dapat dihubungi. Silakan periksa koneksi internet Anda.');
     }
   }
