@@ -1,4 +1,4 @@
-﻿import { Pool } from 'pg'
+import { Pool } from 'pg'
 import { SalesBatchRequest, validateSalesBatch } from '../dto/sale_dto'
 import { SalesBatchResponse, SaleSyncResult, SaleSyncListResponse } from '../dto/sync_dto'
 import { ApiError } from '../errors/api_error'
@@ -9,17 +9,17 @@ import { productRepository } from '../repositories/product_repository'
 import { saleRepository } from '../repositories/sale_repository'
 import { withTransaction } from '../db/transaction'
 
-function assertTenant(businessId: string, demoBusinessId?: string): void {
-  if (demoBusinessId && demoBusinessId.toLowerCase() !== businessId.toLowerCase()) {
+function assertTenant(businessId: string, tenantId: string): void {
+  if (tenantId.toLowerCase() !== businessId.toLowerCase()) {
     throw new ApiError(401, 'UNAUTHORIZED', 'Business identity mismatch')
   }
 }
 
 export function createSalesSyncService(pool: Pool) {
   return {
-    async syncBatch(body: unknown, demoBusinessId?: string): Promise<SalesBatchResponse> {
+    async syncBatch(body: unknown, tenantId: string): Promise<SalesBatchResponse> {
       const request: SalesBatchRequest = validateSalesBatch(body)
-      assertTenant(request.business_id, demoBusinessId)
+      assertTenant(request.business_id, tenantId)
 
       return withTransaction(pool, async (client) => {
         const results: SaleSyncResult[] = []

@@ -1,21 +1,31 @@
-﻿import { isUuid } from '../utils/uuid'
+import { isUuid } from '../utils/uuid'
 import { ValidationError } from '../errors/validation_error'
 import { RequestHandler, Router } from 'express'
 import { Pool } from 'pg'
-import { requireAuth, AuthenticatedRequest } from '../middleware/auth'
+import { requireSyncAuth, SyncAuthenticatedRequest } from '../middleware/auth'
 import { createProductSyncService } from '../services/product_sync_service'
+import { createJwtService } from '../services/jwt_service'
 import { asyncHandler } from '../utils/async_handler'
 
 export function createProductSyncRouter(pool: Pool): Router {
   const router = Router()
   const service = createProductSyncService(pool)
+  const jwtSecret = process.env.JWT_SECRET
+  const jwtIssuer = process.env.JWT_ISSUER
+  const jwtAudience = process.env.JWT_AUDIENCE
 
-  router.use(requireAuth as RequestHandler)
+  if (!jwtSecret || !jwtIssuer || !jwtAudience) {
+    throw new Error('JWT_SECRET, JWT_ISSUER, and JWT_AUDIENCE must be set in the environment')
+  }
+
+  const jwtService = createJwtService(jwtSecret, jwtIssuer, jwtAudience)
+
+  router.use(requireSyncAuth(jwtService) as RequestHandler)
 
   router.get(
     '/',
-    asyncHandler<AuthenticatedRequest>(async (req, res) => {
-      const result = await service.list(req.query, req.demoBusinessId)
+    asyncHandler<SyncAuthenticatedRequest>(async (req, res) => {
+      const result = await service.list(req.query, req.tenantId!)
       res.status(200).json(result)
     })
   )
@@ -23,7 +33,7 @@ export function createProductSyncRouter(pool: Pool): Router {
 
   router.post(
     '/',
-    asyncHandler<AuthenticatedRequest>(async (req, res) => {
+    asyncHandler<SyncAuthenticatedRequest>(async (req, res) => {
       const idempotencyKey = req.headers['idempotency-key']
       if (typeof idempotencyKey !== 'string' || !isUuid(idempotencyKey)) {
         throw new ValidationError('Idempotency-Key header must be a valid UUID')
@@ -33,15 +43,15 @@ export function createProductSyncRouter(pool: Pool): Router {
       const hashStr = `${reqBody.business_id}|${reqBody.id}|${reqBody.name}|${reqBody.price_minor}`
       const requestHash = crypto.createHash('sha256').update(hashStr).digest('hex')
 
-      const result = await service.create(req.body, idempotencyKey, requestHash, req.demoBusinessId)
+      const result = await service.create(req.body, idempotencyKey, requestHash, req.tenantId!)
       res.status(201).json(result)
     })
   )
 
   router.put(
     '/:id',
-    asyncHandler<AuthenticatedRequest>(async (req, res) => {
-      const result = await service.update(req.params.id, req.body, req.demoBusinessId)
+    asyncHandler<SyncAuthenticatedRequest>(async (req, res) => {
+      const result = await service.update(req.params.id, req.body, req.tenantId!)
       res.status(200).json(result)
     })
   )

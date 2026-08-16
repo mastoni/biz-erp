@@ -13,8 +13,8 @@ import { isUuid } from '../utils/uuid'
 const DEFAULT_LIMIT = 100
 const MAX_LIMIT = 500
 
-function assertTenant(businessId: string, demoBusinessId?: string): void {
-  if (demoBusinessId && demoBusinessId.toLowerCase() !== businessId.toLowerCase()) {
+function assertTenant(businessId: string, tenantId: string): void {
+  if (tenantId.toLowerCase() !== businessId.toLowerCase()) {
     throw new ApiError(401, 'UNAUTHORIZED', 'Business identity mismatch')
   }
 }
@@ -49,7 +49,7 @@ function parseLimit(value: unknown): number {
 
 export function createProductSyncService(pool: Pool) {
   return {
-    async list(query: unknown, demoBusinessId?: string): Promise<ProductSyncListResponse> {
+    async list(query: unknown, tenantId: string): Promise<ProductSyncListResponse> {
       const q = query as Record<string, unknown>
       const businessId = typeof q.business_id === 'string' ? q.business_id.trim() : undefined
 
@@ -57,7 +57,7 @@ export function createProductSyncService(pool: Pool) {
         throw new ValidationError('business_id must be a valid UUID')
       }
 
-      assertTenant(businessId, demoBusinessId)
+      assertTenant(businessId, tenantId)
 
       const afterVersion = parseAfterVersion(q.after_version)
       const limit = parseLimit(q.limit)
@@ -78,13 +78,13 @@ export function createProductSyncService(pool: Pool) {
       })
     },
 
-    async update(productId: string, body: unknown, demoBusinessId?: string): Promise<ProductDto> {
+    async update(productId: string, body: unknown, tenantId: string): Promise<ProductDto> {
       if (!isUuid(productId)) {
         throw new ValidationError('Product id must be a valid UUID')
       }
 
       const request = validateProductUpdate(body)
-      assertTenant(request.business_id, demoBusinessId)
+      assertTenant(request.business_id, tenantId)
 
       return withTransaction(pool, async (client) => {
         const existing = await productRepository.findById(client, request.business_id, productId)
@@ -125,9 +125,9 @@ export function createProductSyncService(pool: Pool) {
       })
     },
 
-    async create(body: unknown, idempotencyKey: string, requestHash: string, demoBusinessId?: string): Promise<ProductDto> {
+    async create(body: unknown, idempotencyKey: string, requestHash: string, tenantId: string): Promise<ProductDto> {
       const request = validateProductCreate(body)
-      assertTenant(request.business_id, demoBusinessId)
+      assertTenant(request.business_id, tenantId)
 
       return withTransaction(pool, async (client) => {
         const existing = await idempotencyRepository.findActive(client, request.business_id, idempotencyKey)

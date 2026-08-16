@@ -1,6 +1,7 @@
 import { RequestHandler, Router } from 'express'
 import { Pool } from 'pg'
-import { requireAuth, AuthenticatedRequest } from '../middleware/auth'
+import { requireSyncAuth, SyncAuthenticatedRequest } from '../middleware/auth'
+import { createJwtService } from '../services/jwt_service'
 import { isUuid } from '../utils/uuid'
 import { ValidationError } from '../errors/validation_error'
 import { ApiError } from '../errors/api_error'
@@ -10,12 +11,21 @@ import { asyncHandler } from '../utils/async_handler'
 export function createSalesSyncRouter(pool: Pool): Router {
   const router = Router()
   const service = createSalesSyncService(pool)
+  const jwtSecret = process.env.JWT_SECRET
+  const jwtIssuer = process.env.JWT_ISSUER
+  const jwtAudience = process.env.JWT_AUDIENCE
 
-  router.use(requireAuth as RequestHandler)
+  if (!jwtSecret || !jwtIssuer || !jwtAudience) {
+    throw new Error('JWT_SECRET, JWT_ISSUER, and JWT_AUDIENCE must be set in the environment')
+  }
+
+  const jwtService = createJwtService(jwtSecret, jwtIssuer, jwtAudience)
+
+  router.use(requireSyncAuth(jwtService) as RequestHandler)
 
   router.get(
     '/',
-    asyncHandler<AuthenticatedRequest>(async (req, res) => {
+    asyncHandler<SyncAuthenticatedRequest>(async (req, res) => {
       const businessId = req.query.business_id as string
       const sinceRaw = req.query.since as string | undefined
       const limitRaw = req.query.limit as string | undefined
@@ -24,9 +34,7 @@ export function createSalesSyncRouter(pool: Pool): Router {
         throw new ValidationError('business_id must be a valid UUID')
       }
 
-      if (req.demoBusinessId && req.demoBusinessId.toLowerCase() !== businessId.toLowerCase()) {
-        throw new ApiError(401, 'UNAUTHORIZED', 'Business identity mismatch')
-      }
+      // Note: The middleware already throws 403 on tenant mismatch, so we don't need the redundant check here.
 
       let sinceMs = 0
       if (sinceRaw !== undefined) {
@@ -51,8 +59,8 @@ export function createSalesSyncRouter(pool: Pool): Router {
 
   router.post(
     '/batch',
-    asyncHandler<AuthenticatedRequest>(async (req, res) => {
-      const result = await service.syncBatch(req.body, req.demoBusinessId)
+    asyncHandler<SyncAuthenticatedRequest>(async (req, res) => {
+      const result = await service.syncBatch(req.body, req.tenantId!)
       res.status(200).json(result)
     })
   )
