@@ -50,7 +50,7 @@ export function createRefreshTokenService(pool: Pool) {
       }
     },
 
-    async validateRefreshToken(client: PoolClient, token: string, businessId: string): Promise<RefreshSession> {
+    async validateRefreshToken(client: PoolClient, token: string, businessId?: string): Promise<RefreshSession> {
       const tokenHash = hashToken(token)
       const session = await refreshSessionRepository.findByHash(client, tokenHash)
 
@@ -67,14 +67,14 @@ export function createRefreshTokenService(pool: Pool) {
       }
 
       // Tenant/business binding check
-      if (session.business_id !== businessId) {
+      if (businessId && session.business_id !== businessId) {
         throw new ApiError(401, 'INVALID_REFRESH_TOKEN', 'Invalid refresh token')
       }
 
       return session
     },
 
-    async rotateRefreshToken(oldToken: string, businessId: string): Promise<RefreshTokenResult> {
+    async rotateRefreshToken(oldToken: string, businessId?: string): Promise<RefreshTokenResult> {
       return await withTransaction(pool, async (client) => {
         const session = await this.validateRefreshToken(client, oldToken, businessId)
         

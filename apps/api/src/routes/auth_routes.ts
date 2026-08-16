@@ -91,6 +91,46 @@ export function createAuthRouter(pool: Pool): Router {
     }
   })
 
+  router.post('/refresh', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { refresh_token } = req.body
+
+      if (!refresh_token || typeof refresh_token !== 'string') {
+        throw new ApiError(401, 'INVALID_REFRESH_TOKEN', 'Invalid refresh token')
+      }
+
+      // Step 1 & 2: Validate token and rotate session atomically
+      const tokenResult = await refreshTokenService.rotateRefreshToken(refresh_token)
+      const session = tokenResult.session
+      
+      // Step 3: Get user/business membership
+      const membership = await userBusinessRepo.findActiveMembership(session.user_id, session.business_id)
+      
+      if (!membership) {
+        throw new ApiError(403, 'BUSINESS_ACCESS_DENIED', 'Access denied to this business')
+      }
+
+      // Step 4: Issue JWT access token
+      const claims = {
+        sub: session.user_id,
+        business_id: session.business_id,
+        role: membership.role as 'OWNER' | 'CASHIER',
+        session_id: session.id,
+        jti: randomUUID()
+      }
+      const accessToken = jwtService.signAccessToken(claims)
+
+      // Step 5: Return success response
+      res.status(200).json({
+        access_token: accessToken,
+        refresh_token: tokenResult.refreshToken,
+        expires_in: 900 // 15 minutes as configured in jwt_service
+      })
+    } catch (err) {
+      next(err)
+    }
+  })
+
   return router
 }
 
