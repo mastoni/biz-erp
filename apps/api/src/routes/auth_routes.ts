@@ -1,5 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express'
 import { Pool } from 'pg'
+import rateLimit from 'express-rate-limit'
 import { createAuthService } from '../services/auth_service'
 import { createUserRepository } from '../repositories/user_repository'
 import { createUserBusinessRepository } from '../repositories/user_business_repository'
@@ -24,7 +25,31 @@ export function createAuthRouter(pool: Pool): Router {
   const jwtAudience = process.env.JWT_AUDIENCE || 'biz-erp-client'
   const jwtService = createJwtService(jwtSecret, jwtIssuer, jwtAudience)
 
-  router.post('/login', async (req: Request, res: Response, next: NextFunction) => {
+  const loginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 10, // Limit each IP to 10 requests per windowMs
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'TOO_MANY_REQUESTS', message: 'Too many login attempts, please try again later.' },
+    skip: (req) => process.env.NODE_ENV === 'test' && !req.headers['x-forwarded-for'],
+    handler: (req, res, next, options) => {
+      res.status(options.statusCode).json(options.message)
+    }
+  })
+
+  const refreshLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 30, // Limit each IP to 30 requests per windowMs
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'TOO_MANY_REQUESTS', message: 'Too many refresh attempts, please try again later.' },
+    skip: (req) => process.env.NODE_ENV === 'test' && !req.headers['x-forwarded-for'],
+    handler: (req, res, next, options) => {
+      res.status(options.statusCode).json(options.message)
+    }
+  })
+
+  router.post('/login', loginLimiter, async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { email, password, business_id } = req.body
 
@@ -93,7 +118,7 @@ export function createAuthRouter(pool: Pool): Router {
     }
   })
 
-  router.post('/refresh', async (req: Request, res: Response, next: NextFunction) => {
+  router.post('/refresh', refreshLimiter, async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { refresh_token } = req.body
 
