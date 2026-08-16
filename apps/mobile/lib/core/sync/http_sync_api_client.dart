@@ -5,29 +5,40 @@ import 'package:http/http.dart' as http;
 import 'sync_api_client.dart';
 import 'sync_models.dart';
 
+import '../auth/auth_models.dart';
+
+typedef TokenProvider = String? Function();
+typedef RefreshCallback = Future<RefreshResult> Function();
+
 class HttpSyncApiClient implements SyncApiClient {
   final String baseUrl;
   final http.Client _client;
   final Duration _timeout;
   final String? _businessId;
-  final String? _authToken;
+  final TokenProvider? _tokenProvider;
+  final RefreshCallback? _onRefresh;
 
   HttpSyncApiClient({
     required this.baseUrl,
     http.Client? client,
     Duration timeout = const Duration(seconds: 30),
     String? businessId,
-    String? authToken,
+    TokenProvider? tokenProvider,
+    RefreshCallback? onRefresh,
   }) : _client = client ?? http.Client(),
        _timeout = timeout,
        _businessId = businessId,
-       _authToken = authToken;
+       _tokenProvider = tokenProvider,
+       _onRefresh = onRefresh;
 
-  Map<String, String> get _headers => {
-    'Content-Type': 'application/json',
-    if (_businessId != null) 'X-Demo-Business-Id': _businessId!,
-    if (_authToken != null) 'Authorization': 'Bearer $_authToken',
-  };
+  Map<String, String> get _headers {
+    final token = _tokenProvider?.call();
+    return {
+      'Content-Type': 'application/json',
+      if (_businessId != null) 'X-Demo-Business-Id': _businessId!,
+      if (token != null) 'Authorization': 'Bearer $token',
+    };
+  }
 
   @override
   Future<bool> health() async {
@@ -56,11 +67,24 @@ class HttpSyncApiClient implements SyncApiClient {
       },
     );
 
-    final response = await _client
-        .get(uri, headers: _headers)
-        .timeout(_timeout);
+    http.Response? response;
+    for (int attempt = 1; attempt <= 2; attempt++) {
+      response = await _client
+          .get(uri, headers: _headers)
+          .timeout(_timeout);
 
-    if (response.statusCode != 200) {
+      if (response.statusCode == 401 && attempt == 1 && _onRefresh != null) {
+        final result = await _onRefresh!();
+        if (result == RefreshResult.success) {
+          continue; // retry
+        } else {
+          break; // do not retry
+        }
+      }
+      break; // exit loop if not 401 or attempt > 1
+    }
+
+    if (response!.statusCode != 200) {
       throw HttpException(
         'Failed to pull products: HTTP ${response.statusCode}',
         statusCode: response.statusCode,
@@ -100,11 +124,24 @@ class HttpSyncApiClient implements SyncApiClient {
       },
     );
 
-    final response = await _client
-        .get(uri, headers: _headers)
-        .timeout(_timeout);
+    http.Response? response;
+    for (int attempt = 1; attempt <= 2; attempt++) {
+      response = await _client
+          .get(uri, headers: _headers)
+          .timeout(_timeout);
 
-    if (response.statusCode != 200) {
+      if (response.statusCode == 401 && attempt == 1 && _onRefresh != null) {
+        final result = await _onRefresh!();
+        if (result == RefreshResult.success) {
+          continue;
+        } else {
+          break;
+        }
+      }
+      break;
+    }
+
+    if (response!.statusCode != 200) {
       throw HttpException(
         'Failed to pull sales: HTTP ${response.statusCode}',
         statusCode: response.statusCode,
@@ -146,11 +183,24 @@ class HttpSyncApiClient implements SyncApiClient {
     };
 
     try {
-      final response = await _client
-          .put(uri, headers: _headers, body: jsonEncode(body))
-          .timeout(_timeout);
+      http.Response? response;
+      for (int attempt = 1; attempt <= 2; attempt++) {
+        response = await _client
+            .put(uri, headers: _headers, body: jsonEncode(body))
+            .timeout(_timeout);
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
+        if (response.statusCode == 401 && attempt == 1 && _onRefresh != null) {
+          final result = await _onRefresh!();
+          if (result == RefreshResult.success) {
+            continue;
+          } else {
+            break;
+          }
+        }
+        break;
+      }
+
+      if (response!.statusCode == 200 || response.statusCode == 201) {
         final json = jsonDecode(response.body) as Map<String, dynamic>;
         return ProductPushResult(
           ok: true,
@@ -218,8 +268,22 @@ class HttpSyncApiClient implements SyncApiClient {
     final uri = Uri.parse('$baseUrl/v1/sync/products');
     final body = { 'business_id': _businessId ?? '', 'id': product.id, 'name': product.name, 'description': product.description, 'barcode': product.barcode, 'price_minor': product.priceMinor, 'category': product.category, 'is_active': product.isActive };
     try {
-      final response = await _client.post(uri, headers: {..._headers, 'Idempotency-Key': idempotencyKey}, body: jsonEncode(body)).timeout(_timeout);
-      if (response.statusCode == 201) {
+      http.Response? response;
+      for (int attempt = 1; attempt <= 2; attempt++) {
+        response = await _client.post(uri, headers: {..._headers, 'Idempotency-Key': idempotencyKey}, body: jsonEncode(body)).timeout(_timeout);
+
+        if (response.statusCode == 401 && attempt == 1 && _onRefresh != null) {
+          final result = await _onRefresh!();
+          if (result == RefreshResult.success) {
+            continue;
+          } else {
+            break;
+          }
+        }
+        break;
+      }
+      
+      if (response!.statusCode == 201) {
         final json = jsonDecode(response.body) as Map<String, dynamic>;
         return ProductPushResult(ok: true, serverVersion: json['server_version'] as int?);
       } else if (response.statusCode == 409) {
@@ -246,11 +310,24 @@ class HttpSyncApiClient implements SyncApiClient {
     };
 
     try {
-      final response = await _client
-          .post(uri, headers: _headers, body: jsonEncode(body))
-          .timeout(_timeout);
+      http.Response? response;
+      for (int attempt = 1; attempt <= 2; attempt++) {
+        response = await _client
+            .post(uri, headers: _headers, body: jsonEncode(body))
+            .timeout(_timeout);
 
-      if (response.statusCode == 200 || response.statusCode == 207) {
+        if (response.statusCode == 401 && attempt == 1 && _onRefresh != null) {
+          final result = await _onRefresh!();
+          if (result == RefreshResult.success) {
+            continue;
+          } else {
+            break;
+          }
+        }
+        break;
+      }
+
+      if (response!.statusCode == 200 || response.statusCode == 207) {
         final json = jsonDecode(response.body) as Map<String, dynamic>;
         final results = json['results'] as List? ?? [];
 

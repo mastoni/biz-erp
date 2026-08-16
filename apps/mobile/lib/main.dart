@@ -72,6 +72,13 @@ Future<void> main() async {
   scannerService.start();
   unawaited(printingService.autoReconnectLast());
 
+  // Phase 4.0.9: Auth Initialization
+  final authStorage = AuthSecureStorage();
+  final authApiClient = AuthApiClient(baseUrl: SyncConfig.baseUrl);
+  final authRepository = AuthRepository(storage: authStorage, apiClient: authApiClient);
+  final authStateNotifier = AuthStateNotifier(repository: authRepository);
+  await authStateNotifier.init();
+
   // Phase 3.1: Sync Services
   final syncMetaRepo = SyncMetaRepository(db);
   final syncOutboxRepo = SyncOutboxRepository(db);
@@ -79,6 +86,8 @@ Future<void> main() async {
   final apiClient = HttpSyncApiClient(
     baseUrl: SyncConfig.baseUrl,
     businessId: DemoContext.businessId,
+    tokenProvider: () => authStateNotifier.session?.accessToken,
+    onRefresh: authStateNotifier.refresh,
   );
   final networkMonitor = NetworkMonitor(api: apiClient);
   final syncEngine = SyncEngine(
@@ -96,13 +105,6 @@ Future<void> main() async {
     productRepository: productRepo,
     businessId: DemoContext.businessId,
   );
-
-  // Phase 4.0.9: Auth Initialization
-  final authStorage = AuthSecureStorage();
-  final authApiClient = AuthApiClient(baseUrl: SyncConfig.baseUrl);
-  final authRepository = AuthRepository(storage: authStorage, apiClient: authApiClient);
-  final authStateNotifier = AuthStateNotifier(repository: authRepository);
-  await authStateNotifier.init();
 
   runApp(MyApp(
     controller: controller,

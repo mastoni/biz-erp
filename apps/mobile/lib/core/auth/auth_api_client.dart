@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'auth_models.dart';
-import '../sync/http_sync_api_client.dart'; // Reusing HttpException and NetworkException if needed, or creating new. Let's create AuthException.
 
 class AuthException implements Exception {
   final String code;
@@ -96,6 +95,38 @@ class AuthApiClient {
       }
     } catch (e) {
       // Ignored for offline logout capability.
+    }
+  }
+
+  Future<TokenRefreshResult> refresh(String refreshToken) async {
+    final uri = Uri.parse('$baseUrl/v1/auth/refresh');
+    final body = {
+      'refresh_token': refreshToken,
+    };
+
+    try {
+      final response = await _client.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(body),
+      ).timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final json = jsonDecode(response.body) as Map<String, dynamic>;
+        return TokenRefreshResult(
+          accessToken: json['access_token'] as String,
+          refreshToken: json['refresh_token'] as String,
+          expiresIn: json['expires_in'] as int,
+        );
+      } else if (response.statusCode == 401) {
+        throw AuthException('INVALID_REFRESH_TOKEN', 'Sesi Anda telah berakhir.');
+      } else {
+        throw AuthException('UNKNOWN_ERROR', 'Terjadi kesalahan pada server saat refresh session.');
+      }
+    } on AuthException {
+      rethrow;
+    } catch (e) {
+      throw AuthException('NETWORK_ERROR', 'Server sedang tidak dapat dihubungi.');
     }
   }
 }

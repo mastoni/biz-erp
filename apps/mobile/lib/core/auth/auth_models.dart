@@ -8,6 +8,13 @@ enum AuthStatus {
   sessionExpired,
 }
 
+enum RefreshResult {
+  success,
+  sessionExpired,
+  networkUnavailable,
+  failed,
+}
+
 class AuthSession {
   final String accessToken;
   final String refreshToken;
@@ -60,4 +67,16 @@ class AuthBusinessSelection {
       name: map['name'] as String,
     );
   }
+}
+
+class TokenRefreshResult {
+  final String accessToken;
+  final String refreshToken;
+  final int expiresIn;
+
+  TokenRefreshResult({
+    required this.accessToken,
+    required this.refreshToken,
+    required this.expiresIn,
+  });
 }

@@ -6,6 +6,7 @@ import '../demo_context.dart';
 class AuthRepository {
   final AuthSecureStorage _storage;
   final AuthApiClient _apiClient;
+  Future<RefreshResult>? _refreshFuture;
 
   AuthRepository({
     required AuthSecureStorage storage,
@@ -35,5 +36,49 @@ class AuthRepository {
       _apiClient.logout(session.accessToken).catchError((_) {});
     }
     await _storage.clearSession();
+  }
+
+  Future<RefreshResult> refreshSession() {
+    if (_refreshFuture != null) {
+      return _refreshFuture!;
+    }
+    
+    _refreshFuture = _doRefreshSession().whenComplete(() {
+      _refreshFuture = null;
+    });
+
+    return _refreshFuture!;
+  }
+
+  Future<RefreshResult> _doRefreshSession() async {
+    final session = await _storage.getSession();
+    if (session == null || session.refreshToken.isEmpty) {
+      return RefreshResult.sessionExpired;
+    }
+    try {
+      final result = await _apiClient.refresh(session.refreshToken);
+      
+      final updatedSession = AuthSession(
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        userId: session.userId,
+        businessId: session.businessId,
+        role: session.role,
+      );
+
+      await _storage.saveSession(updatedSession);
+      return RefreshResult.success;
+    } on AuthException catch (e) {
+      if (e.code == 'INVALID_REFRESH_TOKEN') {
+        await _storage.clearSession();
+        return RefreshResult.sessionExpired;
+      }
+      if (e.code == 'NETWORK_ERROR') {
+        return RefreshResult.networkUnavailable;
+      }
+      return RefreshResult.failed;
+    } catch (e) {
+      return RefreshResult.failed;
+    }
   }
 }

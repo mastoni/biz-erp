@@ -43,4 +43,22 @@ class AuthStateNotifier extends ChangeNotifier {
     _status = AuthStatus.sessionExpired;
     notifyListeners();
   }
+
+  Future<RefreshResult> refresh() async {
+    final result = await _repository.refreshSession();
+    
+    if (result == RefreshResult.success) {
+      _session = await _repository.restoreSession();
+      // Ensure status is authenticated if we were in a transient state
+      if (_status != AuthStatus.authenticated) {
+        _status = AuthStatus.authenticated;
+      }
+      notifyListeners();
+    } else if (result == RefreshResult.sessionExpired) {
+      sessionExpired();
+    }
+    // For networkUnavailable or failed, we do not change the UI state to unauthenticated
+    
+    return result;
+  }
 }
