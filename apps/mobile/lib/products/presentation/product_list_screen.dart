@@ -1,5 +1,5 @@
-﻿import 'package:flutter/material.dart';
-import 'package:biz_erp_mobile/core/demo_context.dart';
+import 'package:flutter/material.dart';
+import 'package:biz_erp_mobile/core/utils/currency_formatter.dart';
 import 'package:biz_erp_mobile/core/sync/sync_status_notifier.dart';
 import 'package:biz_erp_mobile/products/data/product_repository.dart';
 import 'package:biz_erp_mobile/products/domain/product.dart';
@@ -9,12 +9,14 @@ import 'product_edit_screen.dart';
 enum ProductFilter { all, active, inactive, dirty }
 
 class ProductListScreen extends StatefulWidget {
+  final String businessId;
   final ProductRepository productRepo;
   final SyncOutboxRepository outboxRepo;
   final SyncStatusNotifier syncStatusNotifier;
 
   const ProductListScreen({
     super.key,
+    required this.businessId,
     required this.productRepo,
     required this.outboxRepo,
     required this.syncStatusNotifier,
@@ -56,7 +58,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
       _error = null;
     });
     try {
-      final products = await widget.productRepo.listAllProducts(DemoContext.businessId);
+      final products = await widget.productRepo.listAllProducts(widget.businessId);
       if (!mounted) return;
       setState(() {
         _allProducts = products;
@@ -102,6 +104,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
       context,
       MaterialPageRoute(
         builder: (_) => ProductEditScreen(
+          businessId: widget.businessId,
           productId: product.id,
           productRepo: widget.productRepo,
           outboxRepo: widget.outboxRepo,
@@ -124,7 +127,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
-          final saved = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => ProductEditScreen(productId: null, productRepo: widget.productRepo, outboxRepo: widget.outboxRepo)));
+          final saved = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => ProductEditScreen(businessId: widget.businessId, productId: null, productRepo: widget.productRepo, outboxRepo: widget.outboxRepo)));
           if (saved == true && mounted) _load();
         },
         backgroundColor: Colors.blueGrey[800],
@@ -342,7 +345,7 @@ class _ProductListItem extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      DemoContext.formatIDR(product.priceMinor),
+                      CurrencyFormatter.formatIDR(product.priceMinor),
                       style: TextStyle(
                         color: Colors.green[700],
                         fontWeight: FontWeight.bold,

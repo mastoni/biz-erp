@@ -7,16 +7,20 @@ class AuthStateNotifier extends ChangeNotifier {
 
   AuthStatus _status = AuthStatus.unknown;
   AuthSession? _session;
+  String? _lastBusinessId;
 
   AuthStateNotifier({required AuthRepository repository}) : _repository = repository;
 
   AuthStatus get status => _status;
   AuthSession? get session => _session;
+  String? get businessId => _session?.businessId ?? _lastBusinessId;
 
   Future<void> init() async {
+    _lastBusinessId = await _repository.getLastBusinessId();
     final session = await _repository.restoreSession();
     if (session != null) {
       _session = session;
+      _lastBusinessId = session.businessId;
       _status = AuthStatus.authenticated;
     } else {
       _status = AuthStatus.unauthenticated;
@@ -27,6 +31,7 @@ class AuthStateNotifier extends ChangeNotifier {
   Future<void> login(String email, String password, [String? businessId]) async {
     final session = await _repository.login(email, password, businessId);
     _session = session;
+    _lastBusinessId = session.businessId;
     _status = AuthStatus.authenticated;
     notifyListeners();
   }
@@ -34,6 +39,7 @@ class AuthStateNotifier extends ChangeNotifier {
   Future<void> logout() async {
     await _repository.logout();
     _session = null;
+    _lastBusinessId = null;
     _status = AuthStatus.unauthenticated;
     notifyListeners();
   }

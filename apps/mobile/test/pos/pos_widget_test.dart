@@ -8,7 +8,6 @@ import 'package:biz_erp_mobile/products/domain/product.dart';
 import 'package:biz_erp_mobile/sales/data/checkout_service.dart';
 import 'package:biz_erp_mobile/sales/domain/calculation/sale_calculation_engine.dart';
 import 'package:biz_erp_mobile/sales/domain/checkout/checkout_models.dart';
-import 'package:biz_erp_mobile/core/demo_context.dart';
 import 'package:biz_erp_mobile/pos/presentation/pos_controller.dart';
 import 'package:biz_erp_mobile/pos/presentation/pos_screen.dart';
 import 'package:biz_erp_mobile/core/hardware/printing/bluetooth_printer_adapter.dart';
@@ -39,7 +38,7 @@ void main() {
     await prodRepo.upsertProduct(
       Product(
         id: 'a1111111-1111-1111-1111-111111111111',
-        businessId: DemoContext.businessId,
+        businessId: 'test-business-id',
         name: 'Test Product',
         priceMinor: 10000,
         isActive: true,
@@ -53,6 +52,7 @@ void main() {
     );
 
     controller = PosController(
+      businessId: 'test-business-id',
       productRepo: prodRepo,
       cartRepo: cartRepo,
       calcEngine: SaleCalculationEngine(),

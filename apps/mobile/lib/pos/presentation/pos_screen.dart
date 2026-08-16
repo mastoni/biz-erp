@@ -169,6 +169,7 @@ class _PosScreenState extends State<PosScreen> {
                 context,
                 MaterialPageRoute(
                   builder: (_) => ProductListScreen(
+                    businessId: widget.authStateNotifier!.businessId!,
                     productRepo: widget.productRepo!,
                     outboxRepo: widget.outboxRepo!,
                     syncStatusNotifier: widget.syncStatusNotifier!,

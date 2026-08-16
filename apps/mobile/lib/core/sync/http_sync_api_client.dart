@@ -35,7 +35,6 @@ class HttpSyncApiClient implements SyncApiClient {
     final token = _tokenProvider?.call();
     return {
       'Content-Type': 'application/json',
-      if (_businessId != null) 'X-Demo-Business-Id': _businessId!,
       if (token != null) 'Authorization': 'Bearer $token',
     };
   }

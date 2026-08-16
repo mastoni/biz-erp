@@ -1,7 +1,7 @@
 import 'auth_models.dart';
 import 'auth_secure_storage.dart';
 import 'auth_api_client.dart';
-import '../demo_context.dart';
+
 
 class AuthRepository {
   final AuthSecureStorage _storage;
@@ -21,10 +21,6 @@ class AuthRepository {
   Future<AuthSession> login(String email, String password, [String? businessId]) async {
     final session = await _apiClient.login(email, password, businessId);
     
-    if (session.businessId != DemoContext.businessId) {
-      throw AuthException('DEMO_CONTEXT_MISMATCH', 'Business ID mismatch. Logged in as ${session.businessId} but DemoContext requires ${DemoContext.businessId}');
-    }
-
     await _storage.saveSession(session);
     return session;
   }
@@ -35,7 +31,11 @@ class AuthRepository {
       // Fire and forget logout, do not block local clearing if network fails
       _apiClient.logout(session.accessToken).catchError((_) {});
     }
-    await _storage.clearSession();
+    await _storage.clearAll();
+  }
+
+  Future<String?> getLastBusinessId() async {
+    return await _storage.getLastBusinessId();
   }
 
   Future<RefreshResult> refreshSession() {

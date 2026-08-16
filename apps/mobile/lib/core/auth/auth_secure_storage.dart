@@ -7,8 +7,10 @@ class AuthSecureStorage {
   AuthSecureStorage({FlutterSecureStorage? storage}) : _storage = storage ?? const FlutterSecureStorage();
 
   static const _sessionKey = 'auth_session';
+  static const _lastBusinessIdKey = 'last_business_id';
 
   Future<void> saveSession(AuthSession session) async {
+    await _storage.write(key: _lastBusinessIdKey, value: session.businessId);
     await _storage.write(key: _sessionKey, value: session.toJson());
   }
 
@@ -22,7 +24,16 @@ class AuthSecureStorage {
     }
   }
 
+  Future<String?> getLastBusinessId() async {
+    return await _storage.read(key: _lastBusinessIdKey);
+  }
+
   Future<void> clearSession() async {
     await _storage.delete(key: _sessionKey);
+  }
+
+  Future<void> clearAll() async {
+    await _storage.delete(key: _sessionKey);
+    await _storage.delete(key: _lastBusinessIdKey);
   }
 }

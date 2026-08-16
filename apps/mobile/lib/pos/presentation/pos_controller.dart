@@ -8,7 +8,7 @@ import 'package:biz_erp_mobile/sales/data/checkout_service.dart';
 import 'package:biz_erp_mobile/sales/domain/calculation/calc_models.dart';
 import 'package:biz_erp_mobile/sales/domain/calculation/sale_calculation_engine.dart';
 import 'package:biz_erp_mobile/sales/domain/checkout/checkout_models.dart';
-import 'package:biz_erp_mobile/core/demo_context.dart';
+
 import 'package:biz_erp_mobile/core/hardware/printing/printing_service.dart';
 import 'package:biz_erp_mobile/core/hardware/printing/receipt_data.dart';
 
@@ -37,13 +37,29 @@ class PosController extends ChangeNotifier {
   String? _pendingIdempotencyKey;
   static const _uuid = Uuid();
 
+  final String _businessId;
+
+  // Constants
+  static const String _branchId = 'BRANCH-001';
+  static const String _cashierId = 'CASHIER-001';
+  static const String _deviceId = 'DEVICE-001';
+  static const int _taxRateBps = 1100; // 11% Tax
+  static const String _businessName = 'WARUNG DEMO BIZERP';
+  static const String _branchName = 'CABANG UTAMA';
+
   PosController({
-    required this._productRepo,
-    required this._cartRepo,
-    required this._calcEngine,
-    required this._checkoutService,
-    required this._printingService,
-  });
+    required String businessId,
+    required ProductRepository productRepo,
+    required CartRepository cartRepo,
+    required SaleCalculationEngine calcEngine,
+    required CheckoutService checkoutService,
+    required PrintingService printingService,
+  })  : _businessId = businessId,
+        _productRepo = productRepo,
+        _cartRepo = cartRepo,
+        _calcEngine = calcEngine,
+        _checkoutService = checkoutService,
+        _printingService = printingService;
 
   // Getters
   List<Product> get products => _products;
@@ -57,15 +73,15 @@ class PosController extends ChangeNotifier {
       _currentCart != null && _currentCart!.items.isNotEmpty && !_isLoading;
 
   Future<void> init() async {
-    _products = await _productRepo.listActiveProducts(DemoContext.businessId);
+    _products = await _productRepo.listActiveProducts(_businessId);
     await _refreshCart();
   }
 
   Future<void> _refreshCart() async {
-    final cart = await _cartRepo.getOrCreateActiveCart(DemoContext.businessId);
+    final cart = await _cartRepo.getOrCreateActiveCart(_businessId);
     _currentCart = await _cartRepo.getCartWithItems(
       cart.id,
-      DemoContext.businessId,
+      _businessId,
     );
     _recalculate();
     _pendingIdempotencyKey = null; // Reset intent when cart changes
@@ -88,7 +104,7 @@ class PosController extends ChangeNotifier {
             )
             .toList(),
         discount: _currentDiscount,
-        taxRateBps: DemoContext.taxRateBps,
+        taxRateBps: _taxRateBps,
       );
       _errorMessage = null;
     } catch (e) {
@@ -115,7 +131,7 @@ class PosController extends ChangeNotifier {
     try {
       await _cartRepo.addItem(
         _currentCart!.cart.id,
-        DemoContext.businessId,
+        _businessId,
         productId,
         1,
       );
@@ -131,7 +147,7 @@ class PosController extends ChangeNotifier {
     try {
       await _cartRepo.updateItemQuantity(
         itemId,
-        DemoContext.businessId,
+        _businessId,
         newQty,
       );
       await _refreshCart();
@@ -143,7 +159,7 @@ class PosController extends ChangeNotifier {
 
   Future<void> removeItem(String itemId) async {
     try {
-      await _cartRepo.removeItem(itemId, DemoContext.businessId);
+      await _cartRepo.removeItem(itemId, _businessId);
       await _refreshCart();
     } catch (e) {
       _errorMessage = e.toString();
@@ -163,14 +179,14 @@ class PosController extends ChangeNotifier {
 
     try {
       final req = CheckoutRequest(
-        businessId: DemoContext.businessId,
-        branchId: DemoContext.branchId,
-        cashierId: DemoContext.cashierId,
-        deviceId: DemoContext.deviceId,
+        businessId: _businessId,
+        branchId: _branchId,
+        cashierId: _cashierId,
+        deviceId: _deviceId,
         idempotencyKey: _pendingIdempotencyKey!,
         cartId: _currentCart!.cart.id,
         discount: _currentDiscount,
-        taxRateBps: DemoContext.taxRateBps,
+        taxRateBps: _taxRateBps,
         paymentMethod: method,
         cashReceivedMinor: cashReceived,
       );
@@ -216,9 +232,9 @@ class PosController extends ChangeNotifier {
 
     return ReceiptData(
       receiptNumber: result.receiptNumber,
-      businessName: DemoContext.businessName,
-      branchName: DemoContext.branchName,
-      cashierId: DemoContext.cashierId,
+      businessName: _businessName,
+      branchName: _branchName,
+      cashierId: _cashierId,
       createdAtEpochMs: DateTime.now().millisecondsSinceEpoch,
       subtotalMinor: calc.subtotalMinor,
       discountMinor: calc.discountMinor,

@@ -29,7 +29,7 @@ void main() {
     final syncOutboxRepo = SyncOutboxRepository(db);
     final salesSyncRepo = SalesSyncRepository(db);
 
-    final baseUrl = 'http://127.0.0.1:8080';
+    final baseUrl = 'http://10.0.2.2:8080';
     final businessId = '11111111-1111-1111-1111-111111111111';
     final productId = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
 

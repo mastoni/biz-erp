@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:biz_erp_mobile/core/demo_context.dart';
+import 'package:biz_erp_mobile/core/utils/currency_formatter.dart';
 import 'package:biz_erp_mobile/sales/domain/calculation/calc_models.dart';
 import '../pos_controller.dart';
 import 'payment_dialog.dart';
@@ -63,7 +63,7 @@ class CartPanel extends StatelessWidget {
                                   ),
                                 ),
                                 Text(
-                                  DemoContext.formatIDR(item.unitPriceMinor),
+                                  CurrencyFormatter.formatIDR(item.unitPriceMinor),
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: Colors.grey[600],
@@ -113,20 +113,20 @@ class CartPanel extends StatelessWidget {
                 if (calc != null) ...[
                   _buildRow(
                     'Subtotal',
-                    DemoContext.formatIDR(calc.subtotalMinor),
+                    CurrencyFormatter.formatIDR(calc.subtotalMinor),
                   ),
                   _buildRow(
                     'Diskon',
-                    DemoContext.formatIDR(calc.discountMinor),
+                    CurrencyFormatter.formatIDR(calc.discountMinor),
                   ),
                   _buildRow(
                     'Pajak (11%)',
-                    DemoContext.formatIDR(calc.taxMinor),
+                    CurrencyFormatter.formatIDR(calc.taxMinor),
                   ),
                   const SizedBox(height: 8),
                   _buildRow(
                     'TOTAL',
-                    DemoContext.formatIDR(calc.grandTotalMinor),
+                    CurrencyFormatter.formatIDR(calc.grandTotalMinor),
                     isBold: true,
                     size: 24,
                   ),

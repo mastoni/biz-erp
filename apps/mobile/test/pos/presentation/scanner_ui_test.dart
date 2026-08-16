@@ -45,6 +45,7 @@ void main() {
     );
 
     final controller = PosController(
+      businessId: biz,
       productRepo: repo,
       cartRepo: cartRepo,
       calcEngine: SaleCalculationEngine(),

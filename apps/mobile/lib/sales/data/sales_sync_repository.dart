@@ -2,7 +2,6 @@ import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/database/app_database.dart';
-import '../../core/demo_context.dart';
 import '../../core/sync/sync_models.dart';
 
 /// Insert sales dari server. Append-only: tidak pernah overwrite lokal.
@@ -29,7 +28,7 @@ class SalesSyncRepository {
             SalesLocalCompanion.insert(
               clientTransactionId: sale.idempotencyKey,
               businessId: businessId,
-              branchId: DemoContext.branchId,
+              branchId: 'BRANCH-001',
               cashierId: sale.cashierId ?? 'UNKNOWN',
               receiptNumber: Value(sale.receiptNumber),
               status: 'SYNCED',
@@ -37,8 +36,8 @@ class SalesSyncRepository {
               discountMinor: Value(sale.discountMinor),
               taxMinor: Value(sale.taxMinor),
               totalMinor: sale.grandTotalMinor,
-              currencyCode: DemoContext.currencyCode,
-              currencyMinorUnits: DemoContext.currencyMinorUnits,
+              currencyCode: 'IDR',
+              currencyMinorUnits: 0,
               deviceId: 'SERVER_PULL',
               createdAt: now,
               updatedAt: now,

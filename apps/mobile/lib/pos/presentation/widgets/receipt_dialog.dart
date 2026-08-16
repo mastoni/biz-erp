@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:biz_erp_mobile/core/demo_context.dart';
+import 'package:biz_erp_mobile/core/utils/currency_formatter.dart';
 import 'package:biz_erp_mobile/core/hardware/printing/printing_service.dart';
 import 'package:biz_erp_mobile/core/hardware/printing/receipt_data.dart';
 import 'package:biz_erp_mobile/sales/domain/checkout/checkout_models.dart';
@@ -42,8 +42,8 @@ class ReceiptDialog extends StatelessWidget {
             style: const TextStyle(fontSize: 18, fontFamily: 'monospace'),
           ),
           const Divider(height: 24),
-          _row('Total Bayar', DemoContext.formatIDR(result.grandTotalMinor)),
-          _row('Kembalian', DemoContext.formatIDR(result.changeMinor)),
+          _row('Total Bayar', CurrencyFormatter.formatIDR(result.grandTotalMinor)),
+          _row('Kembalian', CurrencyFormatter.formatIDR(result.changeMinor)),
           const Divider(height: 24),
           ListenableBuilder(
             listenable: printingService,

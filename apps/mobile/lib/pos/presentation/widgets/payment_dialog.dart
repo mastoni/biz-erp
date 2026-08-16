@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:biz_erp_mobile/core/demo_context.dart';
+import 'package:biz_erp_mobile/core/utils/currency_formatter.dart';
 import 'package:biz_erp_mobile/sales/domain/checkout/checkout_models.dart';
 
 class CheckoutAction {
@@ -35,7 +35,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            'Total: ${DemoContext.formatIDR(widget.totalMinor)}',
+            'Total: ${CurrencyFormatter.formatIDR(widget.totalMinor)}',
             style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 24),

@@ -8,7 +8,6 @@ import 'package:biz_erp_mobile/core/auth/auth_secure_storage.dart';
 import 'package:biz_erp_mobile/core/auth/auth_api_client.dart';
 import 'package:biz_erp_mobile/core/auth/auth_repository.dart';
 import 'package:biz_erp_mobile/core/auth/auth_state_notifier.dart';
-import 'package:biz_erp_mobile/core/demo_context.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -36,7 +35,7 @@ void main() {
             'access_token': 'access_token_123',
             'refresh_token': 'refresh_token_123',
             'user': {'id': 'user_123'},
-            'business': {'id': DemoContext.businessId},
+            'business': {'id': 'b1111111-1111-1111-1111-111111111111'},
             'role': 'OWNER',
             'expires_in': 3600,
           };
@@ -103,7 +102,7 @@ void main() {
         accessToken: 'access_1',
         refreshToken: 'refresh_1',
         userId: 'u1',
-        businessId: DemoContext.businessId,
+        businessId: 'b1111111-1111-1111-1111-111111111111',
         role: 'OWNER',
       ));
 
@@ -191,15 +190,14 @@ void main() {
       );
     });
 
-    test('AUTH-M013: AuthSession.businessId == DemoContext.businessId after login', () async {
-      // login returning mismatch business
+    test('AUTH-M013: AuthSession.businessId matches returned business ID after login', () async {
       mockClient = createMockClient(
         loginStatus: 200,
         loginResponse: {
           'access_token': 'a',
           'refresh_token': 'r',
           'user': {'id': 'u'},
-          'business': {'id': 'WRONG_BUSINESS'},
+          'business': {'id': 'OTHER_BUSINESS'},
           'role': 'OWNER',
           'expires_in': 3600,
         },
@@ -207,10 +205,8 @@ void main() {
       apiClient = AuthApiClient(baseUrl: 'http://test', client: mockClient);
       repository = AuthRepository(storage: storage, apiClient: apiClient);
       
-      expect(
-        () async => await repository.login('t', 'p'),
-        throwsA(isA<AuthException>().having((e) => e.code, 'code', 'DEMO_CONTEXT_MISMATCH')),
-      );
+      final session = await repository.login('t', 'p');
+      expect(session.businessId, 'OTHER_BUSINESS');
     });
 
     test('AUTH-M015: restart without session -> LoginScreen (unauthenticated)', () async {

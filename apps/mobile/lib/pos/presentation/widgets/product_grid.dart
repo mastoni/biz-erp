@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:biz_erp_mobile/core/demo_context.dart';
+import 'package:biz_erp_mobile/core/utils/currency_formatter.dart';
 import '../pos_controller.dart';
 
 class ProductGrid extends StatelessWidget {
@@ -56,7 +56,7 @@ class ProductGrid extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        DemoContext.formatIDR(p.priceMinor),
+                        CurrencyFormatter.formatIDR(p.priceMinor),
                         style: TextStyle(
                           color: Colors.green[700],
                           fontSize: 14,
