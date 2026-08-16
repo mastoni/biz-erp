@@ -1,22 +1,72 @@
 version: '3.9'
 
+networks:
+  api-internal:
+    driver: bridge
+  db-internal:
+    driver: bridge
+
+volumes:
+  bizerp_pgdata:
+  certbot_webroot:
+  certbot_certs:
+
 services:
   postgres:
     image: postgres:16
     container_name: bizerp_postgres
     environment:
-      POSTGRES_USER: bizerp
-      POSTGRES_PASSWORD: bizerp
-      POSTGRES_DB: bizerp
-    ports:
-      - '5432:5432'
+      POSTGRES_USER: ${POSTGRES_USER:-bizerp}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bizerp}
+      POSTGRES_DB: ${POSTGRES_DB:-bizerp}
+    networks:
+      - db-internal
     volumes:
       - bizerp_pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U bizerp -d bizerp']
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-bizerp} -d ${POSTGRES_DB:-bizerp}']
       interval: 5s
       timeout: 3s
       retries: 10
+    restart: always
 
-volumes:
-  bizerp_pgdata:
+  api:
+    build: .
+    container_name: bizerp_api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 8080
+      HOST: 0.0.0.0
+      DATABASE_URL: postgres://${POSTGRES_USER:-bizerp}:${POSTGRES_PASSWORD:-bizerp}@postgres:5432/${POSTGRES_DB:-bizerp}
+      JWT_SECRET: ${JWT_SECRET:-supersecret123supersecret123supersecret123}
+      JWT_ISSUER: ${JWT_ISSUER:-biz-erp}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-biz-erp-mobile}
+    networks:
+      - db-internal
+      - api-internal
+    healthcheck:
+      test: ['CMD', 'wget', '--spider', '-q', 'http://127.0.0.1:8080/health']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  nginx:
+    image: nginx:alpine
+    container_name: bizerp_nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - certbot_webroot:/var/www/certbot
+      - certbot_certs:/etc/letsencrypt
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - api-internal
+    restart: always
