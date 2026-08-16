@@ -113,6 +113,12 @@ export function createRefreshTokenService(pool: Pool) {
           await refreshSessionRepository.updateLastUsed(client, session.id)
         }
       })
+    },
+
+    async revokeSession(sessionId: string, userId: string, businessId: string): Promise<void> {
+      await withTransaction(pool, async (client) => {
+        await refreshSessionRepository.revokeByOwnership(client, sessionId, userId, businessId)
+      })
     }
   }
 }

@@ -67,6 +67,17 @@ export const refreshSessionRepository = {
     )
   },
 
+  async revokeByOwnership(client: PoolClient, id: string, userId: string, businessId: string): Promise<void> {
+    await client.query(
+      `
+      UPDATE refresh_tokens
+      SET revoked_at = now()
+      WHERE id = $1 AND user_id = $2 AND business_id = $3 AND revoked_at IS NULL
+      `,
+      [id, userId, businessId]
+    )
+  },
+
   async updateLastUsed(client: PoolClient, id: string): Promise<void> {
     await client.query(
       `

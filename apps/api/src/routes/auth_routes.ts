@@ -7,6 +7,8 @@ import { createRefreshTokenService } from '../services/refresh_token_service'
 import { createJwtService } from '../services/jwt_service'
 import { ApiError } from '../errors/api_error'
 import { randomUUID } from 'crypto'
+import { createJwtAuthMiddleware, AuthenticatedJwtRequest } from '../middleware/auth'
+import { RequestHandler } from 'express'
 
 export function createAuthRouter(pool: Pool): Router {
   const router = Router()
@@ -126,6 +128,27 @@ export function createAuthRouter(pool: Pool): Router {
         refresh_token: tokenResult.refreshToken,
         expires_in: 900 // 15 minutes as configured in jwt_service
       })
+    } catch (err) {
+      next(err)
+    }
+  })
+
+  const jwtAuth = createJwtAuthMiddleware(jwtService)
+  
+  router.post('/logout', jwtAuth as RequestHandler, async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authReq = req as AuthenticatedJwtRequest
+      if (!authReq.user) {
+        throw new ApiError(401, 'UNAUTHORIZED', 'Unauthorized')
+      }
+
+      await refreshTokenService.revokeSession(
+        authReq.user.sessionId,
+        authReq.user.userId,
+        authReq.user.businessId
+      )
+
+      res.status(204).end()
     } catch (err) {
       next(err)
     }

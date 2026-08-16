@@ -6,6 +6,9 @@ export default defineConfig({
       threads: {
         singleThread: true,
       },
+      forks: {
+        singleFork: true,
+      }
     },
     fileParallelism: false,
   },
