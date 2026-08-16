@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:biz_erp_mobile/core/hardware/scanning/scanner_service.dart';
 import 'pos_controller.dart';
 import 'widgets/product_grid.dart';
@@ -9,6 +9,7 @@ import 'package:biz_erp_mobile/products/data/product_repository.dart';
 import 'package:biz_erp_mobile/core/sync/sync_outbox_repository.dart';
 import 'package:biz_erp_mobile/products/presentation/product_list_screen.dart';
 import 'widgets/conflict_list_sheet.dart';
+import 'package:biz_erp_mobile/core/auth/auth_state_notifier.dart';
 
 class PosScreen extends StatefulWidget {
   final PosController controller;
@@ -16,8 +17,17 @@ class PosScreen extends StatefulWidget {
   final SyncStatusNotifier? syncStatusNotifier;
   final ProductRepository? productRepo;
   final SyncOutboxRepository? outboxRepo;
+  final AuthStateNotifier? authStateNotifier;
 
-  const PosScreen({super.key, required this.controller, this.scannerService, this.syncStatusNotifier, this.productRepo, this.outboxRepo});
+  const PosScreen({
+    super.key,
+    required this.controller,
+    this.scannerService,
+    this.syncStatusNotifier,
+    this.productRepo,
+    this.outboxRepo,
+    this.authStateNotifier,
+  });
 
   @override
   State<PosScreen> createState() => _PosScreenState();
@@ -167,6 +177,34 @@ class _PosScreenState extends State<PosScreen> {
               );
             },
           ),
+          if (widget.authStateNotifier != null)
+            ListTile(
+              leading: const Icon(Icons.logout, color: Colors.red),
+              title: const Text('Keluar', style: TextStyle(color: Colors.red)),
+              onTap: () async {
+                Navigator.pop(context); // close drawer
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Yakin ingin keluar?'),
+                    content: const Text('Data di perangkat tetap aman dan tidak akan dihapus.'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        child: const Text('Batal'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, true),
+                        child: const Text('Keluar', style: TextStyle(color: Colors.red)),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirm == true) {
+                  widget.authStateNotifier!.logout();
+                }
+              },
+            ),
         ],
       ),
     );

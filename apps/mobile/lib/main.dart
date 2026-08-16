@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'package:drift/drift.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
@@ -24,6 +24,12 @@ import 'package:biz_erp_mobile/core/sync/sync_status_notifier.dart';
 import 'package:biz_erp_mobile/sales/data/sales_sync_repository.dart';
 import 'package:biz_erp_mobile/core/hardware/printing/printing_service.dart';
 import 'package:biz_erp_mobile/core/hardware/scanning/scanner_service.dart';
+import 'package:biz_erp_mobile/core/auth/auth_secure_storage.dart';
+import 'package:biz_erp_mobile/core/auth/auth_api_client.dart';
+import 'package:biz_erp_mobile/core/auth/auth_repository.dart';
+import 'package:biz_erp_mobile/core/auth/auth_state_notifier.dart';
+import 'package:biz_erp_mobile/core/auth/auth_models.dart';
+import 'package:biz_erp_mobile/core/auth/presentation/login_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -91,12 +97,20 @@ Future<void> main() async {
     businessId: DemoContext.businessId,
   );
 
+  // Phase 4.0.9: Auth Initialization
+  final authStorage = AuthSecureStorage();
+  final authApiClient = AuthApiClient(baseUrl: SyncConfig.baseUrl);
+  final authRepository = AuthRepository(storage: authStorage, apiClient: authApiClient);
+  final authStateNotifier = AuthStateNotifier(repository: authRepository);
+  await authStateNotifier.init();
+
   runApp(MyApp(
     controller: controller,
     scannerService: scannerService,
     syncStatusNotifier: syncStatusNotifier,
     productRepo: productRepo,
     outboxRepo: syncOutboxRepo,
+    authStateNotifier: authStateNotifier,
   ));
 }
 
@@ -154,15 +168,42 @@ class MyApp extends StatelessWidget {
   final SyncStatusNotifier syncStatusNotifier;
   final ProductRepository? productRepo;
   final SyncOutboxRepository? outboxRepo;
+  final AuthStateNotifier authStateNotifier;
 
-  const MyApp({super.key, required this.controller, this.scannerService, required this.syncStatusNotifier, this.productRepo, this.outboxRepo});
+  const MyApp({
+    super.key,
+    required this.controller,
+    this.scannerService,
+    required this.syncStatusNotifier,
+    this.productRepo,
+    this.outboxRepo,
+    required this.authStateNotifier,
+  });
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'BizERP POS',
       theme: ThemeData(primarySwatch: Colors.blueGrey, useMaterial3: true),
-      home: PosScreen(controller: controller, scannerService: scannerService, syncStatusNotifier: syncStatusNotifier, productRepo: productRepo, outboxRepo: outboxRepo),
+      home: AnimatedBuilder(
+        animation: authStateNotifier,
+        builder: (context, _) {
+          if (authStateNotifier.status == AuthStatus.unknown) {
+            return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          }
+          if (authStateNotifier.status == AuthStatus.authenticated) {
+            return PosScreen(
+              controller: controller,
+              scannerService: scannerService,
+              syncStatusNotifier: syncStatusNotifier,
+              productRepo: productRepo,
+              outboxRepo: outboxRepo,
+              authStateNotifier: authStateNotifier,
+            );
+          }
+          return LoginScreen(authNotifier: authStateNotifier);
+        },
+      ),
     );
   }
 }
