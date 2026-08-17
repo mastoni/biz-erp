@@ -51,6 +51,20 @@ async function main() {
       ON CONFLICT (user_id, business_id) DO UPDATE SET role = EXCLUDED.role, status = EXCLUDED.status
     `, [USER_ID, BUSINESS_ID])
 
+    const CASHIER_ID = '88888888-8888-8888-8888-888888888888'
+    const CASHIER_EMAIL = 'cashier@test.local'
+    await pool.query(`
+      INSERT INTO users (id, email, password_hash, status)
+      VALUES ($1, $2, $3, 'ACTIVE')
+      ON CONFLICT (id) DO UPDATE SET password_hash = EXCLUDED.password_hash, status = EXCLUDED.status
+    `, [CASHIER_ID, CASHIER_EMAIL, hash])
+
+    await pool.query(`
+      INSERT INTO user_businesses (user_id, business_id, role, status)
+      VALUES ($1, $2, 'CASHIER', 'ACTIVE')
+      ON CONFLICT (user_id, business_id) DO UPDATE SET role = EXCLUDED.role, status = EXCLUDED.status
+    `, [CASHIER_ID, BUSINESS_ID])
+
     // 1. Seed Product A
     await pool.query(`
       INSERT INTO products (id, business_id, name, description, price_minor, category, barcode, is_active, server_version, created_at, updated_at)
@@ -85,7 +99,8 @@ async function main() {
 
     console.log('E2E FIXTURE READY')
     console.log('Business: 11111111-1111-1111-1111-111111111111')
-    console.log('User: e2e@test.local / E2eTestPassword123!')
+    console.log('User OWNER: e2e@test.local / E2eTestPassword123!')
+    console.log('User CASHIER: cashier@test.local / E2eTestPassword123!')
     console.log('Product A: aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee')
     console.log('Product B: bbbbbbbb-cccc-4ddd-8eee-ffffffffffff')
   } catch (error) {
