@@ -19,7 +19,7 @@ describe('Phase 4.0.14G.2 SENTRY BACKEND INTEGRATION', () => {
   let pool: Pool
 
   beforeAll(() => {
-    process.env.DATABASE_URL = 'postgres://bizerp:bizerp@localhost:54320/bizerp'
+    process.env.DATABASE_URL = process.env.TEST_DATABASE_URL || process.env.DATABASE_URL || 'postgres://bizerp:bizerp@localhost:54320/bizerp'
     process.env.JWT_SECRET = 'test-secret-that-is-at-least-32-chars-long'
     process.env.JWT_ISSUER = 'biz-erp-api'
     process.env.JWT_AUDIENCE = 'biz-erp-client'
@@ -130,7 +130,7 @@ describe('Phase 4.0.14G.2 SENTRY BACKEND INTEGRATION', () => {
   describe('Integration with Express (SENTRY-005, 010, 011, 012, 016)', () => {
     beforeEach(async () => {
       process.env.SENTRY_DSN = 'https://fake@sentry.io/123'
-      pool = createPool(process.env.DATABASE_URL || 'postgres://bizerp:bizerp@localhost:54320/bizerp')
+      pool = createPool(process.env.DATABASE_URL as string)
       app = createApp(pool)
     })
 
