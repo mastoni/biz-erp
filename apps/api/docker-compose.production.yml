@@ -1,0 +1,79 @@
+version: '3.9'
+
+networks:
+  production_proxy:
+    driver: bridge
+  db-internal:
+    driver: bridge
+
+volumes:
+  bizerp_prod_pgdata:
+  certbot_webroot:
+  certbot_certs:
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: bizerp_prod_postgres
+    env_file:
+      - /opt/skmnet-erp-production/env/production.env
+    networks:
+      - db-internal
+    volumes:
+      - bizerp_prod_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d bizerp_prod']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  api:
+    image: ghcr.io/${LOWER_REPO_OWNER}/bizerp-api:${IMAGE_TAG}
+    container_name: bizerp_prod_api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - /opt/skmnet-erp-production/env/production.env
+    networks:
+      - db-internal
+      - production_proxy
+    healthcheck:
+      test: ['CMD', 'wget', '--spider', '-q', 'http://127.0.0.1:8080/health']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  nginx:
+    image: nginx:alpine
+    container_name: bizerp_prod_nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.production.conf:/etc/nginx/nginx.conf:ro
+      - certbot_webroot:/var/www/certbot
+      - certbot_certs:/etc/letsencrypt
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - production_proxy
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"

@@ -91,7 +91,8 @@ jobs:
             set -e
             
             # Ensure repository owner is lowercase for Docker
-            LOWER_REPO_OWNER=$(echo "$REPO_OWNER" | tr '[:upper:]' '[:lower:]')
+            export LOWER_REPO_OWNER=$(echo "$REPO_OWNER" | tr '[:upper:]' '[:lower:]')
+            export IMAGE_TAG=$IMAGE_TAG
             IMAGE_URI="ghcr.io/$LOWER_REPO_OWNER/bizerp-api:$IMAGE_TAG"
             
             echo "Logging into GHCR..."
@@ -101,19 +102,17 @@ jobs:
             docker pull $IMAGE_URI
             
             echo "Navigating to deployment directory..."
-            # Expecting the deployment server to have the repository structure
-            cd ~/biz-erp
+            cd /opt/skmnet-erp-production/repo
             
             echo "Executing database backup gate..."
             ./ops/backup/backup-postgres.sh
             
             echo "Executing database migration gate..."
-            export IMAGE_TAG=$IMAGE_TAG
             # Run the migration using the new image against the running database
-            docker compose run --rm api node dist/db/migrate.js
+            docker compose -p api -f apps/api/docker-compose.production.yml run --rm api node dist/db/migrate.js
             
             echo "Restarting API with the new image..."
-            docker compose up -d api
+            docker compose -p api -f apps/api/docker-compose.production.yml up -d
             
             echo "Waiting for API health..."
             sleep 10
