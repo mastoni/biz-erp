@@ -97,10 +97,24 @@ export function createAuthRouter(pool: Pool): Router {
       }
       const accessToken = jwtService.signAccessToken(claims)
 
+      const isWebClient = req.headers['x-client-type'] === 'web'
+
+      if (isWebClient) {
+        const isProd = process.env.NODE_ENV === 'production'
+        res.cookie('refresh_token', tokenResult.refreshToken, {
+          httpOnly: true,
+          secure: isProd,
+          sameSite: 'lax',
+          path: '/',
+          domain: process.env.COOKIE_DOMAIN || '.skmnetwork.com',
+          maxAge: 7 * 24 * 60 * 60 * 1000
+        })
+      }
+
       // Step 5: Return success response
       res.status(200).json({
         access_token: accessToken,
-        refresh_token: tokenResult.refreshToken,
+        ...(isWebClient ? {} : { refresh_token: tokenResult.refreshToken }),
         user: {
           id: authResult.user.id,
           email: authResult.user.email,
@@ -120,7 +134,8 @@ export function createAuthRouter(pool: Pool): Router {
 
   router.post('/refresh', refreshLimiter, async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { refresh_token } = req.body
+      const isWebClient = req.headers['x-client-type'] === 'web'
+      const refresh_token = isWebClient ? req.cookies?.refresh_token : (req.body?.refresh_token || req.cookies?.refresh_token)
 
       if (!refresh_token || typeof refresh_token !== 'string') {
         throw new ApiError(401, 'INVALID_REFRESH_TOKEN', 'Invalid refresh token')
@@ -147,10 +162,22 @@ export function createAuthRouter(pool: Pool): Router {
       }
       const accessToken = jwtService.signAccessToken(claims)
 
+      if (isWebClient) {
+        const isProd = process.env.NODE_ENV === 'production'
+        res.cookie('refresh_token', tokenResult.refreshToken, {
+          httpOnly: true,
+          secure: isProd,
+          sameSite: 'lax',
+          path: '/',
+          domain: process.env.COOKIE_DOMAIN || '.skmnetwork.com',
+          maxAge: 7 * 24 * 60 * 60 * 1000
+        })
+      }
+
       // Step 5: Return success response
       res.status(200).json({
         access_token: accessToken,
-        refresh_token: tokenResult.refreshToken,
+        ...(isWebClient ? {} : { refresh_token: tokenResult.refreshToken }),
         expires_in: 900 // 15 minutes as configured in jwt_service
       })
     } catch (err) {
@@ -173,7 +200,49 @@ export function createAuthRouter(pool: Pool): Router {
         authReq.user.businessId
       )
 
+      const isWebClient = req.headers['x-client-type'] === 'web'
+      if (isWebClient) {
+        res.clearCookie('refresh_token', {
+          path: '/',
+          domain: process.env.COOKIE_DOMAIN || '.skmnetwork.com'
+        })
+      }
+
       res.status(204).end()
+    } catch (err) {
+      next(err)
+    }
+  })
+
+  router.get('/me', jwtAuth as RequestHandler, async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authReq = req as AuthenticatedJwtRequest
+      if (!authReq.user) {
+        throw new ApiError(401, 'UNAUTHORIZED', 'Unauthorized')
+      }
+
+      const user = await userRepo.findById(authReq.user.userId)
+      if (!user) {
+        throw new ApiError(401, 'UNAUTHORIZED', 'User not found')
+      }
+
+      const membership = await userBusinessRepo.findActiveMembership(authReq.user.userId, authReq.user.businessId)
+      if (!membership) {
+        throw new ApiError(403, 'BUSINESS_ACCESS_DENIED', 'Access denied to this business')
+      }
+
+      res.status(200).json({
+        user: {
+          id: user.id,
+          email: user.email,
+          status: user.status
+        },
+        business: {
+          id: authReq.user.businessId,
+          name: membership.business_name
+        },
+        role: membership.role
+      })
     } catch (err) {
       next(err)
     }

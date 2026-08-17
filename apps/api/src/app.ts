@@ -1,4 +1,5 @@
 import cors from 'cors'
+import cookieParser from 'cookie-parser'
 import express, { Express } from 'express'
 import helmet from 'helmet'
 import { Pool } from 'pg'
@@ -30,7 +31,9 @@ export function createApp(pool: Pool): Express {
     referrerPolicy: false,
     xContentTypeOptions: false
   }))
+  app.use(cookieParser())
   app.use(cors({
+    credentials: true,
     origin: (origin, callback) => {
       const allowedOrigins = process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',') : []
       
