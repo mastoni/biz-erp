@@ -11,8 +11,9 @@ class ProductGrid extends StatelessWidget {
     return ListenableBuilder(
       listenable: controller,
       builder: (context, _) {
-        if (controller.isLoading)
+        if (controller.isLoading) {
           return const Center(child: CircularProgressIndicator());
+        }
         return GridView.builder(
           padding: const EdgeInsets.all(16),
           gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(

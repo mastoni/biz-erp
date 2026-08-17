@@ -60,7 +60,7 @@ FutureOr<SentryEvent?> _beforeSend(SentryEvent event, Hint hint) {
   SentryRequest? req = event.request;
   if (req != null) {
     req = req.copyWith(
-      headers: req.headers != null ? (_scrubObject(req.headers) as Map).cast<String, String>() : null,
+      headers: (_scrubObject(req.headers) as Map).cast<String, String>(),
       data: _scrubObject(req.data),
     );
   }
@@ -81,15 +81,13 @@ FutureOr<SentryEvent?> _beforeSend(SentryEvent event, Hint hint) {
   }
   
   Map<String, dynamic>? contexts;
-  if (event.contexts != null) {
-    contexts = (_scrubObject(event.contexts!.toJson()) as Map).cast<String, dynamic>();
-  }
+  contexts = (_scrubObject(event.contexts.toJson()) as Map).cast<String, dynamic>();
 
   return event.copyWith(
     request: req,
     breadcrumbs: breadcrumbs,
     tags: tags,
-    contexts: contexts != null ? Contexts.fromJson(contexts) : null,
+    contexts: Contexts.fromJson(contexts),
   );
 }
 

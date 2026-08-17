@@ -1,3 +1,4 @@
+// ignore_for_file: avoid_print
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:biz_erp_mobile/core/database/app_database.dart';
@@ -24,7 +25,7 @@ void main() {
 
     // 3. Setup API client pointing to Android emulator host
     final baseUrl = SyncConfig.baseUrl;
-    print('SyncConfig.baseUrl: ${baseUrl}');
+    print('SyncConfig.baseUrl: $baseUrl');
     final apiClient = HttpSyncApiClient(baseUrl: baseUrl);
 
     final businessId = '11111111-1111-4111-8111-111111111111';

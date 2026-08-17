@@ -21,15 +21,11 @@ class HttpSyncApiClient implements SyncApiClient {
   HttpSyncApiClient({
     required this.baseUrl,
     http.Client? client,
-    Duration timeout = const Duration(seconds: 30),
-    String? businessId,
-    TokenProvider? tokenProvider,
-    RefreshCallback? onRefresh,
-  }) : _client = client ?? http.Client(),
-       _timeout = timeout,
-       _businessId = businessId,
-       _tokenProvider = tokenProvider,
-       _onRefresh = onRefresh;
+    this._timeout = const Duration(seconds: 30),
+    this._businessId,
+    this._tokenProvider,
+    this._onRefresh,
+  }) : _client = client ?? http.Client();
 
   Map<String, String> get _headers {
     final token = _tokenProvider?.call();
@@ -73,7 +69,7 @@ class HttpSyncApiClient implements SyncApiClient {
           .timeout(_timeout);
 
       if (response.statusCode == 401 && attempt == 1 && _onRefresh != null) {
-        final result = await _onRefresh!();
+        final result = await _onRefresh();
         if (result == RefreshResult.success) {
           continue; // retry
         } else {
@@ -131,7 +127,7 @@ class HttpSyncApiClient implements SyncApiClient {
           .timeout(_timeout);
 
       if (response.statusCode == 401 && attempt == 1 && _onRefresh != null) {
-        final result = await _onRefresh!();
+        final result = await _onRefresh();
         if (result == RefreshResult.success) {
           continue;
         } else {
@@ -191,7 +187,7 @@ class HttpSyncApiClient implements SyncApiClient {
             .timeout(_timeout);
 
         if (response.statusCode == 401 && attempt == 1 && _onRefresh != null) {
-          final result = await _onRefresh!();
+          final result = await _onRefresh();
           if (result == RefreshResult.success) {
             continue;
           } else {
@@ -281,7 +277,7 @@ class HttpSyncApiClient implements SyncApiClient {
         response = await _client.post(uri, headers: {..._headers, 'Idempotency-Key': idempotencyKey}, body: jsonEncode(body)).timeout(_timeout);
 
         if (response.statusCode == 401 && attempt == 1 && _onRefresh != null) {
-          final result = await _onRefresh!();
+          final result = await _onRefresh();
           if (result == RefreshResult.success) {
             continue;
           } else {
@@ -310,6 +306,7 @@ class HttpSyncApiClient implements SyncApiClient {
     }
   }
 
+  @override
   Future<List<SalePushResultItem>> pushSalesBatch(List<SaleDto> sales) async {
     if (sales.isEmpty) return [];
 
@@ -327,7 +324,7 @@ class HttpSyncApiClient implements SyncApiClient {
             .timeout(_timeout);
 
         if (response.statusCode == 401 && attempt == 1 && _onRefresh != null) {
-          final result = await _onRefresh!();
+          final result = await _onRefresh();
           if (result == RefreshResult.success) {
             continue;
           } else {

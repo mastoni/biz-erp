@@ -1,3 +1,4 @@
+// ignore_for_file: avoid_print
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:biz_erp_mobile/core/database/app_database.dart';
@@ -12,6 +13,10 @@ import 'package:biz_erp_mobile/sales/data/sales_sync_repository.dart';
 import 'package:biz_erp_mobile/products/domain/product.dart';
 import 'package:biz_erp_mobile/core/sync/sync_models.dart';
 import 'package:biz_erp_mobile/core/sync/network_monitor.dart';
+import 'package:biz_erp_mobile/core/auth/auth_secure_storage.dart';
+import 'package:biz_erp_mobile/core/auth/auth_api_client.dart';
+import 'package:biz_erp_mobile/core/auth/auth_repository.dart';
+import 'package:biz_erp_mobile/core/auth/auth_state_notifier.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -36,6 +41,11 @@ void main() {
       businessId: businessId,
     );
 
+    final authStorage = AuthSecureStorage();
+    final authApiClient = AuthApiClient(baseUrl: SyncConfig.baseUrl);
+    final authRepository = AuthRepository(storage: authStorage, apiClient: authApiClient);
+    final authStateNotifier = AuthStateNotifier(repository: authRepository);
+
     final networkMonitor = NetworkMonitor(api: apiClient);
     final syncStatusNotifier = SyncStatusNotifier(
       networkMonitor: networkMonitor,
@@ -43,55 +53,56 @@ void main() {
       outbox: syncOutboxRepo,
       productRepository: productRepo,
       businessId: businessId,
+      authStateNotifier: authStateNotifier,
     );
 
     print('Initial Pull Sync...');
     await syncEngine.syncNow();
     
-    final pA_initial = await productRepo.getProductById(productAId, businessId);
-    final pB_initial = await productRepo.getProductById(productBId, businessId);
-    expect(pA_initial, isNotNull);
-    expect(pB_initial, isNotNull);
+    final paInitial = await productRepo.getProductById(productAId, businessId);
+    final pbInitial = await productRepo.getProductById(productBId, businessId);
+    expect(paInitial, isNotNull);
+    expect(pbInitial, isNotNull);
     
-    print('Product A: ${pA_initial!.name} v${pA_initial.serverVersion}');
-    print('Product B: ${pB_initial!.name} v${pB_initial.serverVersion}');
+    print('Product A: ${paInitial!.name} v${paInitial.serverVersion}');
+    print('Product B: ${pbInitial!.name} v${pbInitial.serverVersion}');
 
     // Simulate SERVER modification (Another device pushes)
     final serverClient = HttpSyncApiClient(baseUrl: SyncConfig.baseUrl, businessId: businessId);
     
     final modifiedA = ProductDto(
-      id: pA_initial.id,
+      id: paInitial.id,
       name: 'Server A Mod',
-      description: pA_initial.description,
-      barcode: pA_initial.barcode,
+      description: paInitial.description,
+      barcode: paInitial.barcode,
       priceMinor: 50000,
-      category: pA_initial.category,
-      isActive: pA_initial.isActive,
-      serverVersion: pA_initial.serverVersion,
+      category: paInitial.category,
+      isActive: paInitial.isActive,
+      serverVersion: paInitial.serverVersion,
     );
-    await serverClient.pushProduct(modifiedA, ifMatchVersion: pA_initial.serverVersion);
+    await serverClient.pushProduct(modifiedA, ifMatchVersion: paInitial.serverVersion);
 
     final modifiedB = ProductDto(
-      id: pB_initial.id,
+      id: pbInitial.id,
       name: 'Server B Mod',
-      description: pB_initial.description,
-      barcode: pB_initial.barcode,
+      description: pbInitial.description,
+      barcode: pbInitial.barcode,
       priceMinor: 60000,
-      category: pB_initial.category,
-      isActive: pB_initial.isActive,
-      serverVersion: pB_initial.serverVersion,
+      category: pbInitial.category,
+      isActive: pbInitial.isActive,
+      serverVersion: pbInitial.serverVersion,
     );
-    await serverClient.pushProduct(modifiedB, ifMatchVersion: pB_initial.serverVersion);
+    await serverClient.pushProduct(modifiedB, ifMatchVersion: pbInitial.serverVersion);
     serverClient.close();
 
     // Now locally edit them on our device, keeping old server_version (Stale)
     final localA = Product(
-      id: pA_initial.id, businessId: businessId, name: 'Local A Mod', description: pA_initial.description, priceMinor: 15000, category: pA_initial.category, isActive: pA_initial.isActive, serverVersion: pA_initial.serverVersion, barcode: pA_initial.barcode, localStatus: 'dirty'
+      id: paInitial.id, businessId: businessId, name: 'Local A Mod', description: paInitial.description, priceMinor: 15000, category: paInitial.category, isActive: paInitial.isActive, serverVersion: paInitial.serverVersion, barcode: paInitial.barcode, localStatus: 'dirty'
     );
     await productRepo.updateProduct(localA, syncOutboxRepo);
 
     final localB = Product(
-      id: pB_initial.id, businessId: businessId, name: 'Local B Mod', description: pB_initial.description, priceMinor: 25000, category: pB_initial.category, isActive: pB_initial.isActive, serverVersion: pB_initial.serverVersion, barcode: pB_initial.barcode, localStatus: 'dirty'
+      id: pbInitial.id, businessId: businessId, name: 'Local B Mod', description: pbInitial.description, priceMinor: 25000, category: pbInitial.category, isActive: pbInitial.isActive, serverVersion: pbInitial.serverVersion, barcode: pbInitial.barcode, localStatus: 'dirty'
     );
     await productRepo.updateProduct(localB, syncOutboxRepo);
 
@@ -142,7 +153,7 @@ void main() {
     expect(currentB!.name, 'Server B Mod');
     expect(currentB.priceMinor, 60000);
     expect(currentB.localStatus, 'synced');
-    expect(currentB.serverVersion, pB_initial.serverVersion + 1);
+    expect(currentB.serverVersion, pbInitial.serverVersion + 1);
     print('Scenario B PASS');
 
     // Verify subsequent sync doesn't push it again

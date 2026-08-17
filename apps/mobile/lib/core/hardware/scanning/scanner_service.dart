@@ -17,13 +17,11 @@ class ScanEvent {
 /// TIDAK menyentuh CheckoutService atau status transaksi.
 class ScannerService extends ChangeNotifier {
   ScannerService({
-    required ProductRepository productRepo,
-    required String businessId,
-    required Future<void> Function(String productId) addToCart,
+    required this._productRepo,
+    required this._businessId,
+    required this._addToCart,
     this.duplicateDebounce = const Duration(milliseconds: 500),
-  }) : _productRepo = productRepo,
-       _businessId = businessId,
-       _addToCart = addToCart;
+  });
 
   final ProductRepository _productRepo;
   final String _businessId;

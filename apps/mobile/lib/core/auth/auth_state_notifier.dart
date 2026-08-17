@@ -9,7 +9,7 @@ class AuthStateNotifier extends ChangeNotifier {
   AuthSession? _session;
   String? _lastBusinessId;
 
-  AuthStateNotifier({required AuthRepository repository}) : _repository = repository;
+  AuthStateNotifier({required this._repository});
 
   AuthStatus get status => _status;
   AuthSession? get session => _session;

@@ -24,7 +24,7 @@ class AuthApiClient {
     final body = {
       'email': email,
       'password': password,
-      if (businessId != null) 'business_id': businessId,
+      'business_id': ?businessId,
     };
 
     try {
@@ -74,6 +74,7 @@ class AuthApiClient {
     } on AuthException {
       rethrow;
     } catch (e, stack) {
+      // ignore: avoid_print
       print('LOGIN EXCEPTION: $e\n$stack');
       throw AuthException('NETWORK_ERROR', 'Server sedang tidak dapat dihubungi. Silakan periksa koneksi internet Anda.');
     }

@@ -4,7 +4,7 @@ import 'sync_api_client.dart';
 
 /// Connectivity = trigger; health check = proof of reachability.
 class NetworkMonitor {
-  NetworkMonitor({required SyncApiClient api}) : _api = api;
+  NetworkMonitor({required this._api});
   final SyncApiClient _api;
 
   Stream<bool> get onConnectivityChanged => Connectivity().onConnectivityChanged

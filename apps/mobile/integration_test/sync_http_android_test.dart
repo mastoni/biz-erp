@@ -1,3 +1,4 @@
+// ignore_for_file: avoid_print
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -10,15 +11,15 @@ void main() {
 
   testWidgets('E2E-002A: Android reaches API health endpoint', (tester) async {
     final baseUrl = SyncConfig.baseUrl;
-    print('SyncConfig.baseUrl: ${baseUrl}');
+    print('SyncConfig.baseUrl: $baseUrl');
     expect(baseUrl, 'http://10.0.2.2:8080');
 
     final client = HttpSyncApiClient(baseUrl: baseUrl);
     final isHealthy = await client.health();
-    print('HttpSyncApiClient.health() result: ${isHealthy}');
+    print('HttpSyncApiClient.health() result: $isHealthy');
     expect(isHealthy, isTrue, reason: 'HttpSyncApiClient.health() harus true');
 
-    final response = await http.get(Uri.parse('${baseUrl}/health')).timeout(const Duration(seconds: 10));
+    final response = await http.get(Uri.parse('$baseUrl/health')).timeout(const Duration(seconds: 10));
     print('HTTP Status Code: ${response.statusCode}');
     print('HTTP Body: ${response.body}');
 

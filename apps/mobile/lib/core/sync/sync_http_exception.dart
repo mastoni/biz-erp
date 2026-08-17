@@ -33,27 +33,27 @@ class SyncNetworkException extends SyncHttpException {
 
 class SyncConflictException extends SyncHttpException {
   SyncConflictException({
-    required String code,
-    required String message,
-    String? body,
-  }) : super(statusCode: 409, code: code, message: message, body: body);
+    required super.code,
+    required super.message,
+    super.body,
+  }) : super(statusCode: 409);
 }
 
 class SyncValidationException extends SyncHttpException {
   SyncValidationException({
-    required String code,
-    required String message,
-    String? body,
-  }) : super(statusCode: 400, code: code, message: message, body: body);
+    required super.code,
+    required super.message,
+    super.body,
+  }) : super(statusCode: 400);
 }
 
 class SyncServerException extends SyncHttpException {
   SyncServerException({
-    required int statusCode,
-    required String code,
-    required String message,
-    String? body,
-  }) : super(statusCode: statusCode, code: code, message: message, body: body);
+    required int super.statusCode,
+    required super.code,
+    required super.message,
+    super.body,
+  });
 }
 
 class SyncMalformedResponseException extends SyncHttpException {

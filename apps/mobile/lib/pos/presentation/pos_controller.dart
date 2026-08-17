@@ -48,18 +48,13 @@ class PosController extends ChangeNotifier {
   static const String _branchName = 'CABANG UTAMA';
 
   PosController({
-    required String businessId,
-    required ProductRepository productRepo,
-    required CartRepository cartRepo,
-    required SaleCalculationEngine calcEngine,
-    required CheckoutService checkoutService,
-    required PrintingService printingService,
-  })  : _businessId = businessId,
-        _productRepo = productRepo,
-        _cartRepo = cartRepo,
-        _calcEngine = calcEngine,
-        _checkoutService = checkoutService,
-        _printingService = printingService;
+    required this._businessId,
+    required this._productRepo,
+    required this._cartRepo,
+    required this._calcEngine,
+    required this._checkoutService,
+    required this._printingService,
+  });
 
   // Getters
   List<Product> get products => _products;

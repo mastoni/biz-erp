@@ -9,10 +9,9 @@ class AuthRepository {
   Future<RefreshResult>? _refreshFuture;
 
   AuthRepository({
-    required AuthSecureStorage storage,
-    required AuthApiClient apiClient,
-  })  : _storage = storage,
-        _apiClient = apiClient;
+    required this._storage,
+    required this._apiClient,
+  });
 
   Future<AuthSession?> restoreSession() async {
     return await _storage.getSession();

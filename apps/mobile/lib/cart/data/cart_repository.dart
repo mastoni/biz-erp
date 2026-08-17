@@ -110,8 +110,9 @@ class CartRepository {
                 (t) => t.id.equals(productId) & t.businessId.equals(businessId),
               ))
               .getSingleOrNull();
-      if (product == null)
+      if (product == null) {
         throw CartProductNotFoundException(productId, businessId);
+      }
       if (product.isActive != 1) throw ProductNotActiveException(productId);
 
       // 3. Check if product already in cart
@@ -178,8 +179,9 @@ class CartRepository {
                     t.id.equals(item.cartId) & t.businessId.equals(businessId),
               ))
               .getSingleOrNull();
-      if (cart == null || cart.status != 'ACTIVE')
+      if (cart == null || cart.status != 'ACTIVE') {
         throw CartNotFoundException(item.cartId, businessId);
+      }
 
       final now = DateTime.now().millisecondsSinceEpoch;
       await (_db.update(

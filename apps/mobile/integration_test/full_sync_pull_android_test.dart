@@ -1,10 +1,10 @@
+// ignore_for_file: avoid_print
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:http/http.dart' as http;
 import 'package:uuid/uuid.dart';
 import 'package:biz_erp_mobile/core/database/app_database.dart';
-import 'package:biz_erp_mobile/core/sync/sync_config.dart';
 import 'package:biz_erp_mobile/core/sync/http_sync_api_client.dart';
 import 'package:biz_erp_mobile/core/sync/sync_engine.dart';
 import 'package:biz_erp_mobile/core/sync/sync_meta_repository.dart';
@@ -87,7 +87,7 @@ void main() {
 
     print('Pushing test sale to backend...');
     final pushResponse = await http.post(
-      Uri.parse('${baseUrl}/v1/sync/sales/batch'),
+      Uri.parse('$baseUrl/v1/sync/sales/batch'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $accessToken'
@@ -155,7 +155,7 @@ void main() {
     try {
       // Mismatch: header=businessId, query=otherBusinessId
       final res = await http.get(
-        Uri.parse('${baseUrl}/v1/sync/products?business_id=$otherBusinessId&after_version=0&limit=100'),
+        Uri.parse('$baseUrl/v1/sync/products?business_id=$otherBusinessId&after_version=0&limit=100'),
         headers: {'Authorization': 'Bearer $accessToken'}
       );
       expect(res.statusCode, 403);

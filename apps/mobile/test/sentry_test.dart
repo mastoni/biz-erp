@@ -38,7 +38,7 @@ void main() {
       expect((req.data as Map)['customer_data'], 'safe');
 
       final contexts = scrubbedEvent.contexts;
-      final custom = contexts?['custom'] as Map;
+      final custom = contexts['custom'] as Map;
       expect(custom['refresh_token'], '[REDACTED]');
       expect((custom['nested'] as Map)['jwt'], '[REDACTED]');
 

@@ -26,18 +26,13 @@ class SyncSummary {
 
 class SyncEngine extends ChangeNotifier {
   SyncEngine({
-    required SyncOutboxRepository outbox,
-    required SyncMetaRepository meta,
-    required SyncApiClient api,
-    required ProductRepository products,
-    required SalesSyncRepository salesSync,
-    required String businessId,
-  }) : _outbox = outbox,
-       _meta = meta,
-       _api = api,
-       _products = products,
-       _salesSync = salesSync,
-       _businessId = businessId;
+    required this._outbox,
+    required this._meta,
+    required this._api,
+    required this._products,
+    required this._salesSync,
+    required this._businessId,
+  });
 
   final SyncOutboxRepository _outbox;
   final SyncMetaRepository _meta;
