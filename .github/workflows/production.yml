@@ -74,7 +74,11 @@ jobs:
             cd /opt/skmnet-erp-production/repo
             
             echo "Executing database backup gate..."
-            ./ops/backup/backup-postgres.sh
+            set -a
+            source /opt/skmnet-erp-production/env/production.env
+            set +a
+            export PGPASSWORD=$POSTGRES_PASSWORD
+            bash ops/backup/backup-postgres.sh
             
             echo "Executing database migration gate..."
             # Run the migration using the new image against the running database
