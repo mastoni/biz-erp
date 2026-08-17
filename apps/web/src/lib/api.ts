@@ -93,6 +93,12 @@ api.interceptors.response.use(
       }
     }
 
+    if (error.response?.status === 403) {
+      // 403 Forbidden: user is authenticated but lacks permission.
+      // Do not refresh token, do not redirect to login. Preserve error for caller.
+      return Promise.reject(error);
+    }
+
     return Promise.reject(error);
   }
 );
