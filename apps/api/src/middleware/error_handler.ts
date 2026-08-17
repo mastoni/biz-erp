@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from 'express'
 import { ApiError } from '../errors/api_error'
 import { logger } from '../utils/logger'
+import { captureException } from '../utils/sentry'
 
 type PgLikeError = {
   code?: string
@@ -79,6 +80,8 @@ export function errorHandler(err: unknown, req: Request, res: Response, next: Ne
     status: 500,
     msg: 'Unhandled internal error'
   })
+  
+  captureException(err, res.locals.requestId)
 
   res.status(500).json({
     error: {

@@ -10,8 +10,13 @@ import { createAuthRouter } from './routes/auth_routes'
 import { createProductSyncRouter } from './routes/product_sync_routes'
 import { createSalesSyncRouter } from './routes/sales_sync_routes'
 import { httpLogger } from './utils/logger'
+import { initSentry } from './utils/sentry'
+import { loadEnv } from './config/env'
 
 export function createApp(pool: Pool): Express {
+  const env = loadEnv()
+  initSentry(env)
+
   const app = express()
 
   // Trust the first hop (Nginx reverse proxy) to correctly set X-Forwarded-For

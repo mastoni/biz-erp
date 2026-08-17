@@ -3,6 +3,7 @@ import { createApp } from './app'
 import { loadEnv } from './config/env'
 import { createPool } from './db/pool'
 import { logger } from './utils/logger'
+import { flushSentry, captureException } from './utils/sentry'
 
 async function main(): Promise<void> {
   const env = loadEnv()
@@ -18,6 +19,7 @@ async function main(): Promise<void> {
     logger.info('Shutting down...')
     server.close(async () => {
       await pool.end()
+      await flushSentry(2000)
       process.exit(0)
     })
   }
@@ -28,5 +30,8 @@ async function main(): Promise<void> {
 
 main().catch((error) => {
   logger.fatal({ err: error }, 'Failed to start server')
-  process.exit(1)
+  captureException(error)
+  flushSentry(2000).then(() => {
+    process.exit(1)
+  })
 })

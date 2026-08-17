@@ -17,7 +17,9 @@ describe('Security Hardening', () => {
     process.env.JWT_ISSUER = 'test-issuer'
     process.env.JWT_AUDIENCE = 'test-audience'
 
-    pool = createPool(process.env.DATABASE_URL || 'postgres://bizerp:bizerp@localhost:54320/bizerp')
+    const databaseUrl = process.env.TEST_DATABASE_URL ?? (process.env.DATABASE_URL || 'postgres://bizerp:bizerp@localhost:54320/bizerp')
+    process.env.DATABASE_URL = databaseUrl
+    pool = createPool(databaseUrl)
     app = createApp(pool)
 
     await pool.query(`

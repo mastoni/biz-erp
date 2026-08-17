@@ -30,6 +30,7 @@ describe('Phase 4.0.14G.1 Observability and Logging', () => {
     process.env.JWT_ISSUER = process.env.JWT_ISSUER || 'biz-erp-api'
     process.env.JWT_AUDIENCE = process.env.JWT_AUDIENCE || 'biz-erp-client'
     const databaseUrl = process.env.TEST_DATABASE_URL ?? (process.env.DATABASE_URL || 'postgres://bizerp:bizerp@localhost:54320/bizerp')
+    process.env.DATABASE_URL = databaseUrl
     pool = createPool(databaseUrl)
     app = createApp(pool)
 
