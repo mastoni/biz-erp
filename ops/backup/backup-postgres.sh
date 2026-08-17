@@ -35,8 +35,15 @@ DUMP_PATH="${TEMP_DIR}/${FILENAME}"
 CHECKSUM_PATH="${TEMP_DIR}/${CHECKSUM_FILENAME}"
 
 echo "Creating logical backup using pg_dump -Fc..."
-# Use PGPASSWORD if it's set and pg_dump doesn't get credentials from .pgpass
-pg_dump -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc -f "$DUMP_PATH"
+# We use a disposable postgres container to run pg_dump across the internal docker network
+# This avoids exposing port 5432 to the host and doesn't rely on specific container names
+POSTGRES_NETWORK=${POSTGRES_NETWORK:-api_db-internal}
+
+# Note: PGPASSWORD can be set in the environment before calling this script
+docker run --rm --network "$POSTGRES_NETWORK" \
+    -e PGPASSWORD="${PGPASSWORD:-}" \
+    postgres:16 \
+    pg_dump -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc > "$DUMP_PATH"
 
 if [[ ! -s "$DUMP_PATH" ]]; then
     echo "ERROR: Backup file is empty or missing." >&2

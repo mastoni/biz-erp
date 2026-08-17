@@ -30,7 +30,27 @@ export function createApp(pool: Pool): Express {
     referrerPolicy: false,
     xContentTypeOptions: false
   }))
-  app.use(cors())
+  app.use(cors({
+    origin: (origin, callback) => {
+      const allowedOrigins = process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',') : []
+      
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true)
+      
+      // Allow if we are not in production and no CORS_ORIGINS are explicitly defined
+      const isProduction = process.env.NODE_ENV === 'production' || env.nodeEnv === 'production'
+      if (!isProduction && allowedOrigins.length === 0) {
+        return callback(null, true)
+      }
+
+      // Check if origin is in allowed list
+      if (allowedOrigins.indexOf(origin) !== -1) {
+        return callback(null, true)
+      }
+
+      callback(new Error('Not allowed by CORS'))
+    }
+  }))
   app.use(express.json({ limit: '2mb' }))
 
   app.use(requestId)

@@ -41,7 +41,7 @@ services:
       PORT: 8080
       HOST: 0.0.0.0
       DATABASE_URL: postgres://${POSTGRES_USER:-bizerp}:${POSTGRES_PASSWORD:-bizerp}@postgres:5432/${POSTGRES_DB:-bizerp}
-      JWT_SECRET: ${JWT_SECRET:-supersecret123supersecret123supersecret123}
+      JWT_SECRET: ${JWT_SECRET}
       JWT_ISSUER: ${JWT_ISSUER:-biz-erp}
       JWT_AUDIENCE: ${JWT_AUDIENCE:-biz-erp-mobile}
     networks:

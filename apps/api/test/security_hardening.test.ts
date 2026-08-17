@@ -153,4 +153,51 @@ describe('Security Hardening', () => {
     const res = await request(app).post('/v1/auth/login').send({})
     expect(res.headers['x-content-type-options']).toBeUndefined()
   })
+
+  describe('CORS Restrictions', () => {
+    let originalEnv: string | undefined
+    let originalCors: string | undefined
+
+    beforeAll(() => {
+      originalEnv = process.env.NODE_ENV
+      originalCors = process.env.CORS_ORIGINS
+      process.env.NODE_ENV = 'production'
+      process.env.CORS_ORIGINS = 'https://erp.skmnetwork.com,https://staging.erp.skmnetwork.com'
+    })
+
+    afterAll(() => {
+      process.env.NODE_ENV = originalEnv
+      process.env.CORS_ORIGINS = originalCors
+    })
+
+    it('SEC-010: Allowed origin receives Access-Control-Allow-Origin', async () => {
+      const res = await request(app)
+        .options('/health')
+        .set('Origin', 'https://erp.skmnetwork.com')
+        .set('Access-Control-Request-Method', 'GET')
+      
+      expect(res.headers['access-control-allow-origin']).toBe('https://erp.skmnetwork.com')
+      expect(res.status).toBe(204)
+    })
+
+    it('SEC-011: Unauthorized origin is rejected by CORS', async () => {
+      const res = await request(app)
+        .options('/health')
+        .set('Origin', 'https://evil.example')
+        .set('Access-Control-Request-Method', 'GET')
+      
+      expect(res.headers['access-control-allow-origin']).toBeUndefined()
+      // cors middleware throws an error which gets caught by error handler -> 500 or 403, typically 500 for generic Error in express
+      expect(res.status).toBeGreaterThanOrEqual(400)
+    })
+
+    it('SEC-012: Mobile/Native API (no origin) is allowed', async () => {
+      const res = await request(app)
+        .get('/health')
+      
+      // No origin header sent, cors allows it, no allow-origin header is returned
+      expect(res.headers['access-control-allow-origin']).toBeUndefined()
+      expect(res.status).toBe(200)
+    })
+  })
 })
