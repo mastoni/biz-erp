@@ -46,7 +46,7 @@ async function resetDatabase(): Promise<void> {
 }
 
 beforeAll(async () => {
-  pool = createPool(process.env.DATABASE_URL || 'postgres://bizerp:bizerp@localhost:5432/bizerp')
+  pool = createPool(process.env.DATABASE_URL || 'postgres://bizerp:bizerp@localhost:54320/bizerp')
   await runMigrations(pool, path.join(__dirname, '../migrations'))
   app = createApp(pool)
 })

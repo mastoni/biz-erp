@@ -17,7 +17,7 @@ describe('Security Hardening', () => {
     process.env.JWT_ISSUER = 'test-issuer'
     process.env.JWT_AUDIENCE = 'test-audience'
 
-    pool = createPool(process.env.DATABASE_URL || 'postgres://bizerp:bizerp@localhost:5432/bizerp')
+    pool = createPool(process.env.DATABASE_URL || 'postgres://bizerp:bizerp@localhost:54320/bizerp')
     app = createApp(pool)
 
     await pool.query(`
@@ -39,10 +39,11 @@ describe('Security Hardening', () => {
     return () => `192.168.100.${counter++}`
   })()
 
-  it('SEC-001: Helmet/security headers exist', async () => {
+  it('SEC-001: API layer delegates specific security headers to Nginx', async () => {
     const res = await request(app).get('/health')
-    expect(res.headers['x-content-type-options']).toBe('nosniff')
-    expect(res.headers['x-frame-options']).toBe('DENY') // Helmet configured to DENY
+    expect(res.headers['x-content-type-options']).toBeUndefined()
+    expect(res.headers['x-frame-options']).toBeUndefined()
+    expect(res.headers['referrer-policy']).toBeUndefined()
     expect(res.headers['x-powered-by']).toBeUndefined()
   })
 
@@ -141,13 +142,13 @@ describe('Security Hardening', () => {
     expect(res.status).not.toBe(429)
   })
 
-  it('SEC-008: security headers present on /health', async () => {
+  it('SEC-008: security headers delegated on /health', async () => {
     const res = await request(app).get('/health')
-    expect(res.headers['x-content-type-options']).toBe('nosniff')
+    expect(res.headers['x-content-type-options']).toBeUndefined()
   })
 
-  it('SEC-009: security headers present on auth endpoints', async () => {
+  it('SEC-009: security headers delegated on auth endpoints', async () => {
     const res = await request(app).post('/v1/auth/login').send({})
-    expect(res.headers['x-content-type-options']).toBe('nosniff')
+    expect(res.headers['x-content-type-options']).toBeUndefined()
   })
 })

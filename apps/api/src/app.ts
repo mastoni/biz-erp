@@ -20,9 +20,9 @@ export function createApp(pool: Pool): Express {
     hsts: false, // Do not enable HSTS yet because production HTTPS is not active
     contentSecurityPolicy: false, // CSP rules are mostly irrelevant for this JSON API
     crossOriginEmbedderPolicy: false,
-    frameguard: {
-      action: 'deny'
-    }
+    frameguard: false,
+    referrerPolicy: false,
+    xContentTypeOptions: false
   }))
   app.use(cors())
   app.use(express.json({ limit: '2mb' }))
