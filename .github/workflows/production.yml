@@ -14,72 +14,41 @@ concurrency:
 
 permissions:
   contents: read
-  packages: write
+  packages: read
 
 jobs:
-  validation-and-build:
+  deploy-production:
     runs-on: ubuntu-latest
+    environment:
+      name: production
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.inputs.git_ref }}
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install backend dependencies
-        working-directory: ./apps/api
-        run: npm ci
-
-      - name: Run backend tests
-        working-directory: ./apps/api
-        run: npm test
-
-      - name: Run backend typecheck
-        working-directory: ./apps/api
-        run: npm run typecheck
-
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: 'stable'
-
-      - name: Flutter analyze and test
-        working-directory: ./apps/mobile
+      - name: Get Exact SHA
+        id: exact_sha
         run: |
-          flutter pub get
-          flutter analyze
-          flutter test
-          flutter build apk --release
+          EXACT_SHA=$(git rev-parse HEAD)
+          echo "sha=$EXACT_SHA" >> $GITHUB_OUTPUT
 
-      - name: Build API Docker image
-        working-directory: ./apps/api
-        run: docker build -t ghcr.io/${{ github.repository_owner }}/bizerp-api:${{ github.sha }} .
+      - name: Verify GHCR Image Exists
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EXACT_SHA: ${{ steps.exact_sha.outputs.sha }}
+        run: |
+          LOWER_REPO_OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          IMAGE_URI="ghcr.io/$LOWER_REPO_OWNER/bizerp-api:$EXACT_SHA"
+          echo "Verifying image $IMAGE_URI exists..."
+          echo "$GITHUB_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          docker manifest inspect $IMAGE_URI > /dev/null
 
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Push image to GHCR
-        run: docker push ghcr.io/${{ github.repository_owner }}/bizerp-api:${{ github.sha }}
-
-  deploy-production:
-    needs: validation-and-build
-    runs-on: ubuntu-latest
-    environment:
-      name: production
-    steps:
       - name: Deploy to production VPS via SSH
         uses: appleboy/ssh-action@v1.0.3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          IMAGE_TAG: ${{ github.sha }}
+          IMAGE_TAG: ${{ steps.exact_sha.outputs.sha }}
           ACTOR: ${{ github.actor }}
           REPO_OWNER: ${{ github.repository_owner }}
         with:
