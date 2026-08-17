@@ -9,6 +9,7 @@ import { createHealthRouter } from './routes/health_routes'
 import { createAuthRouter } from './routes/auth_routes'
 import { createProductSyncRouter } from './routes/product_sync_routes'
 import { createSalesSyncRouter } from './routes/sales_sync_routes'
+import { httpLogger } from './utils/logger'
 
 export function createApp(pool: Pool): Express {
   const app = express()
@@ -26,7 +27,9 @@ export function createApp(pool: Pool): Express {
   }))
   app.use(cors())
   app.use(express.json({ limit: '2mb' }))
+
   app.use(requestId)
+  app.use(httpLogger)
 
   app.use('/health', createHealthRouter(pool))
   app.use('/v1/auth', createAuthRouter(pool))

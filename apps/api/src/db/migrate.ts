@@ -3,6 +3,7 @@ import fs from 'fs'
 import path from 'path'
 import { Pool } from 'pg'
 import { createPool } from './pool'
+import { logger } from '../utils/logger'
 
 export async function runMigrations(pool: Pool, migrationsDir?: string): Promise<void> {
   const dir = migrationsDir ?? path.resolve(process.cwd(), 'migrations')
@@ -35,7 +36,7 @@ export async function runMigrations(pool: Pool, migrationsDir?: string): Promise
         await client.query(sql)
         await client.query('INSERT INTO schema_migrations (version) VALUES ($1)', [file])
         await client.query('COMMIT')
-        console.log(`Applied migration: ${file}`)
+        logger.info(`Applied migration: ${file}`)
       } catch (error) {
         await client.query('ROLLBACK')
         throw error
@@ -56,7 +57,7 @@ if (require.main === module) {
       return pool.end()
     })
     .catch(async (error) => {
-      console.error('Migration failed', error)
+      logger.error({ err: error }, 'Migration failed')
       await pool.end()
       process.exit(1)
     })

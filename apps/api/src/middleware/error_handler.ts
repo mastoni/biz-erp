@@ -1,12 +1,13 @@
 import { NextFunction, Request, Response } from 'express'
 import { ApiError } from '../errors/api_error'
+import { logger } from '../utils/logger'
 
 type PgLikeError = {
   code?: string
   message?: string
 }
 
-export function errorHandler(err: unknown, _req: Request, res: Response, next: NextFunction): void {
+export function errorHandler(err: unknown, req: Request, res: Response, next: NextFunction): void {
   if (res.headersSent) {
     next(err)
     return
@@ -71,7 +72,13 @@ export function errorHandler(err: unknown, _req: Request, res: Response, next: N
     }
   }
 
-  console.error(err)
+  logger.error({
+    err,
+    request_id: res.locals.requestId,
+    route: req.path,
+    status: 500,
+    msg: 'Unhandled internal error'
+  })
 
   res.status(500).json({
     error: {
