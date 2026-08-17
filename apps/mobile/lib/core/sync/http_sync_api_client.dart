@@ -87,6 +87,7 @@ class HttpSyncApiClient implements SyncApiClient {
       throw HttpException(
         'Failed to pull products: HTTP ${response.statusCode}',
         statusCode: response.statusCode,
+        requestId: response.headers['x-request-id'],
       );
     }
 
@@ -144,6 +145,7 @@ class HttpSyncApiClient implements SyncApiClient {
       throw HttpException(
         'Failed to pull sales: HTTP ${response.statusCode}',
         statusCode: response.statusCode,
+        requestId: response.headers['x-request-id'],
       );
     }
 
@@ -248,6 +250,7 @@ class HttpSyncApiClient implements SyncApiClient {
       throw HttpException(
           'Server error: HTTP ${response.statusCode}',
           statusCode: response.statusCode,
+          requestId: response.headers['x-request-id'],
         );
       } else if (response.statusCode == 404 || response.statusCode == 401) {
         return ProductPushResult(ok: false, error: 'HTTP ${response.statusCode}');
@@ -257,6 +260,7 @@ class HttpSyncApiClient implements SyncApiClient {
         throw HttpException(
           'Unexpected error: HTTP ${response.statusCode}',
           statusCode: response.statusCode,
+          requestId: response.headers['x-request-id'],
         );
       }
     } catch (e) {
@@ -355,11 +359,13 @@ class HttpSyncApiClient implements SyncApiClient {
         throw HttpException(
           'Server error: HTTP ${response.statusCode}',
           statusCode: response.statusCode,
+          requestId: response.headers['x-request-id'],
         );
       } else {
         throw HttpException(
           'Unexpected error: HTTP ${response.statusCode}',
           statusCode: response.statusCode,
+          requestId: response.headers['x-request-id'],
         );
       }
     } catch (e) {
@@ -398,11 +404,12 @@ class HttpSyncApiClient implements SyncApiClient {
 class HttpException implements Exception {
   final String message;
   final int? statusCode;
+  final String? requestId;
 
-  HttpException(this.message, {this.statusCode});
+  HttpException(this.message, {this.statusCode, this.requestId});
 
   @override
-  String toString() => 'HttpException: $message (status: $statusCode)';
+  String toString() => 'HttpException: $message (status: $statusCode, request_id: $requestId)';
 }
 
 class NetworkException implements Exception {

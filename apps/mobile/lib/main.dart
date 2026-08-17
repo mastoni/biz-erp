@@ -29,6 +29,7 @@ import 'package:biz_erp_mobile/core/auth/auth_repository.dart';
 import 'package:biz_erp_mobile/core/auth/auth_state_notifier.dart';
 import 'package:biz_erp_mobile/core/auth/auth_models.dart';
 import 'package:biz_erp_mobile/core/auth/presentation/login_screen.dart';
+import 'package:biz_erp_mobile/core/observability/sentry_integration.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -40,9 +41,11 @@ Future<void> main() async {
   final authStateNotifier = AuthStateNotifier(repository: authRepository);
   await authStateNotifier.init();
 
-  runApp(MyApp(
-    authStateNotifier: authStateNotifier,
-  ));
+  await initSentry(() {
+    runApp(MyApp(
+      authStateNotifier: authStateNotifier,
+    ));
+  });
 }
 
 class TenantDependencyGraph {

@@ -6,7 +6,8 @@ import 'sync_models.dart';
 import 'sync_outbox_repository.dart';
 import '../../products/data/product_repository.dart';
 import '../../sales/data/sales_sync_repository.dart';
-import 'http_sync_api_client.dart' show HttpException;
+import 'http_sync_api_client.dart' show HttpException, NetworkException;
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 class SyncSummary {
   final bool reachable;
@@ -60,12 +61,23 @@ class SyncEngine extends ChangeNotifier {
         final pull = await _pull();
         pulledP = pull.$1;
         pulledS = pull.$2;
-      } on HttpException catch (e) {
+      } on HttpException catch (e, st) {
         if (e.statusCode == 401) {
           // Graceful abort on auth error. Session expiry is handled by AuthStateNotifier.
+        } else if (e.statusCode != null && e.statusCode! >= 500) {
+          Sentry.captureException(e, stackTrace: st, withScope: (scope) {
+            scope.setTag('operation', 'pull');
+            if (e.requestId != null) scope.setTag('request_id', e.requestId!);
+          });
+          rethrow;
         } else {
           rethrow;
         }
+      } catch (e, st) {
+        if (e is! NetworkException) {
+          Sentry.captureException(e, stackTrace: st, withScope: (scope) => scope.setTag('operation', 'pull'));
+        }
+        rethrow;
       }
     }
 
@@ -131,7 +143,15 @@ class SyncEngine extends ChangeNotifier {
       } else {
         await _outbox.markRetry(item.id, now, res.error ?? 'unknown');
       }
-    } catch (e) {
+    } catch (e, st) {
+      if (e is HttpException && e.statusCode != null && e.statusCode! >= 500) {
+        Sentry.captureException(e, stackTrace: st, withScope: (scope) {
+          scope.setTag('operation', 'pushProduct');
+          if (e.requestId != null) scope.setTag('request_id', e.requestId!);
+        });
+      } else if (e is! HttpException && e is! NetworkException) {
+        Sentry.captureException(e, stackTrace: st, withScope: (scope) => scope.setTag('operation', 'pushProduct'));
+      }
       await _outbox.markRetry(item.id, now, e.toString());
     }
   }
@@ -158,7 +178,15 @@ class SyncEngine extends ChangeNotifier {
           await _outbox.markRetry(item.id, now, r.error ?? 'failed');
         }
       }
-    } catch (e) {
+    } catch (e, st) {
+      if (e is HttpException && e.statusCode != null && e.statusCode! >= 500) {
+        Sentry.captureException(e, stackTrace: st, withScope: (scope) {
+          scope.setTag('operation', 'pushSalesBatch');
+          if (e.requestId != null) scope.setTag('request_id', e.requestId!);
+        });
+      } else if (e is! HttpException && e is! NetworkException) {
+        Sentry.captureException(e, stackTrace: st, withScope: (scope) => scope.setTag('operation', 'pushSalesBatch'));
+      }
       for (final item in items) {
         if (e is HttpException && e.statusCode == 403) {
           await _outbox.markFailed(item.id, 'INSUFFICIENT_PERMISSIONS');
