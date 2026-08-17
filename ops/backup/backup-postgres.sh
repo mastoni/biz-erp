@@ -88,6 +88,11 @@ if [[ -n "${S3_BACKUP_BUCKET}" ]]; then
     echo "Upload complete."
 fi
 
+LOCAL_BACKUP_DIR="/opt/skmnet-erp-production/backups"
+mkdir -p "$LOCAL_BACKUP_DIR"
+cp "$DUMP_PATH" "$LOCAL_BACKUP_DIR/"
+cp "$CHECKSUM_PATH" "$LOCAL_BACKUP_DIR/"
+
 # Cleanup
 echo "Cleaning up local temporary files..."
 rm -rf "$TEMP_DIR"
