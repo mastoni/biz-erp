@@ -1,0 +1,124 @@
+name: Production Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      git_ref:
+        description: 'Git ref (branch, tag, or SHA) to deploy'
+        required: true
+        default: 'main'
+
+concurrency:
+  group: production-deployment
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  validation-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.git_ref }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install backend dependencies
+        working-directory: ./apps/api
+        run: npm ci
+
+      - name: Run backend tests
+        working-directory: ./apps/api
+        run: npm test
+
+      - name: Run backend typecheck
+        working-directory: ./apps/api
+        run: npm run typecheck
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Flutter analyze and test
+        working-directory: ./apps/mobile
+        run: |
+          flutter pub get
+          flutter analyze
+          flutter test
+          flutter build apk --release
+
+      - name: Build API Docker image
+        working-directory: ./apps/api
+        run: docker build -t ghcr.io/${{ github.repository_owner }}/bizerp-api:${{ github.sha }} .
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push image to GHCR
+        run: docker push ghcr.io/${{ github.repository_owner }}/bizerp-api:${{ github.sha }}
+
+  deploy-production:
+    needs: validation-and-build
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+    steps:
+      - name: Deploy to production VPS via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMAGE_TAG: ${{ github.sha }}
+          ACTOR: ${{ github.actor }}
+          REPO_OWNER: ${{ github.repository_owner }}
+        with:
+          host: ${{ secrets.PRODUCTION_HOST }}
+          username: skmdeploy
+          key: ${{ secrets.PRODUCTION_SSH_KEY }}
+          envs: GITHUB_TOKEN, IMAGE_TAG, ACTOR, REPO_OWNER
+          script: |
+            set -e
+            
+            # Ensure repository owner is lowercase for Docker
+            LOWER_REPO_OWNER=$(echo "$REPO_OWNER" | tr '[:upper:]' '[:lower:]')
+            IMAGE_URI="ghcr.io/$LOWER_REPO_OWNER/bizerp-api:$IMAGE_TAG"
+            
+            echo "Logging into GHCR..."
+            echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
+            
+            echo "Pulling exact immutable image tag: $IMAGE_TAG..."
+            docker pull $IMAGE_URI
+            
+            echo "Navigating to deployment directory..."
+            # Expecting the deployment server to have the repository structure
+            cd ~/biz-erp
+            
+            echo "Executing database backup gate..."
+            ./ops/backup/backup-postgres.sh
+            
+            echo "Executing database migration gate..."
+            export IMAGE_TAG=$IMAGE_TAG
+            # Run the migration using the new image against the running database
+            docker compose run --rm api node dist/db/migrate.js
+            
+            echo "Restarting API with the new image..."
+            docker compose up -d api
+            
+            echo "Waiting for API health..."
+            sleep 10
+            
+            echo "Verifying HTTPS /health endpoint..."
+            curl -fsS https://api.skmnetwork.com/health || (echo "Health check failed!" && exit 1)
+            
+            echo "Deployment successful."
