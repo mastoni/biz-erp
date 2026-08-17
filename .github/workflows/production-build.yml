@@ -79,7 +79,6 @@ jobs:
           flutter pub get
           flutter analyze
           flutter test
-          flutter build apk --release
 
       - name: Build API Docker image
         working-directory: ./apps/api
