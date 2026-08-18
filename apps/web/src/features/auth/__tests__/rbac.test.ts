@@ -10,6 +10,10 @@ describe('Web ERP RBAC', () => {
       expect(canAccessRoute('OWNER', '/inventory')).toBe(true);
       expect(canAccessRoute('OWNER', '/inventory/movements')).toBe(true);
       expect(canAccessRoute('OWNER', '/inventory/adjustment')).toBe(true);
+      // SALES-WEB-001: OWNER can access /sales
+      expect(canAccessRoute('OWNER', '/sales')).toBe(true);
+      // OWNER can access /sales/<id> via /sales prefix match
+      expect(canAccessRoute('OWNER', '/sales/some-uuid')).toBe(true);
     });
 
     it('CASHIER can access CASHIER-supported routes', () => {
@@ -21,10 +25,14 @@ describe('Web ERP RBAC', () => {
       expect(canAccessRoute('CASHIER', '/products')).toBe(false);
       expect(canAccessRoute('CASHIER', '/inventory/movements')).toBe(false);
       expect(canAccessRoute('CASHIER', '/inventory/adjustment')).toBe(false);
+      // SALES-WEB-002: CASHIER cannot access /sales
+      expect(canAccessRoute('CASHIER', '/sales')).toBe(false);
+      // SALES-WEB-003: CASHIER cannot access /sales/<id>
+      expect(canAccessRoute('CASHIER', '/sales/some-uuid')).toBe(false);
     });
 
     it('Unknown/unimplemented route is denied for all roles', () => {
-      expect(canAccessRoute('OWNER', '/sales')).toBe(false);
+      expect(canAccessRoute('OWNER', '/purchasing')).toBe(false);
       expect(canAccessRoute('CASHIER', '/purchasing')).toBe(false);
       expect(canAccessRoute('OWNER', '/finance')).toBe(false);
       expect(canAccessRoute('OWNER', '/reports')).toBe(false);
@@ -34,7 +42,7 @@ describe('Web ERP RBAC', () => {
   });
 
   describe('getAuthorizedNavigation', () => {
-    it('OWNER sees allowed navigation including inventory', () => {
+    it('OWNER sees allowed navigation including inventory and sales', () => {
       const nav = getAuthorizedNavigation('OWNER');
       const hrefs = nav.map(item => item.href);
       expect(hrefs).toContain('/dashboard');
@@ -42,7 +50,9 @@ describe('Web ERP RBAC', () => {
       expect(hrefs).toContain('/inventory');
       expect(hrefs).toContain('/inventory/movements');
       expect(hrefs).toContain('/inventory/adjustment');
-      expect(hrefs).not.toContain('/sales');
+      // SALES-WEB-001: OWNER sees /sales in navigation
+      expect(hrefs).toContain('/sales');
+      expect(hrefs).not.toContain('/purchasing');
     });
 
     it('CASHIER does not see OWNER-only navigation', () => {
@@ -53,6 +63,8 @@ describe('Web ERP RBAC', () => {
       expect(hrefs).not.toContain('/products');
       expect(hrefs).not.toContain('/inventory/movements');
       expect(hrefs).not.toContain('/inventory/adjustment');
+      // SALES-WEB-002: CASHIER does not see /sales in navigation
+      expect(hrefs).not.toContain('/sales');
     });
 
     it('Unimplemented modules are absent from navigation', () => {

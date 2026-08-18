@@ -47,26 +47,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const restoreSession = async () => {
       try {
-        let token = getAccessToken();
-        
+        const token = getAccessToken();
+
+        // Access token is memory-only.
+        // After a full browser reload, there is no authenticated identity
+        // available locally. The current backend refresh contract only
+        // returns a new access token and does not return user/business/role.
         if (!token) {
-          const refreshRes = await api.post('/v1/auth/refresh');
-          token = refreshRes.data.access_token;
-          setAccessToken(token);
+          setState({
+            status: 'unauthenticated',
+            user: null,
+            business: null,
+            role: null,
+            accessToken: null,
+          });
+          return;
         }
 
-        const meRes = await api.get('/v1/auth/me');
-        const { user, business, role } = meRes.data;
+        setState((current) => ({
+          ...current,
+          status: 'authenticated',
+          accessToken: token,
+        }));
+      } catch {
+        setAccessToken(null);
 
         setState({
-          status: 'authenticated',
-          user,
-          business,
-          role,
-          accessToken: token,
+          status: 'sessionExpired',
+          user: null,
+          business: null,
+          role: null,
+          accessToken: null,
         });
-      } catch {
-        setState({ status: 'sessionExpired', user: null, business: null, role: null, accessToken: null });
       }
     };
 
@@ -78,9 +90,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const response = await api.post('/v1/auth/login', data);
       const { access_token, user, business, role } = response.data;
-      
+
       setAccessToken(access_token);
-      
+
       setState({
         status: 'authenticated',
         user,
