@@ -49,15 +49,15 @@ export function Header() {
               {navigation.map((item) => {
                 const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
                 const Icon = item.icon;
-                
+
                 return (
                   <Link
                     key={item.name}
                     href={item.href}
                     onClick={() => setOpen(false)}
                     className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
-                      isActive 
-                        ? 'bg-zinc-100 text-zinc-900' 
+                      isActive
+                        ? 'bg-zinc-100 text-zinc-900'
                         : 'text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900'
                     }`}
                   >
@@ -80,7 +80,7 @@ export function Header() {
             </div>
           </SheetContent>
         </Sheet>
-        
+
         {/* Only show business name on mobile/tablet if space permits, hidden on desktop to let sidebar breathe or we can show it */}
         <div className="hidden md:flex flex-col">
           <span className="text-sm font-semibold text-zinc-900">{business?.name || 'Loading...'}</span>
