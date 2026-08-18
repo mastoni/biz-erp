@@ -37,24 +37,29 @@ export function createApp(pool: Pool): Express {
   app.use(cors({
     credentials: true,
     origin: (origin, callback) => {
-      const allowedOrigins = process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',') : []
-      
-      // Allow requests with no origin (like mobile apps or curl requests)
-      if (!origin) return callback(null, true)
-      
-      // Allow if we are not in production and no CORS_ORIGINS are explicitly defined
-      const isProduction = process.env.NODE_ENV === 'production' || env.nodeEnv === 'production'
-      if (!isProduction && allowedOrigins.length === 0) {
+      if (origin === undefined) {
+        // Allow requests with no Origin header (mobile apps, curl, server-to-server)
         return callback(null, true)
       }
 
-      // Check if origin is in allowed list
-      if (allowedOrigins.indexOf(origin) !== -1) {
+      const allowedOrigins = process.env.CORS_ALLOWED_ORIGINS
+        ? process.env.CORS_ALLOWED_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean)
+        : env.corsAllowedOrigins
+
+      if (allowedOrigins.includes(origin)) {
         return callback(null, true)
       }
 
       callback(new Error('Not allowed by CORS'))
-    }
+    },
+    allowedHeaders: [
+      'Authorization',
+      'Content-Type',
+      'X-Client-Type',
+      'X-Request-ID'
+    ],
+    exposedHeaders: ['X-Request-Id'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']
   }))
   app.use(express.json({ limit: '2mb' }))
 

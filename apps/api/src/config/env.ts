@@ -2,6 +2,7 @@ export interface Env {
   port: number
   databaseUrl: string
   nodeEnv: string
+  corsAllowedOrigins: string[]
   sentryDsn?: string
   sentryEnvironment: string
   sentryRelease?: string
@@ -13,7 +14,20 @@ export function loadEnv(): Env {
   const port = Number(process.env.PORT || 8080)
   const databaseUrl = process.env.DATABASE_URL
   const nodeEnv = process.env.NODE_ENV || 'development'
-  
+
+  const corsOriginsEnv = (process.env.CORS_ALLOWED_ORIGINS || '').split(',').map((o) => o.trim()).filter(Boolean)
+
+  let defaultCorsOrigins: string[]
+  if (nodeEnv === 'production') {
+    defaultCorsOrigins = ['https://erp.skmnetwork.com']
+  } else if (nodeEnv === 'staging') {
+    defaultCorsOrigins = ['http://localhost:3000', 'https://staging-erp.skmnetwork.com']
+  } else {
+    defaultCorsOrigins = ['http://localhost:3000']
+  }
+
+  const corsAllowedOrigins = corsOriginsEnv.length > 0 ? corsOriginsEnv : defaultCorsOrigins
+
   const sentryDsn = process.env.SENTRY_DSN
   const sentryEnvironment = process.env.SENTRY_ENVIRONMENT || nodeEnv
   const sentryRelease = process.env.SENTRY_RELEASE
@@ -59,6 +73,7 @@ export function loadEnv(): Env {
     port,
     databaseUrl,
     nodeEnv,
+    corsAllowedOrigins,
     sentryDsn,
     sentryEnvironment,
     sentryRelease,
