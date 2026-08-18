@@ -8,7 +8,9 @@ import {
   StockAdjustmentPayload,
   StockAdjustmentResponse,
 } from './types';
-import { AxiosError } from 'axios';
+
+// Pure error-classification helpers (no dependency on the api instance)
+export { isConflictError, isClientValidationError, getApiErrorMessage } from './error-helpers';
 
 export async function getBranches(businessId: string): Promise<Branch[]> {
   const response = await api.get<BranchListResponse>('/v1/branches', {
@@ -49,20 +51,4 @@ export async function postAdjustment(
     },
   });
   return response.data;
-}
-
-export function isConflictError(error: unknown): boolean {
-  return error instanceof AxiosError && error.response?.status === 409;
-}
-
-export function isNegativeStockError(error: unknown): boolean {
-  return error instanceof AxiosError && error.response?.status === 400;
-}
-
-export function getApiErrorMessage(error: unknown, fallback: string): string {
-  if (error instanceof AxiosError) {
-    return error.response?.data?.message || error.message || fallback;
-  }
-  if (error instanceof Error) return error.message;
-  return fallback;
 }

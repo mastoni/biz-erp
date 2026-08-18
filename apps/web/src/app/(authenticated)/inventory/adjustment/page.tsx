@@ -7,7 +7,7 @@ import {
   getStocks,
   postAdjustment,
   isConflictError,
-  isNegativeStockError,
+  isClientValidationError,
   getApiErrorMessage,
 } from '@/features/inventory/api';
 import { getProducts } from '@/features/products/api';
@@ -132,14 +132,24 @@ export default function AdjustmentPage() {
       generateNewIdempotencyKey();
     } catch (err) {
       if (isConflictError(err)) {
+        // 409 Conflict = this logical submission is definitively rejected due to stale state.
+        // Generate a new idempotency key so the next adjustment attempt (after user refreshes)
+        // does not hit IDEMPOTENCY_KEY_REUSE on the backend.
+        // The failed request's key is abandoned; no retry of this request is possible.
+        generateNewIdempotencyKey();
         setStatus('conflict');
         setErrorMessage(
           'Stock data has changed since you last loaded it. Please refresh to get the latest version before adjusting.'
         );
-      } else if (isNegativeStockError(err)) {
+      } else if (isClientValidationError(err)) {
+        // 400 = terminal rejection from backend validation (negative stock, invalid branch/product etc.)
+        // Key is NOT regenerated: backend did not save the key, so same key can be reused
+        // if the user corrects input and retries.
         setStatus('error');
         setErrorMessage(getApiErrorMessage(err, 'Adjustment rejected: would result in negative stock.'));
       } else {
+        // Network failure / unknown result — outcome is uncertain.
+        // Preserve idempotency key so user can retry the exact same logical submission safely.
         setStatus('error');
         setErrorMessage(getApiErrorMessage(err, 'Adjustment failed. Please try again.'));
       }
