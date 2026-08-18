@@ -1,24 +1,29 @@
-import { LayoutDashboard, Package, LucideIcon } from 'lucide-react';
+import { LayoutDashboard, Package, Boxes, LucideIcon } from 'lucide-react';
 
 export type Role = 'OWNER' | 'CASHIER';
 
 export const ROUTE_PERMISSIONS: Record<string, Role[]> = {
   '/dashboard': ['OWNER', 'CASHIER'],
   '/products': ['OWNER'],
+  '/inventory': ['OWNER', 'CASHIER'],
+  '/inventory/movements': ['OWNER'],
+  '/inventory/adjustment': ['OWNER'],
 };
 
 export function canAccessRoute(role: Role | null, pathname: string): boolean {
   if (!role) return false;
 
-  // Exact match or prefix match (e.g. /products/new)
-  const matchedRoute = Object.keys(ROUTE_PERMISSIONS).find(
+  // Find the most-specific matching route (longest prefix wins) so that
+  // /inventory/movements is evaluated before /inventory for a CASHIER.
+  const allRoutes = Object.keys(ROUTE_PERMISSIONS);
+  const candidates = allRoutes.filter(
     (route) => pathname === route || pathname.startsWith(`${route}/`)
   );
 
-  if (!matchedRoute) {
-    // Deny access to unknown or unimplemented routes
-    return false;
-  }
+  if (candidates.length === 0) return false;
+
+  // Pick the longest matching route key (most specific)
+  const matchedRoute = candidates.reduce((a, b) => (a.length >= b.length ? a : b));
 
   return ROUTE_PERMISSIONS[matchedRoute].includes(role);
 }
@@ -32,6 +37,9 @@ export interface NavigationItem {
 export const NAVIGATION_ITEMS: NavigationItem[] = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Products', href: '/products', icon: Package },
+  { name: 'Inventory', href: '/inventory', icon: Boxes },
+  { name: 'Movement History', href: '/inventory/movements', icon: Boxes },
+  { name: 'Stock Adjustment', href: '/inventory/adjustment', icon: Boxes },
 ];
 
 export function getAuthorizedNavigation(role: Role | null): NavigationItem[] {
