@@ -1,3 +1,5 @@
+import { LayoutDashboard, Package, LucideIcon } from 'lucide-react';
+
 export type Role = 'OWNER' | 'CASHIER';
 
 export const ROUTE_PERMISSIONS: Record<string, Role[]> = {
@@ -24,11 +26,12 @@ export function canAccessRoute(role: Role | null, pathname: string): boolean {
 export interface NavigationItem {
   name: string;
   href: string;
+  icon: LucideIcon;
 }
 
 export const NAVIGATION_ITEMS: NavigationItem[] = [
-  { name: 'Dashboard', href: '/dashboard' },
-  { name: 'Products', href: '/products' },
+  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Products', href: '/products', icon: Package },
 ];
 
 export function getAuthorizedNavigation(role: Role | null): NavigationItem[] {

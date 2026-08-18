@@ -65,7 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           role,
           accessToken: token,
         });
-      } catch (_err) {
+      } catch {
         setState({ status: 'sessionExpired', user: null, business: null, role: null, accessToken: null });
       }
     };
@@ -97,8 +97,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(async () => {
     try {
       await api.post('/v1/auth/logout');
-    } catch (_e) {
-      // ignore
+    } catch {
+      // Ignored
     } finally {
       setAccessToken(null);
       setState({ status: 'unauthenticated', user: null, business: null, role: null, accessToken: null });
