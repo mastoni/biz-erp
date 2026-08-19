@@ -1,4 +1,4 @@
-name: Production Deployment
+﻿name: Production Deployment
 
 on:
   workflow_dispatch:
@@ -44,6 +44,17 @@ jobs:
           echo "$GITHUB_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
           docker manifest inspect $IMAGE_URI > /dev/null
 
+      - name: Verify GHCR Web Image Exists
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EXACT_SHA: ${{ steps.exact_sha.outputs.sha }}
+        run: |
+          LOWER_REPO_OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          IMAGE_URI="ghcr.io/$LOWER_REPO_OWNER/bizerp-web:$EXACT_SHA"
+          echo "Verifying image $IMAGE_URI exists..."
+          echo "$GITHUB_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          docker manifest inspect $IMAGE_URI > /dev/null
+
       - name: Deploy to production VPS via SSH
         uses: appleboy/ssh-action@v1.0.3
         env:
@@ -58,39 +69,72 @@ jobs:
           envs: GITHUB_TOKEN, IMAGE_TAG, ACTOR, REPO_OWNER
           script: |
             set -e
-            
+
             # Ensure repository owner is lowercase for Docker
             export LOWER_REPO_OWNER=$(echo "$REPO_OWNER" | tr '[:upper:]' '[:lower:]')
             export IMAGE_TAG=$IMAGE_TAG
-            IMAGE_URI="ghcr.io/$LOWER_REPO_OWNER/bizerp-api:$IMAGE_TAG"
-            
+            API_IMAGE_URI="ghcr.io/$LOWER_REPO_OWNER/bizerp-api:$IMAGE_TAG"
+            WEB_IMAGE_URI="ghcr.io/$LOWER_REPO_OWNER/bizerp-web:$IMAGE_TAG"
+
             echo "Logging into GHCR..."
             echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
-            
-            echo "Pulling exact immutable image tag: $IMAGE_TAG..."
-            docker pull $IMAGE_URI
-            
+
+            echo "Pulling exact immutable API image tag: $IMAGE_TAG..."
+            docker pull $API_IMAGE_URI
+
+            echo "Pulling exact immutable Web image tag: $IMAGE_TAG..."
+            docker pull $WEB_IMAGE_URI
+
             echo "Navigating to deployment directory..."
             cd /opt/skmnet-erp-production/repo
-            
+
             echo "Executing database backup gate..."
             set -a
             source /opt/skmnet-erp-production/env/production.env
             set +a
             export PGPASSWORD=$POSTGRES_PASSWORD
             bash ops/backup/backup-postgres.sh
-            
+
             echo "Executing database migration gate..."
             # Run the migration using the new image against the running database
             docker compose -p api -f apps/api/docker-compose.production.yml run --rm api node dist/db/migrate.js
-            
-            echo "Restarting API with the new image..."
+
+            echo "Restarting services with the new images..."
             docker compose -p api -f apps/api/docker-compose.production.yml up -d
-            
+
             echo "Waiting for API health..."
             sleep 10
-            
+
+            echo "Waiting for Web health..."
+            for i in {1..30}; do
+              if [ "$(docker inspect --format='{{.State.Health.Status}}' bizerp_prod_web 2>/dev/null)" = "healthy" ]; then
+                echo "Web is healthy"
+                break
+              fi
+              if [ $i -eq 30 ]; then
+                echo "Web health check failed!"
+                docker logs bizerp_prod_web --tail 50
+                exit 1
+              fi
+              sleep 5
+            done
+
+            echo "Verifying running images match exact SHA..."
+            RUNNING_API_IMAGE=$(docker inspect --format='{{.Config.Image}}' bizerp_prod_api)
+            RUNNING_WEB_IMAGE=$(docker inspect --format='{{.Config.Image}}' bizerp_prod_web)
+            EXPECTED_API_IMAGE="ghcr.io/$LOWER_REPO_OWNER/bizerp-api:$IMAGE_TAG"
+            EXPECTED_WEB_IMAGE="ghcr.io/$LOWER_REPO_OWNER/bizerp-web:$IMAGE_TAG"
+            if [ "$RUNNING_API_IMAGE" != "$EXPECTED_API_IMAGE" ] || [ "$RUNNING_WEB_IMAGE" != "$EXPECTED_WEB_IMAGE" ]; then
+              echo "Running images do not match expected SHA: $IMAGE_TAG"
+              echo "API: $RUNNING_API_IMAGE"
+              echo "Web: $RUNNING_WEB_IMAGE"
+              exit 1
+            fi
+
             echo "Verifying HTTPS /health endpoint..."
             curl -fsS https://api.skmnetwork.com/health || (echo "Health check failed!" && exit 1)
-            
+
+            echo "Verifying HTTPS erp endpoint..."
+            curl -fsS https://erp.skmnetwork.com || (echo "ERP check failed!" && exit 1)
+
             echo "Deployment successful."

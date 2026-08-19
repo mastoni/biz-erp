@@ -84,6 +84,35 @@ jobs:
         working-directory: ./apps/api
         run: docker build -t ghcr.io/${{ github.repository_owner }}/bizerp-api:${{ steps.exact_sha.outputs.sha }} .
 
+      - name: Set up Node.js (web)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install web dependencies
+        working-directory: ./apps/web
+        run: npm ci
+
+      - name: Run web tests
+        working-directory: ./apps/web
+        run: npm test
+
+      - name: Run web lint
+        working-directory: ./apps/web
+        run: npm run lint
+
+      - name: Run web typecheck
+        working-directory: ./apps/web
+        run: npm run typecheck
+
+      - name: Run web build
+        working-directory: ./apps/web
+        run: npm run build
+
+      - name: Build Web Docker image
+        working-directory: ./apps/web
+        run: docker build --build-arg NEXT_PUBLIC_API_URL=https://api.skmnetwork.com -t ghcr.io/${{ github.repository_owner }}/bizerp-web:${{ steps.exact_sha.outputs.sha }} .
+
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -91,5 +120,11 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Push image to GHCR
+      - name: Push API image to GHCR
         run: docker push ghcr.io/${{ github.repository_owner }}/bizerp-api:${{ steps.exact_sha.outputs.sha }}
+
+      - name: Push Web image to GHCR
+        run: docker push ghcr.io/${{ github.repository_owner }}/bizerp-web:${{ steps.exact_sha.outputs.sha }}
+
+      - name: Verify Web image in GHCR
+        run: docker manifest inspect ghcr.io/${{ github.repository_owner }}/bizerp-web:${{ steps.exact_sha.outputs.sha }}

@@ -69,8 +69,31 @@ services:
     depends_on:
       api:
         condition: service_healthy
+      web:
+        condition: service_healthy
     networks:
       - production_proxy
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  web:
+    image: ghcr.io/${LOWER_REPO_OWNER}/bizerp-web:${IMAGE_TAG}
+    container_name: bizerp_prod_web
+    expose:
+      - "3000"
+    environment:
+      NEXT_PUBLIC_API_URL: https://api.skmnetwork.com
+    networks:
+      - production_proxy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3000/', (r) => { process.exit(r.statusCode === 200 ? 0 : 1); }).on('error', () => process.exit(1));"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     restart: always
     logging:
       driver: "json-file"
