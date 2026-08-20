@@ -32,6 +32,8 @@ jobs:
         run: |
           REQUESTED_REF="${{ github.event.inputs.git_ref }}"
           echo "Requested ref: $REQUESTED_REF"
+          git fetch --all --tags --prune
+          git rev-parse "$REQUESTED_REF^{commit}" > /dev/null
           git checkout --detach "$REQUESTED_REF"
 
       - name: Get Exact SHA
