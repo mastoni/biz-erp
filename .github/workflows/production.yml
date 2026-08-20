@@ -91,6 +91,15 @@ jobs:
             echo "Logging into GHCR..."
             echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
 
+            echo "Synchronizing production repository to exact deployment SHA..."
+            cd /opt/skmnet-erp-production/repo
+            git fetch origin
+            git checkout --detach "$IMAGE_TAG"
+            if [ "$(git rev-parse HEAD)" != "$IMAGE_TAG" ]; then
+              echo "Repository SHA mismatch! Expected: $IMAGE_TAG, Got: $(git rev-parse HEAD)"
+              exit 1
+            fi
+
             echo "Pulling exact immutable API image tag: $IMAGE_TAG..."
             docker pull $API_IMAGE_URI
 
