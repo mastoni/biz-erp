@@ -22,10 +22,17 @@ jobs:
     environment:
       name: production
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.inputs.git_ref }}
+          ref: main
+          fetch-depth: 0
+
+      - name: Checkout requested ref
+        run: |
+          REQUESTED_REF="${{ github.event.inputs.git_ref }}"
+          echo "Requested ref: $REQUESTED_REF"
+          git checkout --detach "$REQUESTED_REF"
 
       - name: Get Exact SHA
         id: exact_sha
