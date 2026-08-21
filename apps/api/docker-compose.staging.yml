@@ -64,6 +64,7 @@ services:
       - ./nginx/nginx.staging.conf:/etc/nginx/nginx.conf:ro
       - certbot_staging_webroot:/var/www/certbot
       - certbot_staging_certs:/etc/letsencrypt
+      - /var/www/skmnetwork-landing:/var/www/skmnetwork-landing:ro
     depends_on:
       api:
         condition: service_healthy
