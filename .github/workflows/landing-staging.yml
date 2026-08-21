@@ -88,7 +88,6 @@ jobs:
       name: staging
     env:
       EXACT_SHA: ${{ needs.build-landing.outputs.sha }}
-      STAGING_USER: ${{ secrets.STAGING_USERNAME != '' && secrets.STAGING_USERNAME || 'root' }}
     steps:
       - name: Get Exact SHA
         id: exact_sha
@@ -101,7 +100,7 @@ jobs:
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.STAGING_HOST }}
-          username: ${{ env.STAGING_USER }}
+          username: ${{ secrets.STAGING_USERNAME }}
           key: ${{ secrets.STAGING_SSH_KEY }}
           script: |
             set -e
@@ -118,7 +117,7 @@ jobs:
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.STAGING_HOST }}
-          username: ${{ env.STAGING_USER }}
+          username: ${{ secrets.STAGING_USERNAME }}
           key: ${{ secrets.STAGING_SSH_KEY }}
           source: "dist"
           target: "/tmp/landing-${{ env.EXACT_SHA }}"
@@ -130,7 +129,7 @@ jobs:
           SHA: ${{ env.EXACT_SHA }}
         with:
           host: ${{ secrets.STAGING_HOST }}
-          username: ${{ env.STAGING_USER }}
+          username: ${{ secrets.STAGING_USERNAME }}
           key: ${{ secrets.STAGING_SSH_KEY }}
           envs: SHA
           script: |
