@@ -81,6 +81,13 @@ jobs:
           fi
           echo "No forbidden URLs found."
 
+      - name: Upload dist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: landing-dist-${{ steps.exact_sha.outputs.sha }}
+          path: dist
+          if-no-files-found: error
+
   deploy-landing:
     needs: build-landing
     runs-on: ubuntu-latest
@@ -95,6 +102,22 @@ jobs:
           EXACT_SHA="${{ needs.build-landing.outputs.sha }}"
           echo "sha=$EXACT_SHA" >> $GITHUB_OUTPUT
           echo "Exact SHA: $EXACT_SHA"
+
+      - name: Download dist artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: landing-dist-${{ needs.build-landing.outputs.sha }}
+          path: dist
+
+      - name: Verify downloaded artifact
+        run: |
+          set -e
+          test -f dist/index.html      || { echo "Missing dist/index.html"; exit 1; }
+          test -d dist/assets          || { echo "Missing dist/assets"; exit 1; }
+          test -f dist/robots.txt      || { echo "Missing dist/robots.txt"; exit 1; }
+          test -f dist/sitemap.xml     || { echo "Missing dist/sitemap.xml"; exit 1; }
+          test -f dist/manifest.webmanifest || { echo "Missing dist/manifest.webmanifest"; exit 1; }
+          echo "Downloaded artifact verified."
 
       - name: Prepare remote staging paths
         uses: appleboy/ssh-action@v1.0.3
