@@ -1,0 +1,250 @@
+name: Landing Staging Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      git_ref:
+        description: 'Git ref (branch, tag, or full commit SHA) to deploy'
+        required: true
+        default: 'main'
+
+concurrency:
+  group: landing-staging-deployment
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  LANDING_DIR: apps/landing
+
+jobs:
+  build-landing:
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+    outputs:
+      sha: ${{ steps.exact_sha.outputs.sha }}
+    steps:
+      - name: Checkout stable main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Resolve requested git_ref safely
+        run: |
+          REQUESTED_REF="${{ github.event.inputs.git_ref }}"
+          REQUESTED_REF="${REQUESTED_REF#git_ref:}"
+          REQUESTED_REF="${REQUESTED_REF#git_ref =}"
+          REQUESTED_REF="$(printf '%s' "$REQUESTED_REF" | xargs)"
+          echo "Requested ref: $REQUESTED_REF"
+          git fetch --all --tags --prune
+          git rev-parse "$REQUESTED_REF^{commit}" > /dev/null
+          git checkout --detach "$REQUESTED_REF"
+
+      - name: Get Exact SHA
+        id: exact_sha
+        run: |
+          EXACT_SHA=$(git rev-parse HEAD)
+          echo "sha=$EXACT_SHA" >> $GITHUB_OUTPUT
+          echo "Exact SHA: $EXACT_SHA"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        working-directory: ${{ env.LANDING_DIR }}
+        run: npm ci
+
+      - name: Typecheck
+        working-directory: ${{ env.LANDING_DIR }}
+        run: npm run typecheck
+
+      - name: Build
+        working-directory: ${{ env.LANDING_DIR }}
+        run: npm run build
+
+      - name: Verify dist artifacts
+        working-directory: ${{ env.LANDING_DIR }}
+        run: |
+          set -e
+          test -f dist/index.html      || { echo "Missing dist/index.html"; exit 1; }
+          test -d dist/assets          || { echo "Missing dist/assets"; exit 1; }
+          test -f dist/robots.txt      || { echo "Missing dist/robots.txt"; exit 1; }
+          test -f dist/sitemap.xml     || { echo "Missing dist/sitemap.xml"; exit 1; }
+          test -f dist/manifest.webmanifest || { echo "Missing dist/manifest.webmanifest"; exit 1; }
+
+      - name: Verify no forbidden URLs in dist
+        working-directory: ${{ env.LANDING_DIR }}
+        run: |
+          set -e
+          echo "Scanning dist for forbidden URLs (localhost, 127.0.0.1, staging-api, internal ranges)..."
+          if grep -rIE 'localhost|127\.0\.0\.1|0\.0\.0\.0|staging-api\.skmnetwork\.com|(https?://(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.))' dist; then
+            echo "Forbidden URL pattern found in dist. Aborting."
+            exit 1
+          fi
+          echo "No forbidden URLs found."
+
+  deploy-landing:
+    needs: build-landing
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+    env:
+      EXACT_SHA: ${{ needs.build-landing.outputs.sha }}
+      STAGING_USER: ${{ secrets.STAGING_USERNAME != '' && secrets.STAGING_USERNAME || 'root' }}
+    steps:
+      - name: Checkout stable main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Get Exact SHA
+        id: exact_sha
+        run: |
+          EXACT_SHA="${{ needs.build-landing.outputs.sha }}"
+          echo "sha=$EXACT_SHA" >> $GITHUB_OUTPUT
+          echo "Exact SHA: $EXACT_SHA"
+
+      - name: Prepare remote staging paths
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ env.STAGING_USER }}
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          script: |
+            set -e
+            SHA="${{ env.EXACT_SHA }}"
+            BASE=/var/www/skmnetwork-landing
+            echo "Preparing staging paths for $SHA"
+            rm -rf "$BASE/releases/$SHA"
+            mkdir -p "$BASE/releases/$SHA/dist"
+            rm -rf "/tmp/landing-$SHA"
+            mkdir -p "/tmp/landing-$SHA"
+            echo "Prepared."
+
+      - name: Upload dist to staging (temporary location)
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ env.STAGING_USER }}
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          source: "${{ env.LANDING_DIR }}/dist"
+          target: "/tmp/landing-${{ env.EXACT_SHA }}"
+          strip_components: 2
+
+      - name: Install release, validate, and atomically switch (with rollback)
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          SHA: ${{ env.EXACT_SHA }}
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ env.STAGING_USER }}
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          envs: SHA
+          script: |
+            set -euo pipefail
+
+            BASE=/var/www/skmnetwork-landing
+            REL="$BASE/releases/$SHA"
+            NGINX_CONTAINER=bizerp_staging_nginx
+
+            echo "== Verifying VPS deployment path is repository-independent =="
+            test -d "$BASE" || { echo "Deployment base path $BASE is missing on VPS"; exit 1; }
+            if [ -e "$BASE/.git" ]; then
+              echo "ERROR: $BASE appears to be a git repository; landing must be repository-independent."
+              exit 1
+            fi
+
+            echo "== Installing release $SHA =="
+            rm -rf "$REL"
+            mkdir -p "$REL/dist"
+            cp -a "/tmp/landing-$SHA/dist/." "$REL/dist/"
+            rm -rf "/tmp/landing-$SHA"
+
+            echo "== Verifying release artifacts on disk =="
+            test -f "$REL/dist/index.html"         || { echo "index.html missing"; exit 1; }
+            test -d "$REL/dist/assets"             || { echo "assets/ missing"; exit 1; }
+            test -f "$REL/dist/robots.txt"         || { echo "robots.txt missing"; exit 1; }
+            test -f "$REL/dist/sitemap.xml"        || { echo "sitemap.xml missing"; exit 1; }
+            test -f "$REL/dist/manifest.webmanifest" || { echo "manifest.webmanifest missing"; exit 1; }
+
+            echo "== Recording previous active release =="
+            PREV=$(readlink -f "$BASE/current" 2>/dev/null || true)
+            echo "Previous current target: ${PREV:-<none>}"
+            printf '%s' "$PREV" > /tmp/landing-prev-release
+
+            echo "== Validating nginx configuration =="
+            docker exec "$NGINX_CONTAINER" nginx -t
+
+            echo "== Verifying nginx can read new release (read-only mount) =="
+            docker exec "$NGINX_CONTAINER" test -f "$REL/dist/index.html" \
+              || { echo "nginx cannot read new release"; exit 1; }
+
+            echo "== Atomically updating current symlink =="
+            ln -sfn "$REL/dist" "$BASE/current.new"
+            mv -Tf "$BASE/current.new" "$BASE/current"
+
+            echo "== Verifying nginx reads active current =="
+            docker exec "$NGINX_CONTAINER" test -f "$BASE/current/index.html" \
+              || { echo "nginx cannot read current after switch"; exit 1; }
+
+            echo "== Public validation =="
+            rollback() {
+              if [ -n "$PREV" ] && [ -e "$PREV" ]; then
+                echo "Restoring previous current -> $PREV"
+                ln -sfn "$PREV" "$BASE/current.new"
+                mv -Tf "$BASE/current.new" "$BASE/current"
+                docker exec "$NGINX_CONTAINER" test -f "$BASE/current/index.html" \
+                  || echo "WARNING: rollback target not readable by nginx"
+              else
+                echo "No previous release recorded; leaving failed state."
+              fi
+            }
+            for path in "/" "/robots.txt" "/manifest.webmanifest"; do
+              if ! curl -fsSI "https://www.skmnetwork.com${path}" >/dev/null; then
+                echo "Public validation FAILED for $path"
+                rollback
+                exit 1
+              fi
+            done
+
+            echo "== Verifying running release matches $SHA =="
+            ACTIVE=$(readlink -f "$BASE/current")
+            if [ "$ACTIVE" != "$REL/dist" ]; then
+              echo "Active release mismatch: $ACTIVE != $REL/dist"
+              exit 1
+            fi
+
+            echo "== Release retention (keep 5) =="
+            KEEP="$ACTIVE"
+            if [ -n "$PREV" ] && [ -e "$PREV" ]; then
+              KEEP="$KEEP"$'\n'"$PREV"
+            fi
+            while IFS= read -r d; do
+              [ -z "$d" ] && continue
+              KEEP="$KEEP"$'\n'"$(readlink -f "$d")"
+            done < <(ls -dt "$BASE"/releases/*/ 2>/dev/null | head -n 5)
+            for rel in "$BASE"/releases/*/; do
+              rrel=$(readlink -f "$rel")
+              if ! printf '%s\n' "$KEEP" | grep -qx "$rrel"; then
+                echo "Pruning old release: $rrel"
+                rm -rf "$rrel"
+              fi
+            done
+
+            echo "Deployment successful: $SHA"
+
+      - name: Final external confirmation
+        run: |
+          set -e
+          SHA="${{ env.EXACT_SHA }}"
+          echo "Final confirmation of public endpoints for $SHA"
+          curl -fsSI https://www.skmnetwork.com/
+          curl -fsSI https://www.skmnetwork.com/robots.txt
+          curl -fsSI https://www.skmnetwork.com/manifest.webmanifest
+          echo "Confirmation OK."
