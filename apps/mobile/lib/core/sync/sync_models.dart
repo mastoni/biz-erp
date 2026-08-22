@@ -268,13 +268,15 @@ class ProductPushResult {
 
 class SalePushResultItem {
   final String idempotencyKey;
-  final String status; // created | duplicate | failed
+  final String status; // created | duplicate | failed | receipt_conflict
   final String? saleId;
   final String? error;
+  final String receiptNumber;
   const SalePushResultItem(
     this.idempotencyKey,
     this.status, {
     this.saleId,
     this.error,
+    this.receiptNumber = '',
   });
 }

@@ -662,4 +662,23 @@ void main() {
       }
     });
   });
+
+  group('CHK-031: Receipt sequence not consumed on failure', () {
+    test('CHK-031: Failed checkout does not increment sequence', () async {
+      await seedProductAndCart(price: 10000);
+      final req = await makeRequest(cash: 5000); // Will fail with InsufficientPaymentException
+
+      try {
+        await checkoutService.checkout(req);
+      } catch (_) {}
+
+      // Verify no sale was created
+      final sales = await db.select(db.salesLocal).get();
+      expect(sales.isEmpty, isTrue);
+
+      // Verify sequence was not consumed (last_sequence should still be 0)
+      final seqRow = await (db.select(db.receiptSequencesLocal)).getSingleOrNull();
+      expect(seqRow, isNull); // No sequence row created because checkout failed
+    });
+  });
 }

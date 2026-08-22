@@ -2741,7 +2741,7 @@ class $SalesLocalTable extends SalesLocal
     false,
     check: () => const CustomExpression(
       "status IN ('DRAFT', 'PENDING_SYNC', 'SYNCING', 'RESULT_UNKNOWN', "
-      "'SYNCED', 'SYNC_FAILED', 'CONFLICT', 'CANCELLED')",
+      "'SYNCED', 'SYNC_FAILED', 'CONFLICT', 'RECEIPT_CONFLICT', 'CANCELLED')",
     ),
     type: DriftSqlType.string,
     requiredDuringInsert: true,

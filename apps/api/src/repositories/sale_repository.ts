@@ -1,6 +1,7 @@
 import { PoolClient } from 'pg'
 import { SaleItemPayload, SalePayload } from '../dto/sale_dto'
 import { newUuid } from '../utils/uuid'
+import { ConflictError } from '../errors/conflict_error'
 
 export interface CreatedSale {
   sale_id: string
@@ -37,22 +38,33 @@ export const saleRepository = {
         RETURNING id, receipt_number, server_created_at
       `
 
-      const saleResult = await client.query(saleSql, [
-        sale.id,
-        businessId,
-        sale.receipt_number,
-        sale.subtotal_minor,
-        sale.discount_minor,
-        sale.tax_minor,
-        sale.total_minor,
-        sale.payment_method,
-        sale.paid_minor,
-        sale.change_minor,
-        sale.cashier_id,
-        sale.customer_id,
-        createdAt,
-clientCreatedAt, createdAt
-      ])
+      let saleResult: any
+      try {
+        saleResult = await client.query(saleSql, [
+          sale.id,
+          businessId,
+          sale.receipt_number,
+          sale.subtotal_minor,
+          sale.discount_minor,
+          sale.tax_minor,
+          sale.total_minor,
+          sale.payment_method,
+          sale.paid_minor,
+          sale.change_minor,
+          sale.cashier_id,
+          sale.customer_id,
+          createdAt,
+          clientCreatedAt, createdAt
+        ])
+      } catch (err: any) {
+        if (err.code === '23505' && err.constraint === 'idx_sales_business_receipt') {
+          throw new ConflictError('RECEIPT_NUMBER_CONFLICT', 'Receipt number already used for this business', {
+            receipt_number: sale.receipt_number,
+            business_id: businessId
+          })
+        }
+        throw err
+      }
 
     for (const item of items) {
       const itemId = item.id ?? newUuid()

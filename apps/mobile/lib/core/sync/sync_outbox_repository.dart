@@ -179,6 +179,36 @@ class SyncOutboxRepository {
     return id;
   }
 
+  Future<String> enqueueCustomerUpsert(CustomerDto customer) async {
+    final id = _uuid.v4();
+    await _db
+        .into(_db.syncOutbox)
+        .insert(
+          SyncOutboxCompanion.insert(
+            id: id,
+            entityType: 'customer',
+            operation: 'upsert',
+            payloadJson: jsonEncode(customer.toJson()),
+            idempotencyKey: Value(customer.id),
+            nextAttemptAt: 0,
+            createdAt: DateTime.now().millisecondsSinceEpoch,
+          ),
+        );
+    return id;
+  }
+
+  Future<String> enqueueCustomerCreate(CustomerDto customer) async {
+    final id = _uuid.v4();
+    await _db.into(_db.syncOutbox).insert(
+      SyncOutboxCompanion.insert(
+        id: id, entityType: 'customer', operation: 'create',
+        payloadJson: jsonEncode(customer.toJson()), idempotencyKey: Value(customer.id),
+        nextAttemptAt: 0, createdAt: DateTime.now().millisecondsSinceEpoch,
+      ),
+    );
+    return id;
+  }
+
   Future<void> markFailed(String id, String error) async {
     await (_db.update(_db.syncOutbox)..where((t) => t.id.equals(id))).write(
       SyncOutboxCompanion(status: const Value('failed'), lastError: Value(error)),

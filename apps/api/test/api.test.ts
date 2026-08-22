@@ -393,4 +393,255 @@ describe('Phase 3.0.2 API', () => {
 
     expect(res.body.error.code).toBe('VALIDATION_ERROR')
   })
+
+  it('API-019 duplicate receipt_number returns RECEIPT_NUMBER_CONFLICT', async () => {
+    const productId = await seedProduct(BUSINESS_A)
+    const receiptNumber = 'RECEIPT-CONFLICT-TEST'
+
+    const makeFixedReceiptBatch = () => ({
+      business_id: BUSINESS_A,
+      items: [
+        {
+          idempotency_key: randomUUID(),
+          request_hash: randomUUID(),
+          sale: {
+            id: randomUUID(),
+            receipt_number: receiptNumber,
+            subtotal_minor: 10000,
+            discount_minor: 0,
+            tax_minor: 0,
+            total_minor: 10000,
+            payment_method: 'cash',
+            paid_minor: 10000,
+            change_minor: 0,
+            cashier_id: 'cashier-1',
+            created_at: new Date().toISOString(),
+            client_created_at: new Date().toISOString()
+          },
+          sale_items: [
+            {
+              product_id: productId,
+              product_name: 'Test Product',
+              quantity: 1,
+              unit_price_minor: 10000,
+              subtotal_minor: 10000
+            }
+          ]
+        }
+      ]
+    })
+
+    const first = await request(app).post('/v1/sync/sales/batch').set('Authorization', `Bearer ${tokenA}`).send(makeFixedReceiptBatch()).expect(200)
+    expect(first.body.results[0].status).toBe('created')
+    expect(first.body.results[0].receipt_number).toBe(receiptNumber)
+
+    const second = await request(app).post('/v1/sync/sales/batch').set('Authorization', `Bearer ${tokenA}`).send(makeFixedReceiptBatch()).expect(200)
+    expect(second.body.results[0].status).toBe('receipt_conflict')
+    expect(second.body.results[0].receipt_number).toBe(receiptNumber)
+
+    expect(await countRows('sales')).toBe(1)
+    expect(await countRows('idempotency_keys')).toBe(1)
+  })
+
+  it('API-020 same idempotency key replay returns replayed', async () => {
+    const productId = await seedProduct(BUSINESS_A)
+    const receiptNumber = 'RECEIPT-REPLAY-TEST'
+    const body = {
+      business_id: BUSINESS_A,
+      items: [
+        {
+          idempotency_key: 'fixed-replay-key',
+          request_hash: 'fixed-replay-hash',
+          sale: {
+            id: randomUUID(),
+            receipt_number: receiptNumber,
+            subtotal_minor: 10000,
+            discount_minor: 0,
+            tax_minor: 0,
+            total_minor: 10000,
+            payment_method: 'cash',
+            paid_minor: 10000,
+            change_minor: 0,
+            cashier_id: 'cashier-1',
+            created_at: new Date().toISOString(),
+            client_created_at: new Date().toISOString()
+          },
+          sale_items: [
+            {
+              product_id: productId,
+              product_name: 'Test Product',
+              quantity: 1,
+              unit_price_minor: 10000,
+              subtotal_minor: 10000
+            }
+          ]
+        }
+      ]
+    }
+
+    const first = await request(app).post('/v1/sync/sales/batch').set('Authorization', `Bearer ${tokenA}`).send(body).expect(200)
+    expect(first.body.results[0].status).toBe('created')
+
+    const second = await request(app).post('/v1/sync/sales/batch').set('Authorization', `Bearer ${tokenA}`).send(body).expect(200)
+    expect(second.body.results[0].status).toBe('replayed')
+    expect(second.body.results[0].receipt_number).toBe(receiptNumber)
+
+    expect(await countRows('sales')).toBe(1)
+  })
+
+  it('API-021 different businesses can reuse receipt_number', async () => {
+    const productIdA = await seedProduct(BUSINESS_A)
+    const productIdB = await seedProduct(BUSINESS_B)
+    const receiptNumber = 'RECEIPT-SHARED'
+
+    const bodyA = {
+      business_id: BUSINESS_A,
+      items: [
+        {
+          idempotency_key: randomUUID(),
+          request_hash: randomUUID(),
+          sale: {
+            id: randomUUID(),
+            receipt_number: receiptNumber,
+            subtotal_minor: 10000,
+            discount_minor: 0,
+            tax_minor: 0,
+            total_minor: 10000,
+            payment_method: 'cash',
+            paid_minor: 10000,
+            change_minor: 0,
+            cashier_id: 'cashier-1',
+            created_at: new Date().toISOString(),
+            client_created_at: new Date().toISOString()
+          },
+          sale_items: [
+            {
+              product_id: productIdA,
+              product_name: 'Test Product A',
+              quantity: 1,
+              unit_price_minor: 10000,
+              subtotal_minor: 10000
+            }
+          ]
+        }
+      ]
+    }
+
+    const bodyB = {
+      business_id: BUSINESS_B,
+      items: [
+        {
+          idempotency_key: randomUUID(),
+          request_hash: randomUUID(),
+          sale: {
+            id: randomUUID(),
+            receipt_number: receiptNumber,
+            subtotal_minor: 10000,
+            discount_minor: 0,
+            tax_minor: 0,
+            total_minor: 10000,
+            payment_method: 'cash',
+            paid_minor: 10000,
+            change_minor: 0,
+            cashier_id: 'cashier-1',
+            created_at: new Date().toISOString(),
+            client_created_at: new Date().toISOString()
+          },
+          sale_items: [
+            {
+              product_id: productIdB,
+              product_name: 'Test Product B',
+              quantity: 1,
+              unit_price_minor: 10000,
+              subtotal_minor: 10000
+            }
+          ]
+        }
+      ]
+    }
+
+    const resA = await request(app).post('/v1/sync/sales/batch').set('Authorization', `Bearer ${tokenA}`).send(bodyA).expect(200)
+    expect(resA.body.results[0].status).toBe('created')
+
+    const resB = await request(app).post('/v1/sync/sales/batch').set('Authorization', `Bearer ${tokenB}`).send(bodyB).expect(200)
+    expect(resB.body.results[0].status).toBe('created')
+
+    expect(await countRows('sales')).toBe(2)
+  })
+
+  it('API-022 batch continues processing after receipt conflict on one item', async () => {
+    const productId = await seedProduct(BUSINESS_A)
+    const receiptNumber = 'RECEIPT-BATCH-CONFLICT'
+
+    const makeBatch = (useConflictReceipt: boolean) => ({
+      business_id: BUSINESS_A,
+      items: [
+        {
+          idempotency_key: randomUUID(),
+          request_hash: randomUUID(),
+          sale: {
+            id: randomUUID(),
+            receipt_number: useConflictReceipt ? receiptNumber : `RECEIPT-${randomUUID()}`,
+            subtotal_minor: 10000,
+            discount_minor: 0,
+            tax_minor: 0,
+            total_minor: 10000,
+            payment_method: 'cash',
+            paid_minor: 10000,
+            change_minor: 0,
+            cashier_id: 'cashier-1',
+            created_at: new Date().toISOString(),
+            client_created_at: new Date().toISOString()
+          },
+          sale_items: [
+            {
+              product_id: productId,
+              product_name: 'Test Product',
+              quantity: 1,
+              unit_price_minor: 10000,
+              subtotal_minor: 10000
+            }
+          ]
+        },
+        {
+          idempotency_key: randomUUID(),
+          request_hash: randomUUID(),
+          sale: {
+            id: randomUUID(),
+            receipt_number: `RECEIPT-OK-${randomUUID()}`,
+            subtotal_minor: 20000,
+            discount_minor: 0,
+            tax_minor: 0,
+            total_minor: 20000,
+            payment_method: 'transfer',
+            paid_minor: 20000,
+            change_minor: 0,
+            cashier_id: 'cashier-1',
+            created_at: new Date().toISOString(),
+            client_created_at: new Date().toISOString()
+          },
+          sale_items: [
+            {
+              product_id: productId,
+              product_name: 'Test Product 2',
+              quantity: 2,
+              unit_price_minor: 10000,
+              subtotal_minor: 20000
+            }
+          ]
+        }
+      ]
+    })
+
+    // First batch creates two sales (one with receiptNumber, one unique)
+    await request(app).post('/v1/sync/sales/batch').set('Authorization', `Bearer ${tokenA}`).send(makeBatch(true)).expect(200)
+
+    // Second batch: first item conflicts, second should succeed
+    const res = await request(app).post('/v1/sync/sales/batch').set('Authorization', `Bearer ${tokenA}`).send(makeBatch(true)).expect(200)
+    expect(res.body.results).toHaveLength(2)
+    expect(res.body.results[0].status).toBe('receipt_conflict')
+    expect(res.body.results[1].status).toBe('created')
+    expect(res.body.created_count).toBe(1)
+    expect(await countRows('sales')).toBe(3)
+  })
 })

@@ -1,4 +1,5 @@
-﻿import 'package:drift/native.dart';
+﻿import 'package:drift/drift.dart' hide isNotNull;
+import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:biz_erp_mobile/core/database/app_database.dart';
 import 'package:biz_erp_mobile/core/sync/sync_api_client.dart';
@@ -247,5 +248,126 @@ void main() {
     expect(summary.reachable, isFalse);
     expect(summary.pushed, 0);
     expect(summary.counts.pending, 1);
+  });
+
+  test('SYNC-011 receipt_conflict marks outbox failed and bumps sequence', () async {
+    final sale = SaleDto(
+      id: 's1',
+      idempotencyKey: 'key-receipt-conflict',
+      receiptNumber: 'BRANCH-001-20260822-0001',
+      subtotalMinor: 10000,
+      discountMinor: 0,
+      taxMinor: 0,
+      grandTotalMinor: 10000,
+      paymentMethod: 'cash',
+      cashReceivedMinor: 10000,
+      changeMinor: 0,
+      cashierId: 'cashier-1',
+      customerId: null,
+      clientCreatedAt: 1000,
+      items: const [],
+    );
+    
+    // Insert local sale first (as checkout would do)
+    await db.into(db.salesLocal).insert(
+      SalesLocalCompanion.insert(
+        clientTransactionId: sale.idempotencyKey,
+        businessId: biz,
+        branchId: 'BRANCH-001',
+        cashierId: sale.cashierId ?? 'UNKNOWN',
+        customerId: const Value(null),
+        receiptNumber: Value(sale.receiptNumber),
+        receiptSequence: const Value(1),
+        receiptDate: const Value('20260822'),
+        status: 'PENDING_SYNC',
+        subtotalMinor: sale.subtotalMinor,
+        discountMinor: Value(sale.discountMinor),
+        taxMinor: Value(sale.taxMinor),
+        totalMinor: sale.grandTotalMinor,
+        currencyCode: 'IDR',
+        currencyMinorUnits: 0,
+        deviceId: 'DEVICE-001',
+        createdAt: sale.clientCreatedAt,
+        updatedAt: sale.clientCreatedAt,
+      ),
+    );
+    
+    await outbox.enqueueSale(sale);
+    api.onPushSales = (sales) => [
+      SalePushResultItem('key-receipt-conflict', 'receipt_conflict', receiptNumber: 'BRANCH-001-20260822-0001'),
+    ];
+
+    final summary = await engine.syncNow();
+    expect(summary.reachable, isTrue);
+    expect(summary.pushed, 1);
+
+    final counts = await outbox.counts();
+    expect(counts.failed, 1);
+    expect(counts.pending, 0);
+
+    final localSale = await db.select(db.salesLocal).getSingleOrNull();
+    expect(localSale, isNotNull);
+    expect(localSale!.status, 'RECEIPT_CONFLICT');
+
+    final seqRow = await db.select(db.receiptSequencesLocal).getSingleOrNull();
+    expect(seqRow, isNotNull);
+    expect(seqRow!.lastSequence, 1);
+  });
+
+  test('SYNC-012 same idempotency key replay still works after receipt conflict on different key', () async {
+    final sale1 = SaleDto(
+      id: 's1',
+      idempotencyKey: 'key-ok',
+      receiptNumber: 'BRANCH-001-20260822-0001',
+      subtotalMinor: 10000,
+      discountMinor: 0,
+      taxMinor: 0,
+      grandTotalMinor: 10000,
+      paymentMethod: 'cash',
+      cashReceivedMinor: 10000,
+      changeMinor: 0,
+      cashierId: 'cashier-1',
+      customerId: null,
+      clientCreatedAt: 1000,
+      items: const [],
+    );
+    final sale2 = SaleDto(
+      id: 's2',
+      idempotencyKey: 'key-conflict',
+      receiptNumber: 'BRANCH-001-20260822-0001',
+      subtotalMinor: 10000,
+      discountMinor: 0,
+      taxMinor: 0,
+      grandTotalMinor: 10000,
+      paymentMethod: 'cash',
+      cashReceivedMinor: 10000,
+      changeMinor: 0,
+      cashierId: 'cashier-1',
+      customerId: null,
+      clientCreatedAt: 1000,
+      items: const [],
+    );
+    await outbox.enqueueSale(sale1);
+    await outbox.enqueueSale(sale2);
+    api.onPushSales = (sales) => [
+      SalePushResultItem('key-ok', 'created', saleId: 's1'),
+      SalePushResultItem('key-conflict', 'receipt_conflict', receiptNumber: 'BRANCH-001-20260822-0001'),
+    ];
+
+    final summary = await engine.syncNow();
+    expect(summary.pushed, 2);
+
+    final counts = await outbox.counts();
+    expect(counts.failed, 1);
+    expect(counts.pending, 0);
+
+    // Replay sale1 again
+    await outbox.enqueueSale(sale1);
+    api.onPushSales = (sales) => [
+      SalePushResultItem('key-ok', 'duplicate', saleId: 's1'),
+    ];
+    final summary2 = await engine.syncNow();
+    expect(summary2.pushed, 1);
+    expect(counts.failed, 1);
   });
 }

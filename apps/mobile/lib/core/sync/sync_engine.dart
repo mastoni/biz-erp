@@ -176,6 +176,22 @@ class SyncEngine extends ChangeNotifier {
           await _outbox.markRetry(item.id, now, 'no result');
         } else if (r.status == 'created' || r.status == 'duplicate') {
           await _outbox.markSynced(item.id);
+        } else if (r.status == 'receipt_conflict') {
+          print('[DEBUG] receipt_conflict: item.id=${item.id}, item.key=${item.idempotencyKey}');
+          await _outbox.markFailed(item.id, 'RECEIPT_NUMBER_CONFLICT');
+          if (item.idempotencyKey != null) {
+            await _salesSync.markSaleReceiptConflict(item.idempotencyKey!);
+          }
+          final parts = r.receiptNumber.split('-');
+          print('[DEBUG] parts=$parts');
+          if (parts.length >= 3) {
+            final sequence = parts.last;
+            final dateStr = parts[parts.length - 2];
+            final branchId = parts.sublist(0, parts.length - 2).join('-');
+            print('[DEBUG] bumping sequence for business=$_businessId, branch=$branchId, date=$dateStr');
+            await _salesSync.bumpReceiptSequence(_businessId, branchId, dateStr);
+            print('[DEBUG] bump done');
+          }
         } else {
           await _outbox.markRetry(item.id, now, r.error ?? 'failed');
         }

@@ -9,6 +9,7 @@ class SaleStatus {
   static const String synced = 'SYNCED';
   static const String syncFailed = 'SYNC_FAILED';
   static const String conflict = 'CONFLICT';
+  static const String receiptConflict = 'RECEIPT_CONFLICT';
   static const String cancelled = 'CANCELLED';
 
   static const List<String> all = [
@@ -19,6 +20,7 @@ class SaleStatus {
     synced,
     syncFailed,
     conflict,
+    receiptConflict,
     cancelled,
   ];
 }
@@ -45,7 +47,7 @@ class SalesLocal extends Table {
   TextColumn get status => text().check(
     const CustomExpression(
       "status IN ('DRAFT', 'PENDING_SYNC', 'SYNCING', 'RESULT_UNKNOWN', "
-      "'SYNCED', 'SYNC_FAILED', 'CONFLICT', 'CANCELLED')",
+      "'SYNCED', 'SYNC_FAILED', 'CONFLICT', 'RECEIPT_CONFLICT', 'CANCELLED')",
     ),
   )();
 

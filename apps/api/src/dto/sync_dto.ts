@@ -15,7 +15,7 @@ export interface CustomerSyncListResponse {
 
 export interface SaleSyncResult {
   idempotency_key: string
-  status: 'created' | 'replayed'
+  status: 'created' | 'replayed' | 'receipt_conflict'
   sale_id: string
   receipt_number: string
   server_created_at: string
