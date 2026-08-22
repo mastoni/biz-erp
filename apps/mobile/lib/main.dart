@@ -51,6 +51,7 @@ Future<void> main() async {
 class TenantDependencyGraph {
   final AppDatabase db;
   final ProductRepository productRepo;
+  final CustomerRepository customerRepo;
   final SyncOutboxRepository outboxRepo;
   final SyncStatusNotifier syncStatusNotifier;
   final PosController controller;
@@ -62,6 +63,7 @@ class TenantDependencyGraph {
   TenantDependencyGraph({
     required this.db,
     required this.productRepo,
+    required this.customerRepo,
     required this.outboxRepo,
     required this.syncStatusNotifier,
     required this.controller,
@@ -216,6 +218,7 @@ class _MyAppState extends State<MyApp> {
     return TenantDependencyGraph(
       db: db,
       productRepo: productRepo,
+      customerRepo: customerRepo,
       outboxRepo: syncOutboxRepo,
       syncStatusNotifier: syncStatusNotifier,
       controller: controller,
@@ -251,6 +254,7 @@ class _MyAppState extends State<MyApp> {
             productRepo: _graph!.productRepo,
             outboxRepo: _graph!.outboxRepo,
             authStateNotifier: widget.authStateNotifier,
+            customerRepo: _graph!.customerRepo,
           );
         },
       ),

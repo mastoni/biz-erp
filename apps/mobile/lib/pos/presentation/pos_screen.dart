@@ -8,6 +8,8 @@ import 'widgets/sync_status_indicator.dart';
 import 'package:biz_erp_mobile/products/data/product_repository.dart';
 import 'package:biz_erp_mobile/core/sync/sync_outbox_repository.dart';
 import 'package:biz_erp_mobile/products/presentation/product_list_screen.dart';
+import 'package:biz_erp_mobile/customers/presentation/customer_list_screen.dart';
+import 'package:biz_erp_mobile/customers/data/customer_repository.dart';
 import 'widgets/conflict_list_sheet.dart';
 import 'package:biz_erp_mobile/core/auth/auth_state_notifier.dart';
 
@@ -16,6 +18,7 @@ class PosScreen extends StatefulWidget {
   final ScannerService? scannerService; // optional agar test lama tetap jalan
   final SyncStatusNotifier? syncStatusNotifier;
   final ProductRepository? productRepo;
+  final CustomerRepository? customerRepo;
   final SyncOutboxRepository? outboxRepo;
   final AuthStateNotifier? authStateNotifier;
 
@@ -25,6 +28,7 @@ class PosScreen extends StatefulWidget {
     this.scannerService,
     this.syncStatusNotifier,
     this.productRepo,
+    this.customerRepo,
     this.outboxRepo,
     this.authStateNotifier,
   });
@@ -171,6 +175,32 @@ class _PosScreenState extends State<PosScreen> {
                   builder: (_) => ProductListScreen(
                     businessId: widget.authStateNotifier!.businessId!,
                     productRepo: widget.productRepo!,
+                    outboxRepo: widget.outboxRepo!,
+                    syncStatusNotifier: widget.syncStatusNotifier!,
+                    userRole: widget.authStateNotifier!.session?.role ?? 'CASHIER',
+                  ),
+                ),
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.people),
+            title: const Text('Kelola Pelanggan'),
+            subtitle: const Text('Tambah, edit, nonaktifkan pelanggan'),
+            onTap: () {
+              Navigator.pop(context);
+              if (widget.customerRepo == null || widget.outboxRepo == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Manajemen pelanggan belum diaktifkan')),
+                );
+                return;
+              }
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => CustomerListScreen(
+                    businessId: widget.authStateNotifier!.businessId!,
+                    customerRepo: widget.customerRepo!,
                     outboxRepo: widget.outboxRepo!,
                     syncStatusNotifier: widget.syncStatusNotifier!,
                     userRole: widget.authStateNotifier!.session?.role ?? 'CASHIER',
