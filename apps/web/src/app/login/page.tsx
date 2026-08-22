@@ -2,12 +2,14 @@
 
 import React, { useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useAuth } from '@/features/auth/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { SKMNetworkLogo } from '@/components/brand/SKMNetworkLogo';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -39,11 +41,14 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>SKMNet-ERP Web</CardTitle>
-          <CardDescription>Login untuk mengakses dashboard.</CardDescription>
+    <div className="flex min-h-screen items-center justify-center bg-paper p-4">
+      <Card className="w-full max-w-md border-2 border-ink/10 shadow-card">
+        <CardHeader className="space-y-4">
+          <SKMNetworkLogo size={48} />
+          <div>
+            <CardTitle className="text-2xl font-display font-bold text-ink">SKMNet ERP</CardTitle>
+            <CardDescription className="text-ink/60">Login untuk mengakses dashboard.</CardDescription>
+          </div>
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
@@ -54,7 +59,7 @@ export default function LoginPage() {
               </Alert>
             )}
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email" className="text-ink">Email</Label>
               <Input 
                 id="email" 
                 type="email" 
@@ -62,23 +67,31 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                className="border-ink/15 focus:border-ink focus:ring-marigold/50"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password" className="text-ink">Password</Label>
               <Input 
                 id="password" 
                 type="password" 
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                className="border-ink/15 focus:border-ink focus:ring-marigold/50"
               />
             </div>
           </CardContent>
-          <CardFooter>
-            <Button type="submit" className="w-full" disabled={isLoading}>
+          <CardFooter className="flex flex-col gap-3">
+            <Button type="submit" className="w-full bg-ink text-paper hover:bg-ink-2" disabled={isLoading}>
               {isLoading ? 'Sedang masuk...' : 'Masuk'}
             </Button>
+            <p className="text-sm text-ink/60 text-center">
+              Belum punya akun?{' '}
+              <Link href="/register" className="text-marigold-2 hover:text-marigold font-medium underline">
+                Daftar
+              </Link>
+            </p>
           </CardFooter>
         </form>
       </Card>

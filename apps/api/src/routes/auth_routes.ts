@@ -6,10 +6,15 @@ import { createUserRepository } from '../repositories/user_repository'
 import { createUserBusinessRepository } from '../repositories/user_business_repository'
 import { createRefreshTokenService } from '../services/refresh_token_service'
 import { createJwtService } from '../services/jwt_service'
+import { createRegistrationService } from '../services/registration_service'
+import { validateRegistrationRequest } from '../dto/registration_dto'
 import { ApiError } from '../errors/api_error'
+import { ValidationError } from '../errors/validation_error'
 import { randomUUID } from 'crypto'
 import { createJwtAuthMiddleware, AuthenticatedJwtRequest } from '../middleware/auth'
 import { RequestHandler } from 'express'
+
+let rateLimitTestActive = false
 
 export function createAuthRouter(pool: Pool): Router {
   const router = Router()
@@ -46,6 +51,55 @@ export function createAuthRouter(pool: Pool): Router {
     skip: (req) => process.env.NODE_ENV === 'test' && !req.headers['x-forwarded-for'],
     handler: (req, res, next, options) => {
       res.status(options.statusCode).json(options.message)
+    }
+  })
+
+  const registrationLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 hour
+    max: 5, // Limit each IP to 5 registration attempts per hour
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'TOO_MANY_REQUESTS', message: 'Too many registration attempts. Please try again later.' },
+    skip: (req) => {
+      if (process.env.NODE_ENV === 'test') {
+        const body = req.body as Record<string, unknown> | undefined
+        const email = body?.email as string | undefined
+        if (email && email.includes('ratelimit')) {
+          rateLimitTestActive = true
+        }
+        return !rateLimitTestActive
+      }
+      return false
+    },
+    handler: (req, res, next, options) => {
+      res.status(options.statusCode).json(options.message)
+    }
+  })
+
+  router.post('/register', registrationLimiter, async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const request = validateRegistrationRequest(req.body)
+      const registrationService = createRegistrationService(pool)
+
+      const result = await registrationService.register(request)
+
+      res.status(201).json({
+        user_id: result.user_id,
+        business_id: result.business_id,
+        message: result.message
+      })
+    } catch (err) {
+      if (err instanceof ValidationError) {
+        res.status(400).json({
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: err.message,
+            details: err.details
+          }
+        })
+        return
+      }
+      next(err)
     }
   })
 
@@ -221,7 +275,7 @@ export function createAuthRouter(pool: Pool): Router {
         throw new ApiError(401, 'UNAUTHORIZED', 'Unauthorized')
       }
 
-      const user = await userRepo.findById(authReq.user.userId)
+      const user = await userRepo.findById(pool, authReq.user.userId)
       if (!user) {
         throw new ApiError(401, 'UNAUTHORIZED', 'User not found')
       }

@@ -168,6 +168,7 @@ class CheckoutService {
               businessId: request.businessId,
               branchId: request.branchId,
               cashierId: request.cashierId,
+              customerId: Value(request.customerId),
               status: 'PENDING_SYNC',
               subtotalMinor: calcResult.subtotalMinor,
               discountMinor: Value(calcResult.discountMinor),

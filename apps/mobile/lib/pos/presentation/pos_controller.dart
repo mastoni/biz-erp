@@ -8,6 +8,8 @@ import 'package:biz_erp_mobile/sales/data/checkout_service.dart';
 import 'package:biz_erp_mobile/sales/domain/calculation/calc_models.dart';
 import 'package:biz_erp_mobile/sales/domain/calculation/sale_calculation_engine.dart';
 import 'package:biz_erp_mobile/sales/domain/checkout/checkout_models.dart';
+import 'package:biz_erp_mobile/customers/domain/customer.dart';
+import 'package:biz_erp_mobile/customers/data/customer_repository.dart';
 
 import 'package:biz_erp_mobile/core/hardware/printing/printing_service.dart';
 import 'package:biz_erp_mobile/core/hardware/printing/receipt_data.dart';
@@ -17,6 +19,7 @@ class PosController extends ChangeNotifier {
   final CartRepository _cartRepo;
   final SaleCalculationEngine _calcEngine;
   final CheckoutService _checkoutService;
+  final CustomerRepository _customerRepo;
 
   final PrintingService _printingService;
   PrintingService get printingService => _printingService;
@@ -32,6 +35,10 @@ class PosController extends ChangeNotifier {
   bool _isLoading = false;
   String? _errorMessage;
   CheckoutResult? _lastReceipt;
+  String? _selectedCustomerId;
+  String? _selectedCustomerName;
+
+  List<Customer> _customers = [];
 
   // Idempotency: Generated per checkout operation, reset on success or cart change
   String? _pendingIdempotencyKey;
@@ -54,21 +61,26 @@ class PosController extends ChangeNotifier {
     required this._calcEngine,
     required this._checkoutService,
     required this._printingService,
+    required this._customerRepo,
   });
 
   // Getters
   List<Product> get products => _products;
+  List<Customer> get customers => _customers;
   CartWithItems? get currentCart => _currentCart;
   SaleCalculationResult? get calculation => _calculation;
   CalcDiscount get currentDiscount => _currentDiscount;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   CheckoutResult? get lastReceipt => _lastReceipt;
+  String? get selectedCustomerId => _selectedCustomerId;
+  String? get selectedCustomerName => _selectedCustomerName;
   bool get canCheckout =>
       _currentCart != null && _currentCart!.items.isNotEmpty && !_isLoading;
 
   Future<void> init() async {
     _products = await _productRepo.listActiveProducts(_businessId);
+    _customers = await _customerRepo.listActiveCustomers(_businessId);
     await _refreshCart();
   }
 
@@ -118,6 +130,12 @@ class PosController extends ChangeNotifier {
       _currentDiscount = const CalcDiscount.none();
     }
     _recalculate();
+    notifyListeners();
+  }
+
+  void selectCustomer(String? customerId, String? customerName) {
+    _selectedCustomerId = customerId;
+    _selectedCustomerName = customerName;
     notifyListeners();
   }
 
@@ -184,6 +202,7 @@ class PosController extends ChangeNotifier {
         taxRateBps: _taxRateBps,
         paymentMethod: method,
         cashReceivedMinor: cashReceived,
+        customerId: _selectedCustomerId,
       );
 
       final result = await _checkoutService.checkout(req);

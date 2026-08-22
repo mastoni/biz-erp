@@ -16,6 +16,7 @@ import 'package:biz_erp_mobile/core/auth/auth_api_client.dart';
 import 'package:biz_erp_mobile/core/auth/auth_repository.dart';
 import 'package:biz_erp_mobile/core/auth/auth_state_notifier.dart';
 import 'package:biz_erp_mobile/core/auth/auth_models.dart';
+import 'package:biz_erp_mobile/customers/data/customer_repository.dart';
 import 'package:integration_test/integration_test.dart';
 
 void main() {
@@ -103,6 +104,7 @@ void main() {
       api: apiClient,
       products: productRepo,
       salesSync: salesSyncRepo,
+      customers: CustomerRepository(db),
       businessId: businessId,
     );
 

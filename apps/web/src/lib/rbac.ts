@@ -1,4 +1,4 @@
-import { LayoutDashboard, Package, Boxes, ShoppingCart, LucideIcon } from 'lucide-react';
+import { LayoutDashboard, Package, Boxes, ShoppingCart, Users, FileText, UserCog, LucideIcon } from 'lucide-react';
 
 export type Role = 'OWNER' | 'CASHIER';
 
@@ -9,6 +9,10 @@ export const ROUTE_PERMISSIONS: Record<string, Role[]> = {
   '/inventory/movements': ['OWNER'],
   '/inventory/adjustment': ['OWNER'],
   '/sales': ['OWNER'],
+  '/customers': ['OWNER', 'CASHIER'],
+  '/customers/new': ['OWNER'],
+  '/users': ['OWNER'],
+  '/reports': ['OWNER', 'CASHIER'],
 };
 
 export function canAccessRoute(role: Role | null, pathname: string): boolean {
@@ -42,6 +46,9 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
   { name: 'Movement History', href: '/inventory/movements', icon: Boxes },
   { name: 'Stock Adjustment', href: '/inventory/adjustment', icon: Boxes },
   { name: 'Sales', href: '/sales', icon: ShoppingCart },
+  { name: 'Customers', href: '/customers', icon: Users },
+  { name: 'Users', href: '/users', icon: UserCog },
+  { name: 'Reports', href: '/reports', icon: FileText },
 ];
 
 export function getAuthorizedNavigation(role: Role | null): NavigationItem[] {

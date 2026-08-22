@@ -12,6 +12,7 @@ export interface SalePayload {
   paid_minor: number | null
   change_minor: number | null
   cashier_id: string | null
+  customer_id: string | null
   created_at: string | null
   client_created_at: string | null
 }
@@ -73,6 +74,21 @@ function validateOptionalNonNegativeInteger(raw: Record<string, unknown>, field:
   return value
 }
 
+function validateOptionalUuid(raw: Record<string, unknown>, field: string, path: string, errors: Errors): string | null {
+  const value = raw[field]
+
+  if (value === undefined || value === null || value === '') {
+    return null
+  }
+
+  if (typeof value !== 'string' || !isUuid(value)) {
+    errors[`${path}.${field}`] = `${field} must be a valid UUID or null`
+    return null
+  }
+
+  return value.trim()
+}
+
 function validateSale(raw: unknown, path: string, errors: Errors): SalePayload | undefined {
   if (!isObject(raw)) {
     errors[path] = 'sale must be an object'
@@ -97,13 +113,18 @@ function validateSale(raw: unknown, path: string, errors: Errors): SalePayload |
 
   const paymentMethod = raw.payment_method
   const cashierId = raw.cashier_id
+  const customerId = raw.customer_id
 
   if (paymentMethod !== undefined && paymentMethod !== null && typeof paymentMethod !== 'string') {
     errors[`${path}.payment_method`] = 'payment_method must be a string or null'
   }
 
   if (cashierId !== undefined && cashierId !== null && typeof cashierId !== 'string') {
-    errors[`${path}.cashier_id`] = 'cashier_id must be a string or null'
+    errors[`${path}.cashier_id`] = 'cashier_id must be a valid UUID or null'
+  }
+
+  if (customerId !== undefined && customerId !== null && typeof customerId !== 'string') {
+    errors[`${path}.customer_id`] = 'customer_id must be a valid UUID or null'
   }
 
   const sale: SalePayload = {
@@ -116,7 +137,8 @@ function validateSale(raw: unknown, path: string, errors: Errors): SalePayload |
     payment_method: paymentMethod === undefined || paymentMethod === null ? null : String(paymentMethod),
     paid_minor: validateOptionalNonNegativeInteger(raw, 'paid_minor', path, errors),
     change_minor: validateOptionalNonNegativeInteger(raw, 'change_minor', path, errors),
-    cashier_id: cashierId === undefined || cashierId === null ? null : String(cashierId),
+    cashier_id: cashierId === undefined || cashierId === null || cashierId === '' ? null : String(cashierId).trim(),
+    customer_id: customerId === undefined || customerId === null || customerId === '' ? null : String(customerId).trim(),
     created_at: validateOptionalTimestamp(raw, 'created_at', path, errors),
     client_created_at: validateOptionalTimestamp(raw, 'client_created_at', path, errors)
   }

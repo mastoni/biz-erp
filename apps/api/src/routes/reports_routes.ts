@@ -1,0 +1,72 @@
+import { Router, Request, Response, NextFunction } from 'express'
+import { Pool } from 'pg'
+import { createJwtService } from '../services/jwt_service'
+import { requireSyncAuth, SyncAuthenticatedRequest, requireRole } from '../middleware/auth'
+import { asyncHandler } from '../utils/async_handler'
+import { createReportService } from '../services/report_service'
+import { ApiError } from '../errors/api_error'
+
+export function createReportsRoutes(pool: Pool): Router {
+  const router = Router()
+  const jwtSecret = process.env.JWT_SECRET
+  const jwtIssuer = process.env.JWT_ISSUER
+  const jwtAudience = process.env.JWT_AUDIENCE
+
+  if (!jwtSecret || !jwtIssuer || !jwtAudience) {
+    throw new Error('JWT_SECRET, JWT_ISSUER, and JWT_AUDIENCE must be set in the environment')
+  }
+
+  const jwtService = createJwtService(jwtSecret, jwtIssuer, jwtAudience)
+  const reportService = createReportService(pool)
+
+  router.use(requireSyncAuth(jwtService) as any)
+
+  router.get(
+    '/sales-summary',
+    requireRole('OWNER', 'CASHIER') as any,
+    asyncHandler<SyncAuthenticatedRequest>(async (req, res) => {
+      const businessId = req.tenantId!
+      const dateRange = parseDateRange(req.query)
+
+      const report = await reportService.getSalesSummary(businessId, dateRange)
+      res.status(200).json({ sales_summary: report })
+    })
+  )
+
+  router.get(
+    '/product-sales',
+    requireRole('OWNER', 'CASHIER') as any,
+    asyncHandler<SyncAuthenticatedRequest>(async (req, res) => {
+      const businessId = req.tenantId!
+      const dateRange = parseDateRange(req.query)
+
+      const report = await reportService.getProductSales(businessId, dateRange)
+      res.status(200).json({ product_sales: report })
+    })
+  )
+
+  router.get(
+    '/customer-sales',
+    requireRole('OWNER', 'CASHIER') as any,
+    asyncHandler<SyncAuthenticatedRequest>(async (req, res) => {
+      const businessId = req.tenantId!
+      const dateRange = parseDateRange(req.query)
+
+      const report = await reportService.getCustomerSales(businessId, dateRange)
+      res.status(200).json({ customer_sales: report })
+    })
+  )
+
+  return router
+}
+
+function parseDateRange(query: any): { from: string; to: string } {
+  const from = typeof query.from === 'string' ? query.from : new Date().toISOString().split('T')[0]
+  const to = typeof query.to === 'string' ? query.to : new Date().toISOString().split('T')[0]
+
+  if (!from || !to) {
+    throw new ApiError(400, 'BAD_REQUEST', 'from and to query parameters are required (YYYY-MM-DD)')
+  }
+
+  return { from, to }
+}

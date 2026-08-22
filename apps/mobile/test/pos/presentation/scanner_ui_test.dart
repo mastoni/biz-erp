@@ -14,6 +14,7 @@ import 'package:biz_erp_mobile/products/data/product_repository.dart';
 import 'package:biz_erp_mobile/products/domain/product.dart';
 import 'package:biz_erp_mobile/sales/data/checkout_service.dart';
 import 'package:biz_erp_mobile/sales/domain/calculation/sale_calculation_engine.dart';
+import 'package:biz_erp_mobile/customers/data/customer_repository.dart';
 
 class _DummyPrefs implements PrinterPreferences {
   @override
@@ -54,6 +55,7 @@ void main() {
         adapter: BluetoothPrinterAdapter(),
         prefs: _DummyPrefs(),
       ),
+      customerRepo: CustomerRepository(db),
     );
     await controller.init();
 

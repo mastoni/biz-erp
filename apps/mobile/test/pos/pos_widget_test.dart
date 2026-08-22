@@ -9,6 +9,7 @@ import 'package:biz_erp_mobile/sales/data/checkout_service.dart';
 import 'package:biz_erp_mobile/sales/domain/calculation/sale_calculation_engine.dart';
 import 'package:biz_erp_mobile/sales/domain/checkout/checkout_models.dart';
 import 'package:biz_erp_mobile/pos/presentation/pos_controller.dart';
+import 'package:biz_erp_mobile/customers/data/customer_repository.dart';
 import 'package:biz_erp_mobile/pos/presentation/pos_screen.dart';
 import 'package:biz_erp_mobile/core/hardware/printing/bluetooth_printer_adapter.dart';
 import 'package:biz_erp_mobile/core/hardware/printing/printer_preferences.dart';
@@ -58,6 +59,7 @@ void main() {
       calcEngine: SaleCalculationEngine(),
       checkoutService: checkoutService,
       printingService: printingService, // TAMBAHKAN INI
+      customerRepo: CustomerRepository(db),
     );
     await controller.init();
   });

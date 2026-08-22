@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:biz_erp_mobile/core/utils/currency_formatter.dart';
 import 'package:biz_erp_mobile/sales/domain/calculation/calc_models.dart';
+import 'package:biz_erp_mobile/customers/domain/customer.dart';
 import '../pos_controller.dart';
 import 'payment_dialog.dart';
 import 'receipt_dialog.dart';
@@ -21,9 +22,7 @@ class CartPanel extends StatelessWidget {
           color: Colors.grey[100],
           padding: const EdgeInsets.all(16),
           child: SingleChildScrollView(
-            // UBAH DARI ListView
             child: Column(
-              // UBAH DARI ListView children
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const Text(
@@ -31,6 +30,19 @@ class CartPanel extends StatelessWidget {
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
                 const Divider(),
+                OutlinedButton.icon(
+                  onPressed: () => _showCustomerPicker(context),
+                  icon: const Icon(Icons.person_outline),
+                  label: Text(
+                    controller.selectedCustomerName ?? 'Pilih Pelanggan',
+                    style: TextStyle(
+                      color: controller.selectedCustomerName != null
+                          ? Colors.blueGrey[800]
+                          : Colors.grey[600],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
                 if (cart == null || cart.items.isEmpty)
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 32),
@@ -241,5 +253,55 @@ class CartPanel extends StatelessWidget {
         );
       }
     }
+  }
+
+  void _showCustomerPicker(BuildContext context) {
+    final walkIn = const Customer(id: '', businessId: '', name: 'Pelanggan Umum (Tanpa Nama)', isActive: true, serverVersion: 0);
+    final customers = [walkIn, ...controller.customers];
+
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: TextField(
+              decoration: const InputDecoration(
+                labelText: 'Cari pelanggan',
+                prefixIcon: Icon(Icons.search),
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (query) {
+                // In a real implementation, we would filter the list here.
+                // For now, the list is static within the builder, so we would
+                // need to lift state up. Given the MVP scope, we show all
+                // active customers and rely on the user scrolling.
+              },
+            ),
+          ),
+          Flexible(
+            child: ListView(
+              shrinkWrap: true,
+              children: customers.map((c) {
+                final isSelected = controller.selectedCustomerId == c.id;
+                return ListTile(
+                  title: Text(c.name),
+                  subtitle: c.phone != null ? Text(c.phone!) : null,
+                  trailing: isSelected ? const Icon(Icons.check, color: Colors.green) : null,
+                  onTap: () {
+                    controller.selectCustomer(
+                      c.id.isEmpty ? null : c.id,
+                      c.name,
+                    );
+                    Navigator.pop(ctx);
+                  },
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

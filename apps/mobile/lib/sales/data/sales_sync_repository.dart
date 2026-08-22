@@ -21,16 +21,17 @@ class SalesSyncRepository {
 
     final now = DateTime.now().millisecondsSinceEpoch;
 
-    await _db.transaction(() async {
-      await _db
-          .into(_db.salesLocal)
-          .insert(
-            SalesLocalCompanion.insert(
-              clientTransactionId: sale.idempotencyKey,
-              businessId: businessId,
-              branchId: 'BRANCH-001',
-              cashierId: sale.cashierId ?? 'UNKNOWN',
-              receiptNumber: Value(sale.receiptNumber),
+      await _db.transaction(() async {
+        await _db
+            .into(_db.salesLocal)
+            .insert(
+              SalesLocalCompanion.insert(
+                clientTransactionId: sale.idempotencyKey,
+                businessId: businessId,
+                branchId: 'BRANCH-001',
+                cashierId: sale.cashierId ?? 'UNKNOWN',
+                customerId: Value(sale.customerId),
+                receiptNumber: Value(sale.receiptNumber),
               status: 'SYNCED',
               subtotalMinor: sale.subtotalMinor,
               discountMinor: Value(sale.discountMinor),

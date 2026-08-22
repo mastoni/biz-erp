@@ -93,7 +93,7 @@ class FakeSyncEngine extends ChangeNotifier implements SyncEngine {
     syncNowCallCount++;
     await Future.delayed(const Duration(milliseconds: 10));
     notifyListeners();
-    return SyncSummary(reachable: true, pushed: 0, pulledProducts: 0, pulledSales: 0, counts: SyncCounts(0,0,0));
+    return SyncSummary(reachable: true, pushed: 0, pulledProducts: 0, pulledCustomers: 0, pulledSales: 0, counts: SyncCounts(0,0,0));
   }
 }
 

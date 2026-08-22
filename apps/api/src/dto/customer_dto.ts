@@ -11,6 +11,7 @@ export interface CustomerDto {
   name: string
   phone: string | null
   email: string | null
+  server_version: number
   created_at: string
   updated_at: string
 }

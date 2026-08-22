@@ -11,6 +11,7 @@ const CUSTOMER_COLUMNS = `
   name,
   phone,
   email,
+  server_version,
   created_at,
   updated_at
 `
@@ -173,5 +174,28 @@ export const customerRepository = {
     `
     const result = await client.query(sql, [customerId, businessId])
     return (result.rowCount ?? 0) > 0
+  },
+
+  /**
+   * Find active customers for a business after a given server_version.
+   * Used for cursor-based incremental sync.
+   */
+  async findByBusinessAfter(
+    client: PoolClient,
+    businessId: string,
+    afterVersion: number,
+    limit: number
+  ): Promise<CustomerDto[]> {
+    const sql = `
+      SELECT ${CUSTOMER_COLUMNS}
+      FROM customers
+      WHERE business_id = $1
+        AND deleted_at IS NULL
+        AND server_version > $2
+      ORDER BY server_version ASC, id ASC
+      LIMIT $3
+    `
+    const result = await client.query(sql, [businessId, afterVersion, limit])
+    return result.rows as CustomerDto[]
   },
 }

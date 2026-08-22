@@ -1,8 +1,15 @@
 import { ProductDto } from './product_dto'
+import { CustomerDto } from './customer_dto'
 
 export interface ProductSyncListResponse {
   items: ProductDto[]
   next_version: number
+  has_more: boolean
+}
+
+export interface CustomerSyncListResponse {
+  items: CustomerDto[]
+  current_version: number
   has_more: boolean
 }
 

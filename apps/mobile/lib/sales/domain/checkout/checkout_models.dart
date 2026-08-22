@@ -13,6 +13,7 @@ class CheckoutRequest {
   final int taxRateBps;
   final PaymentMethod paymentMethod;
   final int cashReceivedMinor;
+  final String? customerId;
 
   const CheckoutRequest({
     required this.businessId,
@@ -25,6 +26,7 @@ class CheckoutRequest {
     required this.taxRateBps,
     required this.paymentMethod,
     required this.cashReceivedMinor,
+    this.customerId,
   });
 }
 

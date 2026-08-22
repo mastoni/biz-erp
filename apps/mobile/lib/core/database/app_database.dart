@@ -3,6 +3,7 @@ import 'package:drift/native.dart';
 import 'tables/business_settings_local.dart';
 import 'tables/cart_items_local.dart';
 import 'tables/cart_local.dart';
+import 'tables/customers_local.dart';
 import 'tables/local_idempotency_keys.dart';
 import 'tables/payments_local.dart';
 import 'tables/products_local.dart';
@@ -20,6 +21,7 @@ part 'app_database.g.dart';
     BusinessSettingsLocal,
     CartLocal,
     CartItemsLocal,
+    CustomersLocal,
     SalesLocal,
     SaleItemsLocal,
     PaymentsLocal,
@@ -36,7 +38,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.memory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -125,6 +127,15 @@ class AppDatabase extends _$AppDatabase {
           await customStatement(
             "ALTER TABLE products_local ADD COLUMN local_status TEXT NOT NULL DEFAULT 'synced'",
           );
+        }
+      }
+      if (from < 6) {
+        // Cek apakah tabel customers_local sudah ada
+        final customerTables = await customSelect(
+          "SELECT name FROM sqlite_master WHERE type='table' AND name='customers_local'",
+        ).get();
+        if (customerTables.isEmpty) {
+          await m.createTable(customersLocal);
         }
       }
     },

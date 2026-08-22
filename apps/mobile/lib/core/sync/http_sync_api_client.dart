@@ -107,6 +107,64 @@ class HttpSyncApiClient implements SyncApiClient {
   }
 
   @override
+  Future<PullCustomersResponse> pullCustomers({
+    required String businessId,
+    required int sinceVersion,
+    int limit = 500,
+  }) async {
+    final uri = Uri.parse('$baseUrl/v1/sync/customers').replace(
+      queryParameters: {
+        'business_id': businessId,
+        'after_version': sinceVersion.toString(),
+        'limit': limit.clamp(1, 500).toString(),
+      },
+    );
+
+    http.Response? response;
+    for (int attempt = 1; attempt <= 2; attempt++) {
+      response = await _client
+          .get(uri, headers: _headers)
+          .timeout(_timeout);
+
+      if (response.statusCode == 401 && attempt == 1 && _onRefresh != null) {
+        final result = await _onRefresh();
+        if (result == RefreshResult.success) {
+          continue; // retry
+        } else {
+          break; // do not retry
+        }
+      }
+      break; // exit loop if not 401 or attempt > 1
+    }
+
+    if (response!.statusCode != 200) {
+      throw HttpException(
+        'Failed to pull customers: HTTP ${response.statusCode}',
+        statusCode: response.statusCode,
+        requestId: response.headers['x-request-id'],
+      );
+    }
+
+    try {
+      final json = jsonDecode(response.body) as Map<String, dynamic>;
+      final items = json['items'] as List? ?? [];
+      final hasMore = json['has_more'] as bool? ?? false;
+      final currentVersion = json['current_version'] as int? ?? 0;
+
+      final customers = items
+          .map((item) => CustomerDto.fromJson(item as Map<String, dynamic>))
+          .toList();
+
+      return PullCustomersResponse(customers, hasMore, currentVersion);
+    } catch (e) {
+      throw MalformedResponseException(
+        'Failed to parse pull customers response',
+        e,
+      );
+    }
+  }
+
+  @override
   Future<PullSalesResponse> pullSales({
     required String businessId,
     required int sinceMs,

@@ -130,6 +130,7 @@ class SaleDto {
   final int cashReceivedMinor;
   final int changeMinor;
   final String? cashierId;
+  final String? customerId;
   final int clientCreatedAt;
   final int? serverCreatedAt;
   final List<SaleItemDto> items;
@@ -146,6 +147,7 @@ class SaleDto {
     required this.cashReceivedMinor,
     required this.changeMinor,
     this.cashierId,
+    this.customerId,
     required this.clientCreatedAt,
     this.serverCreatedAt,
     required this.items,
@@ -163,6 +165,7 @@ class SaleDto {
     'cash_received_minor': cashReceivedMinor,
     'change_minor': changeMinor,
     'cashier_id': cashierId,
+    'customer_id': customerId,
     'client_created_at': clientCreatedAt,
     'items': items.map((e) => e.toJson()).toList(),
   };
@@ -179,6 +182,7 @@ class SaleDto {
     cashReceivedMinor: (j['cash_received_minor'] as num).toInt(),
     changeMinor: (j['change_minor'] as num).toInt(),
     cashierId: j['cashier_id'] as String?,
+    customerId: j['customer_id'] as String?,
     clientCreatedAt: (j['client_created_at'] as num).toInt(),
     serverCreatedAt: (j['server_created_at'] as num?)?.toInt(),
     items: (j['items'] as List)
@@ -198,6 +202,53 @@ class PullSalesResponse {
   final List<SaleDto> sales;
   final bool hasMore;
   const PullSalesResponse(this.sales, this.hasMore);
+}
+
+class CustomerDto {
+  final String id;
+  final String name;
+  final String? phone;
+  final String? email;
+  final bool isActive;
+  final int serverVersion;
+  final int? deletedAt;
+
+  const CustomerDto({
+    required this.id,
+    required this.name,
+    this.phone,
+    this.email,
+    required this.isActive,
+    required this.serverVersion,
+    this.deletedAt,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'phone': phone,
+    'email': email,
+    'is_active': isActive ? 1 : 0,
+    'server_version': serverVersion,
+    'deleted_at': deletedAt,
+  };
+
+  factory CustomerDto.fromJson(Map<String, dynamic> j) => CustomerDto(
+    id: j['id'] as String,
+    name: j['name'] as String,
+    phone: j['phone'] as String?,
+    email: j['email'] as String?,
+    isActive: (j['is_active'] as int?) == 1,
+    serverVersion: (j['server_version'] as num).toInt(),
+    deletedAt: (j['deleted_at'] as num?)?.toInt(),
+  );
+}
+
+class PullCustomersResponse {
+  final List<CustomerDto> customers;
+  final bool hasMore;
+  final int currentVersion;
+  const PullCustomersResponse(this.customers, this.hasMore, this.currentVersion);
 }
 
 class ProductPushResult {

@@ -6,6 +6,7 @@ import 'sync_models.dart';
 import 'sync_outbox_repository.dart';
 import '../../products/data/product_repository.dart';
 import '../../sales/data/sales_sync_repository.dart';
+import '../../customers/data/customer_repository.dart';
 import 'http_sync_api_client.dart' show HttpException, NetworkException;
 import 'package:sentry_flutter/sentry_flutter.dart';
 
@@ -13,12 +14,14 @@ class SyncSummary {
   final bool reachable;
   final int pushed;
   final int pulledProducts;
+  final int pulledCustomers;
   final int pulledSales;
   final SyncCounts counts;
   const SyncSummary({
     required this.reachable,
     required this.pushed,
     required this.pulledProducts,
+    required this.pulledCustomers,
     required this.pulledSales,
     required this.counts,
   });
@@ -31,6 +34,7 @@ class SyncEngine extends ChangeNotifier {
     required this._api,
     required this._products,
     required this._salesSync,
+    required this._customers,
     required this._businessId,
   });
 
@@ -39,11 +43,12 @@ class SyncEngine extends ChangeNotifier {
   final SyncApiClient _api;
   final ProductRepository _products;
   final SalesSyncRepository _salesSync;
+  final CustomerRepository _customers;
   final String _businessId;
 
   Future<SyncSummary> syncNow() async {
     bool reachable = false;
-    int pushed = 0, pulledP = 0, pulledS = 0;
+    int pushed = 0, pulledP = 0, pulledC = 0, pulledS = 0;
     try {
       reachable = await _api.health();
     } catch (_) {
@@ -55,7 +60,8 @@ class SyncEngine extends ChangeNotifier {
       try {
         final pull = await _pull();
         pulledP = pull.$1;
-        pulledS = pull.$2;
+        pulledC = pull.$2;
+        pulledS = pull.$3;
       } on HttpException catch (e, st) {
         if (e.statusCode == 401) {
           // Graceful abort on auth error. Session expiry is handled by AuthStateNotifier.
@@ -82,6 +88,7 @@ class SyncEngine extends ChangeNotifier {
       reachable: reachable,
       pushed: pushed,
       pulledProducts: pulledP,
+      pulledCustomers: pulledC,
       pulledSales: pulledS,
       counts: counts,
     );
@@ -192,7 +199,7 @@ class SyncEngine extends ChangeNotifier {
     }
   }
 
-  Future<(int, int)> _pull() async {
+  Future<(int, int, int)> _pull() async {
     // Pull products (skip local dirty — policy B)
     int pulledP = 0;
     final sinceV = await _products.maxServerVersion(_businessId);
@@ -202,6 +209,17 @@ class SyncEngine extends ChangeNotifier {
     );
     for (final dto in pres.products) {
       if (await _products.applyServerSync(dto, _businessId)) pulledP++;
+    }
+
+    // Pull customers (skip local dirty)
+    int pulledC = 0;
+    final sinceCV = await _customers.maxServerVersion(_businessId);
+    final cres = await _api.pullCustomers(
+      businessId: _businessId,
+      sinceVersion: sinceCV,
+    );
+    for (final dto in cres.customers) {
+      if (await _customers.applyServerSync(dto, _businessId)) pulledC++;
     }
 
     // Pull sales (append-only, never overwrite)
@@ -219,6 +237,6 @@ class SyncEngine extends ChangeNotifier {
     }
     await _meta.setInt('sales_pull_cursor', maxCursor);
 
-    return (pulledP, pulledS);
+    return (pulledP, pulledC, pulledS);
   }
 }

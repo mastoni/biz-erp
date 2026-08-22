@@ -1,4 +1,4 @@
-import { Pool } from 'pg'
+import { Pool, PoolClient } from 'pg'
 
 export interface PublicUser {
   id: string
@@ -12,9 +12,14 @@ export interface InternalUser extends PublicUser {
   password_hash: string
 }
 
+export interface BusinessUser extends PublicUser {
+  role: 'OWNER' | 'CASHIER'
+}
+
 export interface UserRepository {
   findByEmail(email: string): Promise<InternalUser | null>
-  findById(id: string): Promise<PublicUser | null>
+  findById(client: Pool | PoolClient, id: string): Promise<PublicUser | null>
+  findByBusiness(client: PoolClient, businessId: string): Promise<BusinessUser[]>
 }
 
 export function createUserRepository(pool: Pool): UserRepository {
@@ -35,8 +40,8 @@ export function createUserRepository(pool: Pool): UserRepository {
       return result.rows[0] as InternalUser
     },
 
-    async findById(id: string): Promise<PublicUser | null> {
-      const result = await pool.query(
+    async findById(client: Pool | PoolClient, id: string): Promise<PublicUser | null> {
+      const result = await client.query(
         `SELECT id, email, status, created_at, updated_at
          FROM users
          WHERE id = $1`,
@@ -48,6 +53,21 @@ export function createUserRepository(pool: Pool): UserRepository {
       }
 
       return result.rows[0] as PublicUser
+    },
+
+    async findByBusiness(client: PoolClient, businessId: string): Promise<BusinessUser[]> {
+      const result = await client.query(
+        `SELECT u.id, u.email, u.status, u.created_at, u.updated_at, ub.role
+         FROM users u
+         JOIN user_businesses ub ON ub.user_id = u.id
+         WHERE ub.business_id = $1
+           AND ub.status = 'ACTIVE'
+           AND u.status = 'ACTIVE'
+         ORDER BY u.created_at ASC`,
+        [businessId]
+      )
+
+      return result.rows as BusinessUser[]
     }
   }
 }

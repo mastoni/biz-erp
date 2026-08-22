@@ -5,6 +5,7 @@ import 'package:biz_erp_mobile/core/database/app_database.dart';
 import 'package:biz_erp_mobile/core/database/db_key_service.dart';
 import 'package:biz_erp_mobile/core/database/db_opener.dart';
 import 'package:biz_erp_mobile/cart/data/cart_repository.dart';
+import 'package:biz_erp_mobile/customers/data/customer_repository.dart';
 import 'package:biz_erp_mobile/products/data/product_repository.dart';
 import 'package:biz_erp_mobile/sales/data/checkout_service.dart';
 import 'package:biz_erp_mobile/sales/domain/calculation/sale_calculation_engine.dart';
@@ -153,6 +154,7 @@ class _MyAppState extends State<MyApp> {
     // Repositories
     final productRepo = ProductRepository(db);
     final cartRepo = CartRepository(db);
+    final customerRepo = CustomerRepository(db);
     final calcEngine = SaleCalculationEngine();
     final checkoutService = CheckoutService(db, calcEngine);
     final syncMetaRepo = SyncMetaRepository(db);
@@ -173,6 +175,7 @@ class _MyAppState extends State<MyApp> {
       calcEngine: calcEngine,
       checkoutService: checkoutService,
       printingService: printingService,
+      customerRepo: customerRepo,
     );
     await controller.init();
 
@@ -198,6 +201,7 @@ class _MyAppState extends State<MyApp> {
       api: apiClient,
       products: productRepo,
       salesSync: salesSyncRepo,
+      customers: customerRepo,
       businessId: businessId,
     );
     final syncStatusNotifier = SyncStatusNotifier(

@@ -9,6 +9,7 @@ import 'package:biz_erp_mobile/core/sync/sync_outbox_repository.dart';
 import 'package:biz_erp_mobile/products/data/product_repository.dart';
 import 'package:biz_erp_mobile/sales/data/sales_sync_repository.dart';
 import 'package:biz_erp_mobile/products/domain/product.dart';
+import 'package:biz_erp_mobile/customers/data/customer_repository.dart';
 
 const biz = '11111111-1111-1111-1111-111111111111';
 
@@ -25,6 +26,11 @@ class MockSyncApi implements SyncApiClient {
     false,
     0,
   );
+  PullCustomersResponse pullCustomersResp = const PullCustomersResponse(
+    [],
+    false,
+    0,
+  );
   PullSalesResponse pullSalesResp = const PullSalesResponse([], false);
 
   @override
@@ -35,6 +41,12 @@ class MockSyncApi implements SyncApiClient {
     required int sinceVersion,
     int limit = 500,
   }) async => pullProductsResp;
+  @override
+  Future<PullCustomersResponse> pullCustomers({
+    required String businessId,
+    required int sinceVersion,
+    int limit = 500,
+  }) async => pullCustomersResp;
   @override
   Future<PullSalesResponse> pullSales({
     required String businessId,
@@ -63,6 +75,7 @@ void main() {
   late SyncMetaRepository meta;
   late ProductRepository products;
   late SalesSyncRepository salesSync;
+  late CustomerRepository customers;
   late MockSyncApi api;
   late SyncEngine engine;
 
@@ -72,6 +85,7 @@ void main() {
     meta = SyncMetaRepository(db);
     products = ProductRepository(db);
     salesSync = SalesSyncRepository(db);
+    customers = CustomerRepository(db);
     api = MockSyncApi();
     engine = SyncEngine(
       outbox: outbox,
@@ -79,6 +93,7 @@ void main() {
       api: api,
       products: products,
       salesSync: salesSync,
+      customers: customers,
       businessId: biz,
     );
   });
