@@ -1,13 +1,19 @@
 import 'dotenv/config'
 import fs from 'fs'
 import path from 'path'
-import { Pool } from 'pg'
+import { Client } from 'pg'
 import { createPool } from './pool'
 import { logger } from '../utils/logger'
 
-export async function runMigrations(pool: Pool, migrationsDir?: string): Promise<void> {
+export async function runMigrations(_pool: any, migrationsDir?: string): Promise<void> {
   const dir = migrationsDir ?? path.resolve(process.cwd(), 'migrations')
-  const client = await pool.connect()
+  
+  // Create a dedicated client for migrations
+  const client = new Client({
+    connectionString: process.env.DATABASE_URL,
+  })
+  
+  await client.connect()
 
   try {
     await client.query(`
@@ -43,7 +49,7 @@ export async function runMigrations(pool: Pool, migrationsDir?: string): Promise
       }
     }
   } finally {
-    client.release()
+    await client.end()
   }
 }
 

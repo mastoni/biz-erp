@@ -17,6 +17,7 @@ import { createUsersRoutes } from './routes/users_routes'
 import { createDashboardRoutes } from './routes/dashboard_routes'
 import { createReportsRoutes } from './routes/reports_routes'
 import { createCustomerSyncRouter } from './routes/customer_sync_routes'
+import { createSubscriptionRoutes } from './routes/subscription_routes'
 import { httpLogger } from './utils/logger'
 import { initSentry } from './utils/sentry'
 import { loadEnv } from './config/env'
@@ -82,6 +83,7 @@ export function createApp(pool: Pool): Express {
   app.use('/v1/dashboard', createDashboardRoutes(pool))
   app.use('/v1/reports', createReportsRoutes(pool))
   app.use('/v1/sync/customers', createCustomerSyncRouter(pool))
+  app.use('/v1/subscriptions', createSubscriptionRoutes(pool))
 
   app.use(notFound)
   app.use(errorHandler)
