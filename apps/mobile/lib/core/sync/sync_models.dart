@@ -280,3 +280,18 @@ class SalePushResultItem {
     this.receiptNumber = '',
   });
 }
+
+class CustomerPushResult {
+  final bool ok;
+  final int? serverVersion;
+  final bool conflict;
+  final CustomerDto? serverState;
+  final String? error;
+  const CustomerPushResult({
+    this.ok = false,
+    this.serverVersion,
+    this.conflict = false,
+    this.serverState,
+    this.error,
+  });
+}

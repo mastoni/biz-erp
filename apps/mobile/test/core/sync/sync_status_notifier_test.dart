@@ -69,6 +69,10 @@ class FakeSyncOutboxRepository implements SyncOutboxRepository {
   @override
   Future<String> enqueueSale(SaleDto sale) async => 'id';
   @override
+  Future<String> enqueueCustomerCreate(CustomerDto customer, {String? idempotencyKey}) async => 'id';
+  @override
+  Future<String> enqueueCustomerUpsert(CustomerDto customer, {String? idempotencyKey}) async => 'id';
+  @override
   Future<List<SyncOutboxItem>> fetchDue(int now, {int limit = 100}) async => [];
   @override
   Future<void> markConflict(String id, String serverStateJson, String error) async {}

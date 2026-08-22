@@ -179,7 +179,7 @@ class SyncOutboxRepository {
     return id;
   }
 
-  Future<String> enqueueCustomerUpsert(CustomerDto customer) async {
+  Future<String> enqueueCustomerUpsert(CustomerDto customer, {String? idempotencyKey}) async {
     final id = _uuid.v4();
     await _db
         .into(_db.syncOutbox)
@@ -189,7 +189,7 @@ class SyncOutboxRepository {
             entityType: 'customer',
             operation: 'upsert',
             payloadJson: jsonEncode(customer.toJson()),
-            idempotencyKey: Value(customer.id),
+            idempotencyKey: Value(idempotencyKey ?? _uuid.v4()),
             nextAttemptAt: 0,
             createdAt: DateTime.now().millisecondsSinceEpoch,
           ),
@@ -197,12 +197,12 @@ class SyncOutboxRepository {
     return id;
   }
 
-  Future<String> enqueueCustomerCreate(CustomerDto customer) async {
+  Future<String> enqueueCustomerCreate(CustomerDto customer, {String? idempotencyKey}) async {
     final id = _uuid.v4();
     await _db.into(_db.syncOutbox).insert(
       SyncOutboxCompanion.insert(
         id: id, entityType: 'customer', operation: 'create',
-        payloadJson: jsonEncode(customer.toJson()), idempotencyKey: Value(customer.id),
+        payloadJson: jsonEncode(customer.toJson()), idempotencyKey: Value(idempotencyKey ?? _uuid.v4()),
         nextAttemptAt: 0, createdAt: DateTime.now().millisecondsSinceEpoch,
       ),
     );

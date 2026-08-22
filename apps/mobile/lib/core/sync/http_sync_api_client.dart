@@ -450,6 +450,186 @@ class HttpSyncApiClient implements SyncApiClient {
     );
   }
 
+  @override
+  Future<CustomerPushResult> pushCustomer(
+    CustomerDto customer, {
+    int? ifMatchVersion,
+    required String idempotencyKey,
+  }) async {
+    final uri = Uri.parse('$baseUrl/v1/customers/${customer.id}');
+    final body = {
+      'business_id': _businessId ?? '',
+      'expected_server_version': ifMatchVersion ?? customer.serverVersion,
+      'name': customer.name,
+      'phone': customer.phone,
+      'email': customer.email,
+    };
+
+    try {
+      http.Response? response;
+      for (int attempt = 1; attempt <= 2; attempt++) {
+        response = await _client
+            .put(uri, headers: {..._headers, 'Idempotency-Key': idempotencyKey}, body: jsonEncode(body))
+            .timeout(_timeout);
+
+        if (response.statusCode == 401 && attempt == 1 && _onRefresh != null) {
+          final result = await _onRefresh();
+          if (result == RefreshResult.success) {
+            continue;
+          } else {
+            break;
+          }
+        }
+        break;
+      }
+
+      if (response!.statusCode == 200) {
+        final json = jsonDecode(response.body) as Map<String, dynamic>;
+        return CustomerPushResult(
+          ok: true,
+          serverVersion: json['server_version'] as int?,
+        );
+      } else if (response.statusCode == 409) {
+        // VERSION_CONFLICT
+        try {
+          final json = jsonDecode(response.body) as Map<String, dynamic>;
+          final errorObj = json['error'] as Map<String, dynamic>?;
+          final code = errorObj?['code'] as String? ?? 'CUSTOMER_VERSION_CONFLICT';
+          final details = errorObj?['details'] as Map<String, dynamic>?;
+          final currentCustomer = details?['current_customer'] as Map<String, dynamic>?;
+
+          final serverState = currentCustomer != null
+              ? CustomerDto.fromJson(currentCustomer)
+              : null;
+
+          return CustomerPushResult(
+            ok: false,
+            conflict: true,
+            serverState: serverState,
+            error: code,
+          );
+        } catch (e) {
+          return CustomerPushResult(
+            ok: false,
+            conflict: true,
+            error: 'CUSTOMER_VERSION_CONFLICT (malformed response)',
+          );
+        }
+      } else if (response.statusCode == 400) {
+        // Validation error
+        final json = jsonDecode(response.body) as Map<String, dynamic>;
+        return CustomerPushResult(
+          ok: false,
+          error: json['error'] as String? ?? 'Validation error',
+        );
+      } else if (response.statusCode == 403) {
+        return CustomerPushResult(ok: false, error: 'INSUFFICIENT_PERMISSIONS');
+      } else if (response.statusCode == 404) {
+        return CustomerPushResult(ok: false, error: 'NOT_FOUND');
+      } else if (response.statusCode >= 500) {
+        throw HttpException(
+          'Server error: HTTP ${response.statusCode}',
+          statusCode: response.statusCode,
+          requestId: response.headers['x-request-id'],
+        );
+      } else {
+        throw HttpException(
+          'Unexpected error: HTTP ${response.statusCode}',
+          statusCode: response.statusCode,
+          requestId: response.headers['x-request-id'],
+        );
+      }
+    } catch (e) {
+      if (e is HttpException || e is MalformedResponseException) {
+        rethrow;
+      }
+      throw NetworkException('Network error during push customer', e);
+    }
+  }
+
+  @override
+  Future<CustomerPushResult> createCustomer(CustomerDto customer, {required String idempotencyKey}) async {
+    final uri = Uri.parse('$baseUrl/v1/customers');
+    final body = {
+      'business_id': _businessId ?? '',
+      'id': customer.id,
+      'name': customer.name,
+      'phone': customer.phone,
+      'email': customer.email,
+    };
+    try {
+      http.Response? response;
+      for (int attempt = 1; attempt <= 2; attempt++) {
+        response = await _client.post(uri, headers: {..._headers, 'Idempotency-Key': idempotencyKey}, body: jsonEncode(body)).timeout(_timeout);
+
+        if (response.statusCode == 401 && attempt == 1 && _onRefresh != null) {
+          final result = await _onRefresh();
+          if (result == RefreshResult.success) {
+            continue;
+          } else {
+            break;
+          }
+        }
+        break;
+      }
+
+      if (response!.statusCode == 201) {
+        final json = jsonDecode(response.body) as Map<String, dynamic>;
+        return CustomerPushResult(ok: true, serverVersion: json['server_version'] as int?);
+      } else if (response.statusCode == 409) {
+        final json = jsonDecode(response.body) as Map<String, dynamic>;
+        final code = (json['error'] as Map<String, dynamic>?)?['code'] as String?;
+        if (code == 'CUSTOMER_ID_CONFLICT' || code == 'IDEMPOTENCY_KEY_REUSE') return CustomerPushResult(ok: false, error: code);
+        return CustomerPushResult(ok: false, conflict: true, error: code ?? 'VERSION_CONFLICT');
+      } else if (response.statusCode == 400) {
+        return CustomerPushResult(ok: false, error: 'VALIDATION_ERROR');
+      } else if (response.statusCode == 403) {
+        return CustomerPushResult(ok: false, error: 'INSUFFICIENT_PERMISSIONS');
+      }
+      return CustomerPushResult(ok: false, error: 'HTTP ${response.statusCode}');
+    } catch (e) {
+      return CustomerPushResult(ok: false, error: e.toString());
+    }
+  }
+
+  @override
+  Future<CustomerPushResult> deleteCustomer(CustomerDto customer, {required String idempotencyKey}) async {
+    final uri = Uri.parse('$baseUrl/v1/customers/${customer.id}');
+    try {
+      http.Response? response;
+      for (int attempt = 1; attempt <= 2; attempt++) {
+        response = await _client.delete(uri, headers: {..._headers, 'Idempotency-Key': idempotencyKey}).timeout(_timeout);
+
+        if (response.statusCode == 401 && attempt == 1 && _onRefresh != null) {
+          final result = await _onRefresh();
+          if (result == RefreshResult.success) {
+            continue;
+          } else {
+            break;
+          }
+        }
+        break;
+      }
+
+      if (response!.statusCode == 204) {
+        return CustomerPushResult(ok: true, serverVersion: customer.serverVersion + 1);
+      } else if (response.statusCode == 404) {
+        // Already deleted - treat as success (idempotent)
+        return CustomerPushResult(ok: true, serverVersion: customer.serverVersion + 1);
+      } else if (response.statusCode == 409) {
+        final json = jsonDecode(response.body) as Map<String, dynamic>;
+        final code = (json['error'] as Map<String, dynamic>?)?['code'] as String?;
+        if (code == 'IDEMPOTENCY_KEY_REUSE') return CustomerPushResult(ok: false, error: code);
+        return CustomerPushResult(ok: false, conflict: true, error: code ?? 'VERSION_CONFLICT');
+      } else if (response.statusCode == 403) {
+        return CustomerPushResult(ok: false, error: 'INSUFFICIENT_PERMISSIONS');
+      }
+      return CustomerPushResult(ok: false, error: 'HTTP ${response.statusCode}');
+    } catch (e) {
+      return CustomerPushResult(ok: false, error: e.toString());
+    }
+  }
+
   void close() {
     _client.close();
   }

@@ -102,6 +102,7 @@ class SyncEngine extends ChangeNotifier {
 
       final productItems = due.where((d) => d.entityType == 'product').toList();
       final saleItems = due.where((d) => d.entityType == 'sale').toList();
+      final customerItems = due.where((d) => d.entityType == 'customer').toList();
 
       for (final item in productItems) {
         await _pushProduct(item);
@@ -110,6 +111,10 @@ class SyncEngine extends ChangeNotifier {
       if (saleItems.isNotEmpty) {
         await _pushSales(saleItems);
         pushed += saleItems.length;
+      }
+      for (final item in customerItems) {
+        await _pushCustomer(item);
+        pushed++;
       }
     }
     return pushed;
@@ -212,6 +217,52 @@ class SyncEngine extends ChangeNotifier {
           await _outbox.markRetry(item.id, now, e.toString());
         }
       }
+    }
+  }
+
+  Future<void> _pushCustomer(SyncOutboxItem item) async {
+    final dto = CustomerDto.fromJson(
+      jsonDecode(item.payloadJson) as Map<String, dynamic>,
+    );
+    final now = DateTime.now().millisecondsSinceEpoch;
+    try {
+      CustomerPushResult res;
+      if (item.operation == 'create') {
+        res = await _api.createCustomer(dto, idempotencyKey: item.idempotencyKey!);
+      } else if (item.operation == 'delete') {
+        res = await _api.deleteCustomer(dto, idempotencyKey: item.idempotencyKey!);
+      } else {
+        // upsert (update)
+        res = await _api.pushCustomer(dto, ifMatchVersion: dto.serverVersion, idempotencyKey: item.idempotencyKey!);
+      }
+      if (res.ok) {
+        await _outbox.markSynced(item.id);
+        await _customers.markSyncedAfterPush(
+          dto.id,
+          res.serverVersion ?? dto.serverVersion,
+        );
+      } else if (res.error == 'VALIDATION_ERROR' || res.error == 'IDEMPOTENCY_KEY_REUSE' || res.error == 'INSUFFICIENT_PERMISSIONS' || res.error == 'CUSTOMER_ID_CONFLICT') {
+        await _outbox.markFailed(item.id, res.error!);
+      } else if (res.conflict) {
+        // Policy B: keep local, don't auto-retry
+        await _outbox.markConflict(
+          item.id,
+          jsonEncode(res.serverState?.toJson() ?? {}),
+          res.error ?? 'CUSTOMER_VERSION_CONFLICT',
+        );
+      } else {
+        await _outbox.markRetry(item.id, now, res.error ?? 'unknown');
+      }
+    } catch (e, st) {
+      if (e is HttpException && e.statusCode != null && e.statusCode! >= 500) {
+        Sentry.captureException(e, stackTrace: st, withScope: (scope) {
+          scope.setTag('operation', 'pushCustomer');
+          if (e.requestId != null) scope.setTag('request_id', e.requestId!);
+        });
+      } else if (e is! HttpException && e is! NetworkException) {
+        Sentry.captureException(e, stackTrace: st, withScope: (scope) => scope.setTag('operation', 'pushCustomer'));
+      }
+      await _outbox.markRetry(item.id, now, e.toString());
     }
   }
 

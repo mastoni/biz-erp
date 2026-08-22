@@ -33,4 +33,20 @@ abstract class SyncApiClient {
   });
 
   Future<List<SalePushResultItem>> pushSalesBatch(List<SaleDto> sales);
+
+  Future<CustomerPushResult> pushCustomer(
+    CustomerDto customer, {
+    int? ifMatchVersion,
+    required String idempotencyKey,
+  });
+
+  Future<CustomerPushResult> createCustomer(
+    CustomerDto customer, {
+    required String idempotencyKey,
+  });
+
+  Future<CustomerPushResult> deleteCustomer(
+    CustomerDto customer, {
+    required String idempotencyKey,
+  });
 }
