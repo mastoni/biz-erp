@@ -1,14 +1,17 @@
 import { Pool } from 'pg'
 import { ApiError } from '../errors/api_error'
 import { ValidationError } from '../errors/validation_error'
+import { ConflictError } from '../errors/conflict_error'
 import {
   CustomerDto,
   validateCustomerCreate,
   validateCustomerUpdate,
 } from '../dto/customer_dto'
 import { customerRepository, CustomerPatch } from '../repositories/customer_repository'
+import { idempotencyRepository } from '../repositories/idempotency_repository'
 import { withTransaction } from '../db/transaction'
-import { isUuid, newUuid } from '../utils/uuid'
+import { isUuid } from '../utils/uuid'
+import { createHash } from 'crypto'
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -47,6 +50,21 @@ function parseOffset(value: unknown): number {
     throw new ValidationError('offset must be a non-negative integer')
   }
   return parsed
+}
+
+function computeCreateHash(request: { business_id: string; id: string; name: string; phone: string | null; email: string | null }): string {
+  const hashStr = `create|${request.business_id}|${request.id}|${request.name}|${request.phone ?? 'null'}|${request.email ?? 'null'}`
+  return createHash('sha256').update(hashStr).digest('hex')
+}
+
+function computeUpdateHash(request: { business_id: string; customerId: string; expected_server_version: number; name?: string; phone?: string | null; email?: string | null }): string {
+  const hashStr = `update|${request.business_id}|${request.customerId}|${request.expected_server_version}|${request.name ?? 'null'}|${request.phone ?? 'null'}|${request.email ?? 'null'}`
+  return createHash('sha256').update(hashStr).digest('hex')
+}
+
+function computeDeleteHash(businessId: string, customerId: string): string {
+  const hashStr = `delete|${businessId}|${customerId}`
+  return createHash('sha256').update(hashStr).digest('hex')
 }
 
 // ---------------------------------------------------------------------------
@@ -116,30 +134,51 @@ export function createCustomerService(pool: Pool) {
 
     /**
      * Create a new customer belonging to the tenant.
+     * Idempotent: same idempotency key + same request hash returns original response.
      */
-    async create(body: unknown, tenantId: string): Promise<CustomerDto> {
+    async create(body: unknown, idempotencyKey: string, requestHash: string, tenantId: string): Promise<CustomerDto> {
       const request = validateCustomerCreate(body)
       assertTenant(request.business_id, tenantId)
 
       return withTransaction(pool, async (client) => {
+        // Idempotency check
+        const existing = await idempotencyRepository.findActive(client, request.business_id, idempotencyKey)
+        if (existing) {
+          if (existing.request_hash !== requestHash) {
+            throw new ConflictError('IDEMPOTENCY_KEY_REUSE', 'Idempotency key was already used with a different request hash', { idempotency_key: idempotencyKey })
+          }
+          return existing.response_body as CustomerDto
+        }
+
+        // Check for duplicate customer id (different idempotency key)
+        const duplicate = await customerRepository.findById(client, request.business_id, request.id)
+        if (duplicate) {
+          throw new ConflictError('CUSTOMER_ID_CONFLICT', 'Customer with this id already exists', { existing_customer_id: request.id })
+        }
+
         const created = await customerRepository.insert(client, {
-          id: newUuid(),
-          business_id: tenantId,
+          id: request.id,
+          business_id: request.business_id,
           name: request.name,
           phone: request.phone,
           email: request.email,
         })
 
+        await idempotencyRepository.insert(client, request.business_id, idempotencyKey, requestHash, 201, created)
         return created
       })
     },
 
     /**
      * Update mutable fields on an active customer belonging to the tenant.
+     * Idempotent: same idempotency key + same request hash returns original response.
+     * Optimistic locking via expected_server_version.
      */
     async update(
       customerId: string,
       body: unknown,
+      idempotencyKey: string,
+      requestHash: string,
       tenantId: string
     ): Promise<CustomerDto> {
       if (!isUuid(customerId)) {
@@ -150,37 +189,71 @@ export function createCustomerService(pool: Pool) {
       assertTenant(request.business_id, tenantId)
 
       return withTransaction(pool, async (client) => {
+        // Idempotency check
+        const existing = await idempotencyRepository.findActive(client, request.business_id, idempotencyKey)
+        if (existing) {
+          if (existing.request_hash !== requestHash) {
+            throw new ConflictError('IDEMPOTENCY_KEY_REUSE', 'Idempotency key was already used with a different request hash', { idempotency_key: idempotencyKey })
+          }
+          return existing.response_body as CustomerDto
+        }
+
         const patch: CustomerPatch = {}
 
         if (request.name !== undefined) patch.name = request.name
         if ('phone' in request) patch.phone = request.phone ?? null
         if ('email' in request) patch.email = request.email ?? null
 
-        const updated = await customerRepository.update(client, tenantId, customerId, patch)
+        const updated = await customerRepository.update(client, tenantId, customerId, request.expected_server_version, patch)
 
         if (!updated) {
+          // Check if it's a version conflict or not found
+          const current = await customerRepository.findById(client, tenantId, customerId)
+          if (current) {
+            throw new ConflictError('CUSTOMER_VERSION_CONFLICT', 'Customer was modified by another device', {
+              expected_server_version: request.expected_server_version,
+              current_server_version: current.server_version,
+              current_customer: current,
+            })
+          }
           throw new ApiError(404, 'NOT_FOUND', 'Customer not found')
         }
 
+        await idempotencyRepository.insert(client, request.business_id, idempotencyKey, requestHash, 200, updated)
         return updated
       })
     },
 
     /**
      * Soft-delete a customer belonging to the tenant.
+     * Idempotent: same idempotency key + same request hash returns 204 (replay).
+     * Increments server_version so deletion appears in sync as tombstone.
      * Throws 404 if not found or already deleted (tenant-safe, no existence leakage).
      */
-    async softDelete(customerId: string, tenantId: string): Promise<void> {
+    async softDelete(customerId: string, idempotencyKey: string, requestHash: string, tenantId: string): Promise<void> {
       if (!isUuid(customerId)) {
         throw new ValidationError('Customer id must be a valid UUID')
       }
 
       return withTransaction(pool, async (client) => {
+        // Idempotency check
+        const existing = await idempotencyRepository.findActive(client, tenantId, idempotencyKey)
+        if (existing) {
+          if (existing.request_hash !== requestHash) {
+            throw new ConflictError('IDEMPOTENCY_KEY_REUSE', 'Idempotency key was already used with a different request hash', { idempotency_key: idempotencyKey })
+          }
+          // Idempotent replay: return void (204)
+          return
+        }
+
         const deleted = await customerRepository.softDelete(client, tenantId, customerId)
 
         if (!deleted) {
           throw new ApiError(404, 'NOT_FOUND', 'Customer not found')
         }
+
+        // Store idempotency record with empty response body for 204
+        await idempotencyRepository.insert(client, tenantId, idempotencyKey, requestHash, 204, null)
       })
     },
   }

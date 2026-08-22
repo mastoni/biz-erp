@@ -2,7 +2,7 @@ import { PoolClient } from 'pg'
 import { CustomerDto } from '../dto/customer_dto'
 
 // ---------------------------------------------------------------------------
-// Shared column list — does NOT include deleted_at (hidden from responses)
+// Shared column list — includes deleted_at for sync tombstones
 // ---------------------------------------------------------------------------
 
 const CUSTOMER_COLUMNS = `
@@ -13,7 +13,8 @@ const CUSTOMER_COLUMNS = `
   email,
   server_version,
   created_at,
-  updated_at
+  updated_at,
+  deleted_at
 `
 
 // ---------------------------------------------------------------------------
@@ -98,8 +99,8 @@ export const customerRepository = {
     }
   ): Promise<CustomerDto> {
     const sql = `
-      INSERT INTO customers (id, business_id, name, phone, email, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, $5, now(), now())
+      INSERT INTO customers (id, business_id, name, phone, email, server_version, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5, 1, now(), now())
       RETURNING ${CUSTOMER_COLUMNS}
     `
     const result = await client.query(sql, [
@@ -113,18 +114,19 @@ export const customerRepository = {
   },
 
   /**
-   * Apply a partial patch to an active customer.
-   * Returns the updated row, or null if the customer does not exist / is deleted.
+   * Apply a partial patch to an active customer with optimistic locking.
+   * Returns the updated row, or null if the customer does not exist / is deleted / version mismatch.
    */
   async update(
     client: PoolClient,
     businessId: string,
     customerId: string,
+    expectedServerVersion: number,
     patch: CustomerPatch
   ): Promise<CustomerDto | null> {
     const setClauses: string[] = []
-    const values: unknown[] = [customerId, businessId]
-    let paramIndex = 3
+    const values: unknown[] = [customerId, businessId, expectedServerVersion]
+    let paramIndex = 4
 
     if (patch.name !== undefined) {
       setClauses.push(`name = $${paramIndex++}`)
@@ -141,14 +143,16 @@ export const customerRepository = {
       values.push(patch.email ?? null)
     }
 
-    // Always bump updated_at
+    // Always bump updated_at and server_version
     setClauses.push('updated_at = now()')
+    setClauses.push('server_version = server_version + 1')
 
     const sql = `
       UPDATE customers
       SET ${setClauses.join(', ')}
       WHERE id = $1
         AND business_id = $2
+        AND server_version = $3
         AND deleted_at IS NULL
       RETURNING ${CUSTOMER_COLUMNS}
     `
@@ -157,27 +161,29 @@ export const customerRepository = {
   },
 
   /**
-   * Soft-delete a customer by setting deleted_at = now().
-   * Returns true if a row was affected, false if not found / already deleted.
+   * Soft-delete a customer by setting deleted_at = now() and incrementing server_version.
+   * Returns the deleted customer row (for sync), or null if not found / already deleted.
    */
   async softDelete(
     client: PoolClient,
     businessId: string,
     customerId: string
-  ): Promise<boolean> {
+  ): Promise<CustomerDto | null> {
     const sql = `
       UPDATE customers
-      SET deleted_at = now(), updated_at = now()
+      SET deleted_at = now(), updated_at = now(), server_version = server_version + 1
       WHERE id = $1
         AND business_id = $2
         AND deleted_at IS NULL
+      RETURNING ${CUSTOMER_COLUMNS}
     `
     const result = await client.query(sql, [customerId, businessId])
-    return (result.rowCount ?? 0) > 0
+    return (result.rows[0] as CustomerDto | undefined) ?? null
   },
 
   /**
-   * Find active customers for a business after a given server_version.
+   * Find customers for a business after a given server_version.
+   * Includes soft-deleted customers (tombstones) for sync propagation.
    * Used for cursor-based incremental sync.
    */
   async findByBusinessAfter(
@@ -190,7 +196,6 @@ export const customerRepository = {
       SELECT ${CUSTOMER_COLUMNS}
       FROM customers
       WHERE business_id = $1
-        AND deleted_at IS NULL
         AND server_version > $2
       ORDER BY server_version ASC, id ASC
       LIMIT $3

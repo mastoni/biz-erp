@@ -152,7 +152,7 @@ describe('Phase 4.1.38 Customer Sync API', () => {
     expect(res.body.items).toHaveLength(0)
   })
 
-  it('CUST-SYNC-005 inactive/deactivated customer follows sync policy', async () => {
+  it('CUST-SYNC-005 deleted customer appears as tombstone in sync', async () => {
     await seedCustomer(BUSINESS_A, { name: 'Active', serverVersion: 1 })
     const inactiveId = await seedCustomer(BUSINESS_A, { name: 'Inactive', serverVersion: 2 })
     await pool.query(`UPDATE customers SET deleted_at = now() WHERE id = $1`, [inactiveId])
@@ -163,8 +163,14 @@ describe('Phase 4.1.38 Customer Sync API', () => {
       .set('Authorization', `Bearer ${ownerTokenA}`)
       .expect(200)
 
-    expect(res.body.items).toHaveLength(1)
-    expect(res.body.items[0].name).toBe('Active')
+    // Both active and deleted (tombstone) customers appear in sync
+    expect(res.body.items).toHaveLength(2)
+    const active = res.body.items.find((c: any) => c.name === 'Active')
+    const inactive = res.body.items.find((c: any) => c.name === 'Inactive')
+    expect(active).toBeDefined()
+    expect(active.deleted_at).toBeNull()
+    expect(inactive).toBeDefined()
+    expect(inactive.deleted_at).not.toBeNull()
   })
 
   it('CUST-SYNC-006 empty result returns valid response', async () => {

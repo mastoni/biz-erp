@@ -2,7 +2,7 @@ import { ValidationError } from '../errors/validation_error'
 import { isUuid } from '../utils/uuid'
 
 // ---------------------------------------------------------------------------
-// Response DTO — never includes deleted_at
+// Response DTO — includes deleted_at for sync tombstones
 // ---------------------------------------------------------------------------
 
 export interface CustomerDto {
@@ -14,6 +14,7 @@ export interface CustomerDto {
   server_version: number
   created_at: string
   updated_at: string
+  deleted_at: string | null
 }
 
 // ---------------------------------------------------------------------------
@@ -21,6 +22,7 @@ export interface CustomerDto {
 // ---------------------------------------------------------------------------
 
 export interface CustomerCreateRequest {
+  id: string
   business_id: string
   name: string
   phone: string | null
@@ -29,6 +31,7 @@ export interface CustomerCreateRequest {
 
 export interface CustomerUpdateRequest {
   business_id: string
+  expected_server_version: number
   name?: string
   phone?: string | null
   email?: string | null
@@ -63,6 +66,12 @@ export function validateCustomerCreate(body: unknown): CustomerCreateRequest {
   }
 
   const errors: Record<string, string> = {}
+
+  // id (client-generated UUID, required)
+  const id = body.id
+  if (!isUuid(id)) {
+    errors.id = 'id must be a valid UUID'
+  }
 
   // business_id
   const businessId = body.business_id
@@ -105,6 +114,7 @@ export function validateCustomerCreate(body: unknown): CustomerCreateRequest {
   }
 
   return {
+    id: (id as string).trim(),
     business_id: (businessId as string).trim(),
     name: (name as string).trim(),
     phone,
@@ -125,8 +135,15 @@ export function validateCustomerUpdate(body: unknown): CustomerUpdateRequest {
     errors.business_id = 'business_id must be a valid UUID'
   }
 
+  // expected_server_version (required, integer >= 1)
+  const expected = body.expected_server_version
+  if (typeof expected !== 'number' || !Number.isInteger(expected) || expected < 1) {
+    errors.expected_server_version = 'expected_server_version must be an integer >= 1'
+  }
+
   const result: CustomerUpdateRequest = {
     business_id: isUuid(businessId) ? (businessId as string).trim() : '',
+    expected_server_version: typeof expected === 'number' ? expected : 0,
   }
 
   let hasPatch = false
