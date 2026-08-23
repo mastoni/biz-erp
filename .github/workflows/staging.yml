@@ -50,6 +50,9 @@ jobs:
         env:
           DATABASE_URL: postgres://bizerp_test:bizerp_test@localhost:5432/bizerp_test
           TEST_DATABASE_URL: postgres://bizerp_test:bizerp_test@localhost:5432/bizerp_test
+          JWT_SECRET: insecure-test-secret-that-is-at-least-32-chars-long
+          JWT_ISSUER: biz-erp-api
+          JWT_AUDIENCE: biz-erp-client
         run: npm test
 
       - name: Run backend typecheck
