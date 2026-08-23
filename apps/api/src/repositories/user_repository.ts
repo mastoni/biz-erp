@@ -1,18 +1,26 @@
 import { Pool, PoolClient } from 'pg'
 
+export type PlatformRole = 'PLATFORM_ADMIN' | 'SUPER_ADMIN'
+
 export interface PublicUser {
   id: string
   email: string
   status: string
   created_at: string
   updated_at: string
+  platformRole: PlatformRole | null
 }
 
 export interface InternalUser extends PublicUser {
   password_hash: string
 }
 
-export interface BusinessUser extends PublicUser {
+export interface BusinessUser {
+  id: string
+  email: string
+  status: string
+  created_at: string
+  updated_at: string
   role: 'OWNER' | 'CASHIER'
 }
 
@@ -27,7 +35,7 @@ export function createUserRepository(pool: Pool): UserRepository {
     async findByEmail(email: string): Promise<InternalUser | null> {
       const normalizedEmail = email.trim().toLowerCase()
       const result = await pool.query(
-        `SELECT id, email, password_hash, status, created_at, updated_at
+        `SELECT id, email, password_hash, status, created_at, updated_at, platform_role
          FROM users
          WHERE email = $1`,
         [normalizedEmail]
@@ -42,7 +50,7 @@ export function createUserRepository(pool: Pool): UserRepository {
 
     async findById(client: Pool | PoolClient, id: string): Promise<PublicUser | null> {
       const result = await client.query(
-        `SELECT id, email, status, created_at, updated_at
+        `SELECT id, email, status, created_at, updated_at, platform_role
          FROM users
          WHERE id = $1`,
         [id]
