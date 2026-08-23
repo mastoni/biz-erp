@@ -68,7 +68,7 @@ describe('Phase 4.0.4 Refresh Token Service', () => {
   })
 
   it('AUTH-R001 create refresh session', async () => {
-    const { refreshToken, session } = await refreshTokenService.createRefreshSession(userId, BUSINESS_A, 'device-123')
+    const { refreshToken, session } = await refreshTokenService.createRefreshSession(userId, BUSINESS_A, 'tenant', 'device-123')
     
     expect(refreshToken).toBeDefined()
     expect(session).toBeDefined()
@@ -239,7 +239,7 @@ describe('Phase 4.0.4 Refresh Token Service', () => {
   })
 
   it('AUTH-R014 device_id/session_id preserved', async () => {
-    const { refreshToken: oldToken, session: oldSession } = await refreshTokenService.createRefreshSession(userId, BUSINESS_A, 'my-device')
+    const { refreshToken: oldToken, session: oldSession } = await refreshTokenService.createRefreshSession(userId, BUSINESS_A, 'tenant', 'my-device')
     const { session: newSession } = await refreshTokenService.rotateRefreshToken(oldToken, BUSINESS_A)
     
     expect(newSession.device_id).toBe('my-device')

@@ -4,7 +4,8 @@ import { newUuid } from '../utils/uuid'
 export interface RefreshSession {
   id: string
   user_id: string
-  business_id: string
+  business_id: string | null
+  scope: 'tenant' | 'platform'
   token_hash: string
   device_id: string | null
   expires_at: Date
@@ -18,7 +19,8 @@ export const refreshSessionRepository = {
     client: PoolClient,
     params: {
       userId: string
-      businessId: string
+      businessId: string | null
+      scope: 'tenant' | 'platform'
       tokenHash: string
       expiresAt: Date
       deviceId?: string
@@ -31,14 +33,15 @@ export const refreshSessionRepository = {
         id,
         user_id,
         business_id,
+        scope,
         token_hash,
         device_id,
         expires_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *
       `,
-      [id, params.userId, params.businessId, params.tokenHash, params.deviceId || null, params.expiresAt]
+      [id, params.userId, params.businessId, params.scope, params.tokenHash, params.deviceId || null, params.expiresAt]
     )
     return result.rows[0]
   },
@@ -67,12 +70,14 @@ export const refreshSessionRepository = {
     )
   },
 
-  async revokeByOwnership(client: PoolClient, id: string, userId: string, businessId: string): Promise<void> {
+  async revokeByOwnership(client: PoolClient, id: string, userId: string, businessId: string | null): Promise<void> {
     await client.query(
       `
       UPDATE refresh_tokens
       SET revoked_at = now()
-      WHERE id = $1 AND user_id = $2 AND business_id = $3 AND revoked_at IS NULL
+      WHERE id = $1 AND user_id = $2
+        AND (business_id = $3 OR (business_id IS NULL AND $3 IS NULL))
+        AND revoked_at IS NULL
       `,
       [id, userId, businessId]
     )

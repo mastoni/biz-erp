@@ -200,8 +200,9 @@ export function createAuthRouter(pool: Pool): Router {
       const tokenResult = await refreshTokenService.rotateRefreshToken(refresh_token)
       const session = tokenResult.session
       
-      // Step 3: Get user/business membership
-      const membership = await userBusinessRepo.findActiveMembership(session.user_id, session.business_id)
+      // Step 3: Get user/business membership. Tenant sessions always carry a
+      // non-null business_id; the cast preserves existing tenant behavior.
+      const membership = await userBusinessRepo.findActiveMembership(session.user_id, session.business_id as string)
       
       if (!membership) {
         throw new ApiError(403, 'BUSINESS_ACCESS_DENIED', 'Access denied to this business')
@@ -211,7 +212,7 @@ export function createAuthRouter(pool: Pool): Router {
       const claims = {
         sub: session.user_id,
         scope: 'tenant' as const,
-        business_id: session.business_id,
+        business_id: session.business_id as string,
         role: membership.role as 'OWNER' | 'CASHIER',
         session_id: session.id,
         jti: randomUUID()
