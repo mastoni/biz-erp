@@ -107,8 +107,32 @@ jobs:
             echo "Restarting services with the new images..."
             docker compose -p bizerp_staging -f apps/api/docker-compose.staging.yml up -d
 
-            echo "Waiting for API health..."
-            sleep 10
+            echo "Waiting for API health (up to 120 seconds)..."
+            TIMEOUT=120
+            ELAPSED=0
+            while true; do
+              if docker ps -q -f name=bizerp_staging_api >/dev/null; then
+                if docker exec bizerp_staging_api wget --spider -q http://127.0.0.1:8080/health >/dev/null 2>&1; then
+                  echo "API is healthy and ready!"
+                  break
+                fi
+              fi
+
+              if [ $ELAPSED -ge $TIMEOUT ]; then
+                echo "Error: API failed to become healthy within $TIMEOUT seconds!"
+                echo "=== Docker Compose PS ==="
+                docker compose -p bizerp_staging -f apps/api/docker-compose.staging.yml ps
+                echo "=== API Logs ==="
+                docker logs bizerp_staging_api --tail 50
+                echo "=== Postgres Logs ==="
+                docker logs bizerp_staging_postgres --tail 50
+                exit 1
+              fi
+
+              echo "Waiting... ($ELAPSED/$TIMEOUT seconds)"
+              sleep 5
+              ELAPSED=$((ELAPSED + 5))
+            done
 
             echo "Confirming container identity and environment before migration..."
             RUNNING_CONTAINER=$(docker ps -q -f name=bizerp_staging_api)
