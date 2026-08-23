@@ -1,7 +1,7 @@
-import { NextFunction, Request, Response } from 'express'
+import { NextFunction, Request, RequestHandler, Response } from 'express'
 import { ApiError } from '../errors/api_error'
 import { isUuid } from '../utils/uuid'
-import { JwtService } from '../services/jwt_service'
+import { JwtService, PlatformRole } from '../services/jwt_service'
 
 
 export interface AuthenticatedUser {
@@ -22,6 +22,17 @@ export interface SyncAuthenticatedRequest extends Request {
   tenantId?: string
 }
 
+export interface PlatformUser {
+  userId: string
+  role: PlatformRole
+  sessionId: string
+  jti: string
+}
+
+export interface PlatformAuthenticatedRequest extends Request {
+  platformUser?: PlatformUser
+}
+
 export function createJwtAuthMiddleware(jwtService: JwtService) {
   return (req: AuthenticatedJwtRequest, _res: Response, next: NextFunction): void => {
     const authHeader = req.headers['authorization']
@@ -40,7 +51,13 @@ export function createJwtAuthMiddleware(jwtService: JwtService) {
     
     try {
       const claims = jwtService.verifyAccessToken(token)
-      
+
+      // Tenant routes reject platform tokens with an explicit scope error.
+      if (claims.scope === 'platform') {
+        next(new ApiError(403, 'WRONG_SCOPE', 'Platform token not allowed on tenant route'))
+        return
+      }
+
       const bodyBusinessId = (req.body as Record<string, unknown> | undefined)?.business_id
       
       if (bodyBusinessId && typeof bodyBusinessId === 'string' && bodyBusinessId.trim() !== '') {
@@ -101,6 +118,12 @@ export function requireSyncAuth(jwtService: JwtService) {
     try {
       const claims = jwtService.verifyAccessToken(token)
 
+      // Tenant routes reject platform tokens with an explicit scope error.
+      if (claims.scope === 'platform') {
+        next(new ApiError(403, 'WRONG_SCOPE', 'Platform token not allowed on tenant route'))
+        return
+      }
+
       const queryBusinessId = req.query.business_id
       const bodyBusinessId = (req.body as Record<string, unknown> | undefined)?.business_id
       const payloadBusinessId = typeof queryBusinessId === 'string' && queryBusinessId.trim().length > 0
@@ -130,5 +153,73 @@ export function requireSyncAuth(jwtService: JwtService) {
         next(new ApiError(401, 'INVALID_TOKEN', 'Invalid or malformed token'))
       }
     }
+  }
+}
+
+export function createPlatformJwtAuthMiddleware(jwtService: JwtService) {
+  return (req: PlatformAuthenticatedRequest, _res: Response, next: NextFunction): void => {
+    const authHeader = req.headers['authorization']
+
+    if (!authHeader || typeof authHeader !== 'string') {
+      next(new ApiError(401, 'UNAUTHORIZED', 'Missing Authorization header'))
+      return
+    }
+
+    if (!authHeader.startsWith('Bearer ')) {
+      next(new ApiError(401, 'INVALID_TOKEN', 'Unsupported auth scheme'))
+      return
+    }
+
+    const token = authHeader.substring(7)
+
+    try {
+      const claims = jwtService.verifyAccessToken(token)
+
+      // Platform routes require an explicit platform scope. Legacy (no-scope)
+      // and tenant tokens are never upgraded to platform scope.
+      if (claims.scope !== 'platform') {
+        next(new ApiError(403, 'WRONG_SCOPE', 'Platform scope required'))
+        return
+      }
+
+      if (claims.role !== 'PLATFORM_ADMIN' && claims.role !== 'SUPER_ADMIN') {
+        next(new ApiError(403, 'FORBIDDEN', 'Insufficient platform permissions'))
+        return
+      }
+
+      // Platform tokens MUST NOT carry a business_id and MUST NOT populate
+      // req.businessId on platform routes.
+      req.platformUser = {
+        userId: claims.sub,
+        role: claims.role as PlatformRole,
+        sessionId: claims.session_id,
+        jti: claims.jti
+      }
+
+      next()
+    } catch (err: any) {
+      if (err instanceof ApiError) {
+        next(err)
+      } else {
+        next(new ApiError(401, 'INVALID_TOKEN', 'Invalid or malformed token'))
+      }
+    }
+  }
+}
+
+export function requirePlatformRole(...roles: PlatformRole[]): RequestHandler {
+  return (req: Request, _res: Response, next: NextFunction): void => {
+    const p = req as PlatformAuthenticatedRequest
+    if (!p.platformUser) {
+      next(new ApiError(401, 'INVALID_TOKEN', 'Platform authentication required'))
+      return
+    }
+
+    if (roles.length > 0 && !roles.includes(p.platformUser.role)) {
+      next(new ApiError(403, 'FORBIDDEN', 'Insufficient platform permissions'))
+      return
+    }
+
+    next()
   }
 }
