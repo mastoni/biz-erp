@@ -124,7 +124,7 @@ export function createJwtService(
           throw err
         }
         if (err.name === 'TokenExpiredError') {
-          throw new ApiError(401, 'TOKEN_EXPIRED', 'Access token has expired')
+          throw new ApiError(401, 'INVALID_TOKEN', 'Access token has expired')
         }
         throw new ApiError(401, 'INVALID_TOKEN', 'Access token is invalid or malformed')
       }

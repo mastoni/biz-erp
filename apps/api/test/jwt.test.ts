@@ -70,7 +70,7 @@ describe('Phase 4.0.3 JWT Access Token Foundation', () => {
     vi.advanceTimersByTime(16 * 60 * 1000)
 
     expect(() => jwtService.verifyAccessToken(token)).toThrowError(
-      new ApiError(401, 'TOKEN_EXPIRED', 'Access token has expired')
+      new ApiError(401, 'INVALID_TOKEN', 'Access token has expired')
     )
   })
 
