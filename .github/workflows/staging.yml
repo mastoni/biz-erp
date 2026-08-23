@@ -141,32 +141,52 @@ jobs:
 
             export STAGING_IMAGE=$API_IMAGE_URI
 
+            WEB_IMAGE_URI="ghcr.io/$LOWER_REPO_OWNER/bizerp-web:$IMAGE_TAG"
+            echo "Pulling exact immutable Web image tag: $IMAGE_TAG..."
+            docker pull $WEB_IMAGE_URI
+
+            export STAGING_WEB_IMAGE=$WEB_IMAGE_URI
+
             echo "Restarting services with the new images..."
             docker compose -p bizerp_staging -f apps/api/docker-compose.staging.yml up -d
 
-            echo "Waiting for API health (up to 120 seconds)..."
+            echo "Waiting for API and Web health (up to 120 seconds)..."
             TIMEOUT=120
             ELAPSED=0
             while true; do
+              API_READY=false
               if docker ps -q -f name=bizerp_staging_api >/dev/null; then
                 if docker exec bizerp_staging_api wget --spider -q http://127.0.0.1:8080/health >/dev/null 2>&1; then
-                  echo "API is healthy and ready!"
-                  break
+                  API_READY=true
                 fi
               fi
 
+              WEB_READY=false
+              if docker ps -q -f name=bizerp_staging_web >/dev/null; then
+                if [ "$(docker inspect --format='{{.State.Health.Status}}' bizerp_staging_web 2>/dev/null)" = "healthy" ]; then
+                  WEB_READY=true
+                fi
+              fi
+
+              if [ "$API_READY" = true ] && [ "$WEB_READY" = true ]; then
+                echo "API and Web are healthy and ready!"
+                break
+              fi
+
               if [ $ELAPSED -ge $TIMEOUT ]; then
-                echo "Error: API failed to become healthy within $TIMEOUT seconds!"
+                echo "Error: API and/or Web failed to become healthy within $TIMEOUT seconds!"
                 echo "=== Docker Compose PS ==="
                 docker compose -p bizerp_staging -f apps/api/docker-compose.staging.yml ps
                 echo "=== API Logs ==="
                 docker logs bizerp_staging_api --tail 50
+                echo "=== Web Logs ==="
+                docker logs bizerp_staging_web --tail 50
                 echo "=== Postgres Logs ==="
                 docker logs bizerp_staging_postgres --tail 50
                 exit 1
               fi
 
-              echo "Waiting... ($ELAPSED/$TIMEOUT seconds)"
+              echo "Waiting... (API:$API_READY WEB:$WEB_READY $ELAPSED/$TIMEOUT seconds)"
               sleep 5
               ELAPSED=$((ELAPSED + 5))
             done
@@ -202,5 +222,8 @@ jobs:
               echo "Error: 40B/40C route returned 404!"
               exit 1
             fi
+
+            echo "Verifying Web ERP HTTPS endpoint..."
+            curl -fS --retry 5 --retry-delay 5 https://staging-erp.skmnetwork.com/ || (echo "Web ERP health check failed!" && exit 1)
 
             echo "Deployment successful."
