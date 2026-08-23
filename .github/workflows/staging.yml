@@ -91,6 +91,16 @@ jobs:
           docker tag bizerp-api:${{ github.sha }} ghcr.io/$LOWER_REPO_OWNER/bizerp-api:${{ github.sha }}
           docker push ghcr.io/$LOWER_REPO_OWNER/bizerp-api:${{ github.sha }}
 
+      - name: Build Web Docker image
+        working-directory: ./apps/web
+        run: docker build -t bizerp-web:${{ github.sha }} --build-arg NEXT_PUBLIC_API_URL=https://staging-api.skmnetwork.com .
+
+      - name: Push Web Docker image
+        run: |
+          LOWER_REPO_OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          docker tag bizerp-web:${{ github.sha }} ghcr.io/$LOWER_REPO_OWNER/bizerp-web:${{ github.sha }}
+          docker push ghcr.io/$LOWER_REPO_OWNER/bizerp-web:${{ github.sha }}
+
   deploy-staging:
     needs: build-and-test
     runs-on: ubuntu-latest
