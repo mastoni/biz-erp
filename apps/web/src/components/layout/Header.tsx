@@ -43,7 +43,7 @@ export function Header() {
           <SheetContent side="left" className="w-72 p-0 flex flex-col">
             <SheetTitle className="sr-only">Menu Navigasi</SheetTitle>
             <div className="flex h-16 items-center px-6 border-b border-ink/10">
-              <span className="text-xl font-bold text-ink tracking-tight font-display">SKMNet ERP</span>
+              <span className="text-xl font-bold text-ink tracking-tight font-display">SKMNetwork ERP</span>
             </div>
             <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-1">
               {navigation.map((item) => {
@@ -85,9 +85,9 @@ export function Header() {
           <span className="text-sm font-semibold text-ink font-display">{business?.name || 'Loading...'}</span>
           <span className="text-xs text-ink/60 capitalize">{role.toLowerCase()}</span>
         </div>
-        <div className="md:hidden flex flex-col">
-          <span className="text-sm font-semibold text-ink font-display">{business?.name || 'SKMNet'}</span>
-        </div>
+          <div className="md:hidden flex flex-col">
+            <span className="text-sm font-semibold text-ink font-display">{business?.name || 'SKMNetwork'}</span>
+          </div>
       </div>
 
       <div className="flex items-center gap-4">
