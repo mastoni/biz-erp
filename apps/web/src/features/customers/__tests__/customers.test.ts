@@ -17,8 +17,10 @@ function makeCustomer(overrides: Partial<Customer> = {}): Customer {
     name: 'John Doe',
     phone: '081234567890',
     email: 'john@example.com',
+    server_version: 1,
     created_at: '2026-01-01T00:00:00.000Z',
     updated_at: '2026-01-01T00:00:00.000Z',
+    deleted_at: null,
     ...overrides,
   };
 }
@@ -165,12 +167,14 @@ describe('CUSTOMER-WEB-014: Update submits correctly', () => {
 
     await updateCustomer('cust-001', {
       business_id: 'biz-id',
+      expected_server_version: 1,
       name: 'Updated Name',
       phone: '0899999',
     });
 
     expect(mockPut).toHaveBeenCalledWith('/v1/customers/cust-001', {
       business_id: 'biz-id',
+      expected_server_version: 1,
       name: 'Updated Name',
       phone: '0899999',
     });
@@ -214,7 +218,7 @@ describe('CUSTOMER-WEB-017: No X-Demo-Business-Id sent', () => {
     const mockPost = api.post as ReturnType<typeof vi.fn>;
     mockPost.mockResolvedValueOnce({ data: makeCustomer() });
 
-    await createCustomer({ business_id: 'biz-id', name: 'Test' });
+    await createCustomer({ id: 'new-cust-id', business_id: 'biz-id', name: 'Test' });
 
     const call = mockPost.mock.calls[0];
     config_unused: {

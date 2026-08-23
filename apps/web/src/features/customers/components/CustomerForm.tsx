@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { v4 as uuidv4 } from 'uuid';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -48,6 +49,7 @@ export function CustomerForm({ businessId, customer }: CustomerFormProps) {
       if (isEdit && customer) {
         await updateCustomer(customer.id, {
           business_id: businessId,
+          expected_server_version: customer.server_version,
           name: name.trim(),
           phone: phone.trim() || undefined,
           email: email.trim() || undefined,
@@ -55,6 +57,7 @@ export function CustomerForm({ businessId, customer }: CustomerFormProps) {
         router.push(`/customers/${customer.id}`);
       } else {
         await createCustomer({
+          id: uuidv4(),
           business_id: businessId,
           name: name.trim(),
           phone: phone.trim() || undefined,
