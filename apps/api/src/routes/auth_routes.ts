@@ -5,7 +5,7 @@ import { createAuthService } from '../services/auth_service'
 import { createUserRepository } from '../repositories/user_repository'
 import { createUserBusinessRepository } from '../repositories/user_business_repository'
 import { createRefreshTokenService } from '../services/refresh_token_service'
-import { createJwtService } from '../services/jwt_service'
+import { createJwtService, TokenRole, AccessTokenClaims } from '../services/jwt_service'
 import { createRegistrationService } from '../services/registration_service'
 import { validateRegistrationRequest } from '../dto/registration_dto'
 import { ApiError } from '../errors/api_error'
@@ -111,14 +111,92 @@ export function createAuthRouter(pool: Pool): Router {
         throw new ApiError(400, 'BAD_REQUEST', 'Email and password are required')
       }
 
-      // Step 1: Authenticate user credentials
-      const authResult = await authService.authenticateCredentials(email, password, business_id)
+      // Resolve the auth context selector. Default is tenant for backward
+      // compatibility with existing Web/Mobile clients (no code change required).
+      const rawContext = req.headers['x-auth-context']
+      const authContext = (Array.isArray(rawContext) ? rawContext[0] : rawContext)?.toLowerCase() || 'tenant'
+      if (authContext !== 'tenant' && authContext !== 'platform') {
+        throw new ApiError(400, 'VALIDATION_ERROR', 'Unsupported x-auth-context value')
+      }
 
+      // Step 1: Authenticate user credentials (shared for both contexts).
+      // For platform context the body business_id is intentionally ignored.
+      const authResult = await authService.authenticateCredentials(
+        email,
+        password,
+        authContext === 'tenant' ? business_id : undefined
+      )
+
+      const userId = authResult.user.id
+
+      // ---------------------------------------------------------------------
+      // PLATFORM context
+      // ---------------------------------------------------------------------
+      if (authContext === 'platform') {
+        // MVP mobile is tenant-only. Never issue a platform token to a mobile client.
+        if (req.headers['x-client-type'] === 'mobile') {
+          throw new ApiError(403, 'FORBIDDEN', 'Platform context is not available for mobile clients')
+        }
+
+        // Re-read the canonical platform role. The platform role lives on
+        // users.platform_role; it is re-derived here (and on every refresh) so
+        // revocation is reflected immediately.
+        const roleResult = await pool.query('SELECT platform_role FROM users WHERE id = $1', [userId])
+        const platformRole = roleResult.rows[0]?.platform_role
+        if (!platformRole || (platformRole !== 'PLATFORM_ADMIN' && platformRole !== 'SUPER_ADMIN')) {
+          throw new ApiError(403, 'PLATFORM_ACCESS_DENIED', 'User does not hold a platform role')
+        }
+
+        // Step 3: Create a platform refresh session (no business scope).
+        const tokenResult = await refreshTokenService.createRefreshSession(userId, null, 'platform')
+
+        // Step 4: Issue a Platform JWT. business_id MUST be absent (never null).
+        const claims = {
+          sub: userId,
+          scope: 'platform' as const,
+          role: platformRole as 'PLATFORM_ADMIN' | 'SUPER_ADMIN',
+          session_id: tokenResult.session.id,
+          jti: randomUUID()
+        }
+        const accessToken = jwtService.signAccessToken(claims)
+
+        const isWebClient = req.headers['x-client-type'] === 'web'
+        if (isWebClient) {
+          const isProd = process.env.NODE_ENV === 'production'
+          res.cookie('refresh_token', tokenResult.refreshToken, {
+            httpOnly: true,
+            secure: isProd,
+            sameSite: 'lax',
+            path: '/',
+            domain: process.env.COOKIE_DOMAIN || '.skmnetwork.com',
+            maxAge: 7 * 24 * 60 * 60 * 1000
+          })
+        }
+
+        // Step 5: Return success response (no business object / business_id).
+        res.status(200).json({
+          access_token: accessToken,
+          ...(isWebClient ? {} : { refresh_token: tokenResult.refreshToken }),
+          user: {
+            id: authResult.user.id,
+            email: authResult.user.email,
+            status: authResult.user.status
+          },
+          role: platformRole,
+          scope: 'platform',
+          expires_in: 900
+        })
+        return
+      }
+
+      // ---------------------------------------------------------------------
+      // TENANT context (default)
+      // ---------------------------------------------------------------------
       let membership = authResult.membership
 
       // Step 2: Handle business selection if not provided
       if (!membership) {
-        const activeBusinesses = await userBusinessRepo.listActiveBusinesses(authResult.user.id)
+        const activeBusinesses = await userBusinessRepo.listActiveBusinesses(userId)
 
         if (activeBusinesses.length === 0) {
           throw new ApiError(403, 'BUSINESS_ACCESS_DENIED', 'User has no active business memberships')
@@ -133,7 +211,6 @@ export function createAuthRouter(pool: Pool): Router {
       }
 
       // We have a confirmed membership at this point
-      const userId = authResult.user.id
       const businessId = membership.business_id
       const businessName = membership.business_name
       const role = membership.role
@@ -196,27 +273,44 @@ export function createAuthRouter(pool: Pool): Router {
         throw new ApiError(401, 'INVALID_REFRESH_TOKEN', 'Invalid refresh token')
       }
 
-      // Step 1 & 2: Validate token and rotate session atomically
+      // Step 1 & 2: Validate token and rotate session atomically. Rotation
+      // preserves the session's stored scope and business_id (never flipped).
       const tokenResult = await refreshTokenService.rotateRefreshToken(refresh_token)
       const session = tokenResult.session
-      
-      // Step 3: Get user/business membership. Tenant sessions always carry a
-      // non-null business_id; the cast preserves existing tenant behavior.
-      const membership = await userBusinessRepo.findActiveMembership(session.user_id, session.business_id as string)
-      
-      if (!membership) {
-        throw new ApiError(403, 'BUSINESS_ACCESS_DENIED', 'Access denied to this business')
+
+      // Step 3: Re-derive the role from the canonical source for the session scope.
+      // tenant -> user_businesses; platform -> users.platform_role. This ensures
+      // revoked/missing roles are reflected immediately on refresh.
+      let role: TokenRole
+      if (session.scope === 'platform') {
+        const client = await pool.connect()
+        try {
+          role = await refreshTokenService.resolveSessionRole(client, session)
+        } finally {
+          client.release()
+        }
+      } else {
+        const membership = await userBusinessRepo.findActiveMembership(
+          session.user_id,
+          session.business_id as string
+        )
+        if (!membership) {
+          throw new ApiError(403, 'BUSINESS_ACCESS_DENIED', 'Access denied to this business')
+        }
+        role = membership.role as TokenRole
       }
 
-      // Step 4: Issue JWT access token
+      // Step 4: Issue JWT access token. Platform tokens MUST NOT carry a
+      // business_id (claim omitted entirely, never null).
+      const isPlatform = session.scope === 'platform'
       const claims = {
         sub: session.user_id,
-        scope: 'tenant' as const,
-        business_id: session.business_id as string,
-        role: membership.role as 'OWNER' | 'CASHIER',
+        scope: session.scope,
+        role,
         session_id: session.id,
-        jti: randomUUID()
-      }
+        jti: randomUUID(),
+        ...(isPlatform ? {} : { business_id: session.business_id as string })
+      } as Omit<AccessTokenClaims, 'iat' | 'exp' | 'iss' | 'aud'>
       const accessToken = jwtService.signAccessToken(claims)
 
       if (isWebClient) {
