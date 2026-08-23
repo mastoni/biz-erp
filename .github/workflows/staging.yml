@@ -38,9 +38,17 @@ jobs:
         working-directory: ./apps/api
         run: npm ci
 
+      - name: Run database migrations
+        working-directory: ./apps/api
+        env:
+          DATABASE_URL: postgres://bizerp_test:bizerp_test@localhost:5432/bizerp_test
+          TEST_DATABASE_URL: postgres://bizerp_test:bizerp_test@localhost:5432/bizerp_test
+        run: npm run migrate
+
       - name: Run backend tests
         working-directory: ./apps/api
         env:
+          DATABASE_URL: postgres://bizerp_test:bizerp_test@localhost:5432/bizerp_test
           TEST_DATABASE_URL: postgres://bizerp_test:bizerp_test@localhost:5432/bizerp_test
         run: npm test
 
