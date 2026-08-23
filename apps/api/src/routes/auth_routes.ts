@@ -144,6 +144,7 @@ export function createAuthRouter(pool: Pool): Router {
       // Step 4: Issue JWT access token
       const claims = {
         sub: userId,
+        scope: 'tenant' as const,
         business_id: businessId,
         role: role as 'OWNER' | 'CASHIER',
         session_id: tokenResult.session.id,
@@ -209,6 +210,7 @@ export function createAuthRouter(pool: Pool): Router {
       // Step 4: Issue JWT access token
       const claims = {
         sub: session.user_id,
+        scope: 'tenant' as const,
         business_id: session.business_id,
         role: membership.role as 'OWNER' | 'CASHIER',
         session_id: session.id,

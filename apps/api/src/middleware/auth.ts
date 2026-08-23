@@ -52,12 +52,12 @@ export function createJwtAuthMiddleware(jwtService: JwtService) {
 
       req.user = {
         userId: claims.sub,
-        businessId: claims.business_id,
-        role: claims.role,
+        businessId: claims.business_id as string,
+        role: claims.role as 'OWNER' | 'CASHIER',
         sessionId: claims.session_id,
         jti: claims.jti
       }
-      req.businessId = claims.business_id
+      req.businessId = claims.business_id as string
       
       next()
     } catch (err: any) {
@@ -116,12 +116,12 @@ export function requireSyncAuth(jwtService: JwtService) {
 
       req.user = {
         userId: claims.sub,
-        businessId: claims.business_id,
-        role: claims.role,
+        businessId: claims.business_id as string,
+        role: claims.role as 'OWNER' | 'CASHIER',
         sessionId: claims.session_id,
         jti: claims.jti
       }
-      req.tenantId = claims.business_id
+      req.tenantId = claims.business_id as string
       next()
     } catch (err: any) {
       if (err instanceof ApiError) {
