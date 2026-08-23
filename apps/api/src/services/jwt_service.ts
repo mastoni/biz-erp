@@ -85,7 +85,7 @@ export function createJwtService(
             throw new ApiError(403, 'INVALID_PLATFORM_TOKEN', 'Platform token must not contain a business_id')
           }
           if (decoded.role !== 'PLATFORM_ADMIN' && decoded.role !== 'SUPER_ADMIN') {
-            throw new ApiError(401, 'INVALID_TOKEN', 'Invalid platform role')
+            throw new ApiError(403, 'FORBIDDEN', 'Insufficient platform permissions')
           }
           return {
             sub: decoded.sub,
