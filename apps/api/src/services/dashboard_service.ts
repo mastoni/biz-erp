@@ -52,7 +52,7 @@ export function createDashboardService(pool: Pool) {
         const topProductsResult = await client.query(
           `SELECT si.product_id, si.product_name, SUM(si.quantity) as quantity_sold
            FROM sale_items si
-           JOIN sales s ON s.id = si.sale_id
+           JOIN sales ON sales.id = si.sale_id
            WHERE ${salesFilter}
            GROUP BY si.product_id, si.product_name
            ORDER BY quantity_sold DESC
