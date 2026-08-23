@@ -5,6 +5,10 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
@@ -47,25 +51,95 @@ jobs:
         working-directory: ./apps/api
         run: docker build -t bizerp-api:${{ github.sha }} .
 
-      # Note: Push to registry step would go here
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push API Docker image
+        run: |
+          LOWER_REPO_OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          docker tag bizerp-api:${{ github.sha }} ghcr.io/$LOWER_REPO_OWNER/bizerp-api:${{ github.sha }}
+          docker push ghcr.io/$LOWER_REPO_OWNER/bizerp-api:${{ github.sha }}
 
   deploy-staging:
     needs: build-and-test
     runs-on: ubuntu-latest
     environment: staging
     steps:
-      - name: Deploy to staging
-        run: |
-          echo "Deploying to staging..."
-          if [ -z "${{ secrets.STAGING_HOST }}" ]; then
-            echo "STAGING_HOST secret not found. Failing deployment rather than falling back."
-            exit 1
-          fi
-          # Deployment commands over SSH would go here
-          # They should start postgres, run migrations, and then start the API
+      - name: Deploy to staging VPS via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMAGE_TAG: ${{ github.sha }}
+          ACTOR: ${{ github.actor }}
+          REPO_OWNER: ${{ github.repository_owner }}
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.STAGING_SSH_USER }}
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          envs: GITHUB_TOKEN, IMAGE_TAG, ACTOR, REPO_OWNER
+          script: |
+            set -e
 
-      - name: Health check
-        run: |
-          echo "Checking health..."
-          # wget -qO- https://staging.example.com/health
-          # Alternatively use internal SSH health check if domain unavailable
+            export LOWER_REPO_OWNER=$(echo "$REPO_OWNER" | tr '[:upper:]' '[:lower:]')
+            API_IMAGE_URI="ghcr.io/$LOWER_REPO_OWNER/bizerp-api:$IMAGE_TAG"
+
+            echo "Logging into GHCR..."
+            echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
+
+            echo "Synchronizing staging repository to exact deployment SHA..."
+            cd /opt/skmnet-erp-staging/repo
+            git fetch origin
+            git checkout --detach "$IMAGE_TAG"
+            if [ "$(git rev-parse HEAD)" != "$IMAGE_TAG" ]; then
+              echo "Repository SHA mismatch! Expected: $IMAGE_TAG, Got: $(git rev-parse HEAD)"
+              exit 1
+            fi
+
+            echo "Pulling exact immutable API image tag: $IMAGE_TAG..."
+            docker pull $API_IMAGE_URI
+
+            export STAGING_IMAGE=$API_IMAGE_URI
+
+            echo "Restarting services with the new images..."
+            docker compose -p bizerp_staging -f apps/api/docker-compose.staging.yml up -d
+
+            echo "Waiting for API health..."
+            sleep 10
+
+            echo "Confirming container identity and environment before migration..."
+            RUNNING_CONTAINER=$(docker ps -q -f name=bizerp_staging_api)
+            if [ -z "$RUNNING_CONTAINER" ]; then
+              echo "Error: bizerp_staging_api container not found!"
+              exit 1
+            fi
+
+            ENV_CHECK=$(docker exec bizerp_staging_api env | grep NODE_ENV || true)
+            if [[ "$ENV_CHECK" != *"NODE_ENV=staging"* ]]; then
+              echo "Error: Container is not in staging environment! Found: $ENV_CHECK"
+              exit 1
+            fi
+
+            if [[ "$ENV_CHECK" == *"NODE_ENV=production"* ]]; then
+              echo "Error: Container is in production environment! Aborting migration."
+              exit 1
+            fi
+
+            echo "Executing database migration safely..."
+            # The migrate.js script inherently only runs pending migrations, which for staging are 015 and 016
+            docker exec bizerp_staging_api node dist/db/migrate.js
+
+            echo "Verifying HTTPS /health endpoint..."
+            curl -fS --retry 5 --retry-delay 5 https://staging-api.skmnetwork.com/health || (echo "Health check failed!" && exit 1)
+
+            echo "Verifying 40B/40C route..."
+            STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://staging-api.skmnetwork.com/v1/subscriptions)
+            if [ "$STATUS_CODE" = "404" ]; then
+              echo "Error: 40B/40C route returned 404!"
+              exit 1
+            fi
+
+            echo "Deployment successful."
