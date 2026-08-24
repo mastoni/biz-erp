@@ -30,7 +30,12 @@ export async function getCustomer(
 }
 
 export async function createCustomer(input: CustomerCreateInput): Promise<Customer> {
-  const response = await api.post<Customer>('/v1/customers', input);
+  const idempotencyKey = crypto.randomUUID();
+  const response = await api.post<Customer>('/v1/customers', input, {
+    headers: {
+      'Idempotency-Key': idempotencyKey,
+    },
+  });
   return response.data;
 }
 
