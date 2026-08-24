@@ -8,17 +8,22 @@ import 'package:biz_erp_mobile/sales/domain/calculation/sale_calculation_engine.
 import 'package:biz_erp_mobile/sales/domain/checkout/checkout_models.dart';
 import 'package:biz_erp_mobile/sales/domain/checkout/checkout_exceptions.dart';
 import 'package:biz_erp_mobile/sales/domain/checkout/checkout_fingerprint.dart';
+import 'package:biz_erp_mobile/core/sync/sync_models.dart';
+import 'package:biz_erp_mobile/core/sync/sync_outbox_repository.dart';
+import 'package:biz_erp_mobile/products/data/product_repository.dart';
 
 class CheckoutService {
   final AppDatabase _db;
   final SaleCalculationEngine _calcEngine;
+  final SyncOutboxRepository _outbox;
+  final ProductRepository _productRepo;
   static final _uuidRegex = RegExp(
     r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
     caseSensitive: false,
   );
   static const _uuid = Uuid();
 
-  CheckoutService(this._db, this._calcEngine);
+  CheckoutService(this._db, this._calcEngine, this._outbox, this._productRepo);
 
   Future<CheckoutResult> checkout(CheckoutRequest request) async {
     // 1. Validate Idempotency Key
@@ -238,7 +243,41 @@ class CheckoutService {
         ),
       );
 
-      // 12. Return Result
+      // 12. Enqueue sale to sync outbox (after all local persistence succeeds)
+      final productNames = <String, String>{};
+      for (final cartItem in cartItems) {
+        final product = await _productRepo.getProductById(cartItem.productId, request.businessId);
+        if (product != null) {
+          productNames[cartItem.productId] = product.name;
+        }
+      }
+
+      final saleItemsDto = cartItems.map((ci) => SaleItemDto(
+        productId: ci.productId,
+        productNameSnapshot: productNames[ci.productId] ?? '',
+        quantity: ci.quantity,
+        unitPriceMinor: ci.unitPriceMinor,
+      )).toList();
+
+      final saleDto = SaleDto(
+        id: saleId,
+        idempotencyKey: saleId,
+        receiptNumber: receiptNumber,
+        subtotalMinor: calcResult.subtotalMinor,
+        discountMinor: calcResult.discountMinor,
+        taxMinor: calcResult.taxMinor,
+        grandTotalMinor: calcResult.grandTotalMinor,
+        paymentMethod: request.paymentMethod.name.toUpperCase(),
+        cashReceivedMinor: paymentAmount,
+        changeMinor: changeMinor,
+        cashierId: request.cashierId,
+        customerId: request.customerId,
+        clientCreatedAt: now,
+        items: saleItemsDto,
+      );
+      await _outbox.enqueueSale(saleDto);
+
+      // 13. Return Result
       return CheckoutResult(
         clientTransactionId: saleId,
         receiptNumber: receiptNumber,

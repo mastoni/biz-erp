@@ -39,7 +39,7 @@ void main() {
     outbox = SyncOutboxRepository(db);
     cartRepo = CartRepository(db);
     calcEngine = SaleCalculationEngine();
-    checkoutService = CheckoutService(db, calcEngine);
+    checkoutService = CheckoutService(db, calcEngine, outbox, productRepo);
   });
 
   tearDown(() async {
@@ -574,7 +574,8 @@ void main() {
         final pRepo1 = ProductRepository(db1);
         final cRepo1 = CartRepository(db1);
         final eng1 = SaleCalculationEngine();
-        final svc1 = CheckoutService(db1, eng1);
+        final outbox1 = SyncOutboxRepository(db1);
+        final svc1 = CheckoutService(db1, eng1, outbox1, pRepo1);
 
         await pRepo1.upsertProduct(
           Product(

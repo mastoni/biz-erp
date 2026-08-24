@@ -1,3 +1,4 @@
+import 'package:biz_erp_mobile/core/sync/sync_outbox_repository.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -33,7 +34,8 @@ void main() {
     db = AppDatabase(NativeDatabase.memory());
     final prodRepo = ProductRepository(db);
     final cartRepo = CartRepository(db);
-    final checkoutService = CheckoutService(db, SaleCalculationEngine());
+    final outbox = SyncOutboxRepository(db);
+    final checkoutService = CheckoutService(db, SaleCalculationEngine(), outbox, prodRepo);
 
     // Seed 1 product
     await prodRepo.upsertProduct(

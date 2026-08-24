@@ -158,10 +158,10 @@ class _MyAppState extends State<MyApp> {
     final cartRepo = CartRepository(db);
     final customerRepo = CustomerRepository(db);
     final calcEngine = SaleCalculationEngine();
-    final checkoutService = CheckoutService(db, calcEngine);
     final syncMetaRepo = SyncMetaRepository(db);
     final syncOutboxRepo = SyncOutboxRepository(db);
     final salesSyncRepo = SalesSyncRepository(db);
+    final checkoutService = CheckoutService(db, calcEngine, syncOutboxRepo, productRepo);
 
     // Printing Service
     final printingService = PrintingService(

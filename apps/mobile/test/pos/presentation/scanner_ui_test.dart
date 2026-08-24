@@ -1,3 +1,4 @@
+import 'package:biz_erp_mobile/core/sync/sync_outbox_repository.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -32,6 +33,7 @@ void main() {
     final db = AppDatabase(NativeDatabase.memory());
     final repo = ProductRepository(db);
     final cartRepo = CartRepository(db);
+    final outbox = SyncOutboxRepository(db);
 
     await repo.upsertProduct(
       Product(
@@ -50,7 +52,7 @@ void main() {
       productRepo: repo,
       cartRepo: cartRepo,
       calcEngine: SaleCalculationEngine(),
-      checkoutService: CheckoutService(db, SaleCalculationEngine()),
+      checkoutService: CheckoutService(db, SaleCalculationEngine(), outbox, repo),
       printingService: PrintingService(
         adapter: BluetoothPrinterAdapter(),
         prefs: _DummyPrefs(),
