@@ -167,12 +167,13 @@ void main() {
     await Future.delayed(const Duration(milliseconds: 50));
     expect(notifier.currentState, SyncState.synced);
 
+    final beforeCount = fakeEngine.syncNowCallCount;
     final syncFuture = notifier.syncNow();
     await Future.delayed(const Duration(milliseconds: 5));
     expect(notifier.currentState, SyncState.syncing);
 
     await syncFuture;
-    expect(fakeEngine.syncNowCallCount, 1);
+    expect(fakeEngine.syncNowCallCount, beforeCount + 1);
     expect(notifier.currentState, SyncState.synced);
   });
 
