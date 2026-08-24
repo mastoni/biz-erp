@@ -1,6 +1,7 @@
 // apps/mobile/lib/core/sync/http_sync_api_client.dart
 
 import 'dart:convert';
+import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
 import 'sync_api_client.dart';
 import 'sync_models.dart';
@@ -371,7 +372,7 @@ class HttpSyncApiClient implements SyncApiClient {
     final uri = Uri.parse('$baseUrl/v1/sync/sales/batch');
     final body = {
       'business_id': _businessId ?? '',
-      'sales': sales.map((s) => s.toJson()).toList(),
+      'items': sales.map(_saleDtoToBatchItem).toList(),
     };
 
     try {
@@ -448,6 +449,50 @@ class HttpSyncApiClient implements SyncApiClient {
       isActive: isActive,
       serverVersion: json['server_version'] as int,
     );
+  }
+
+  String _computeSaleRequestHash(SaleDto sale) {
+    final itemStrs = sale.items.map((item) {
+      return '${item.productId}|${item.productNameSnapshot}|${item.quantity}|${item.unitPriceMinor}';
+    }).join(',');
+    final hashStr = '${sale.idempotencyKey}|${sale.receiptNumber}|${sale.subtotalMinor}|${sale.discountMinor}|${sale.taxMinor}|${sale.grandTotalMinor}|${sale.paymentMethod}|${sale.cashReceivedMinor}|${sale.changeMinor}|${sale.cashierId ?? ''}|${sale.customerId ?? ''}|${sale.clientCreatedAt}|$itemStrs';
+    final bytes = sha256.convert(utf8.encode(hashStr));
+    return bytes.toString();
+  }
+
+  Map<String, dynamic> _saleDtoToBatchItem(SaleDto sale) {
+    final items = sale.items.map((item) {
+      return {
+        'product_id': item.productId,
+        'product_name': item.productNameSnapshot,
+        'quantity': item.quantity,
+        'unit_price_minor': item.unitPriceMinor,
+        'subtotal_minor': item.quantity * item.unitPriceMinor,
+      };
+    }).toList();
+
+    final salePayload = {
+      'id': sale.id,
+      'receipt_number': sale.receiptNumber,
+      'subtotal_minor': sale.subtotalMinor,
+      'discount_minor': sale.discountMinor,
+      'tax_minor': sale.taxMinor,
+      'total_minor': sale.grandTotalMinor,
+      'payment_method': sale.paymentMethod,
+      'paid_minor': sale.cashReceivedMinor,
+      'change_minor': sale.changeMinor,
+      'cashier_id': sale.cashierId,
+      'customer_id': sale.customerId,
+      'created_at': DateTime.fromMillisecondsSinceEpoch(sale.clientCreatedAt, isUtc: true).toIso8601String(),
+      'client_created_at': DateTime.fromMillisecondsSinceEpoch(sale.clientCreatedAt, isUtc: true).toIso8601String(),
+    };
+
+    return {
+      'idempotency_key': sale.idempotencyKey,
+      'request_hash': _computeSaleRequestHash(sale),
+      'sale': salePayload,
+      'sale_items': items,
+    };
   }
 
   @override

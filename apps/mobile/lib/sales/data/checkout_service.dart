@@ -17,13 +17,20 @@ class CheckoutService {
   final SaleCalculationEngine _calcEngine;
   final SyncOutboxRepository _outbox;
   final ProductRepository _productRepo;
+  final Future<void> Function()? onEnqueue;
   static final _uuidRegex = RegExp(
     r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
     caseSensitive: false,
   );
   static const _uuid = Uuid();
 
-  CheckoutService(this._db, this._calcEngine, this._outbox, this._productRepo);
+  CheckoutService(
+    this._db,
+    this._calcEngine,
+    this._outbox,
+    this._productRepo, [
+    this.onEnqueue,
+  ]);
 
   Future<CheckoutResult> checkout(CheckoutRequest request) async {
     // 1. Validate Idempotency Key
@@ -247,14 +254,15 @@ class CheckoutService {
       final productNames = <String, String>{};
       for (final cartItem in cartItems) {
         final product = await _productRepo.getProductById(cartItem.productId, request.businessId);
-        if (product != null) {
-          productNames[cartItem.productId] = product.name;
+        if (product == null) {
+          throw CheckoutException('Product not found in local catalog: ${cartItem.productId}');
         }
+        productNames[cartItem.productId] = product.name;
       }
 
       final saleItemsDto = cartItems.map((ci) => SaleItemDto(
         productId: ci.productId,
-        productNameSnapshot: productNames[ci.productId] ?? '',
+        productNameSnapshot: productNames[ci.productId]!,
         quantity: ci.quantity,
         unitPriceMinor: ci.unitPriceMinor,
       )).toList();
@@ -276,6 +284,7 @@ class CheckoutService {
         items: saleItemsDto,
       );
       await _outbox.enqueueSale(saleDto);
+      await onEnqueue?.call();
 
       // 13. Return Result
       return CheckoutResult(

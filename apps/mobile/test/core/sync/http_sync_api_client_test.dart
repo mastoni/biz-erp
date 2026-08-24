@@ -243,8 +243,13 @@ void main() {
     test('HTTP-011: push sales sends idempotency key', () async {
       final mockClient = MockClient((request) async {
         final body = jsonDecode(request.body) as Map<String, dynamic>;
-        final sales = body['sales'] as List;
-        expect(sales[0]['idempotency_key'], 'idem-123');
+        final items = body['items'] as List;
+        expect(items[0]['idempotency_key'], 'idem-123');
+        expect(items[0]['request_hash'], isA<String>());
+        expect(items[0]['sale']['total_minor'], 1000);
+        expect(items[0]['sale']['paid_minor'], 1000);
+        expect(items[0]['sale']['client_created_at'], isA<String>());
+        expect(items[0]['sale_items'], isA<List>());
         return http.Response(
           jsonEncode({
             'results': [

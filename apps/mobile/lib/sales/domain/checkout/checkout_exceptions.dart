@@ -29,3 +29,10 @@ class CartNotActiveException implements Exception {
   @override
   String toString() => 'CartNotActiveException: Cart $cartId is not ACTIVE';
 }
+
+class CheckoutException implements Exception {
+  final String message;
+  CheckoutException(this.message);
+  @override
+  String toString() => 'CheckoutException: $message';
+}

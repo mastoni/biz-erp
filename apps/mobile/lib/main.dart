@@ -161,7 +161,40 @@ class _MyAppState extends State<MyApp> {
     final syncMetaRepo = SyncMetaRepository(db);
     final syncOutboxRepo = SyncOutboxRepository(db);
     final salesSyncRepo = SalesSyncRepository(db);
-    final checkoutService = CheckoutService(db, calcEngine, syncOutboxRepo, productRepo);
+
+    // Sync Services (created first for callback)
+    final apiClient = HttpSyncApiClient(
+      baseUrl: SyncConfig.baseUrl,
+      tokenProvider: () => widget.authStateNotifier.session?.accessToken,
+      onRefresh: widget.authStateNotifier.refresh,
+      businessId: businessId,
+    );
+    final networkMonitor = NetworkMonitor(api: apiClient);
+    final syncEngine = SyncEngine(
+      outbox: syncOutboxRepo,
+      meta: syncMetaRepo,
+      api: apiClient,
+      products: productRepo,
+      salesSync: salesSyncRepo,
+      customers: customerRepo,
+      businessId: businessId,
+    );
+    final syncStatusNotifier = SyncStatusNotifier(
+      networkMonitor: networkMonitor,
+      syncEngine: syncEngine,
+      outbox: syncOutboxRepo,
+      productRepository: productRepo,
+      businessId: businessId,
+      authStateNotifier: widget.authStateNotifier,
+    );
+
+    final checkoutService = CheckoutService(
+      db,
+      calcEngine,
+      syncOutboxRepo,
+      productRepo,
+      () => syncStatusNotifier.syncNow(),
+    );
 
     // Printing Service
     final printingService = PrintingService(
@@ -189,31 +222,6 @@ class _MyAppState extends State<MyApp> {
     );
     scannerService.start();
     unawaited(printingService.autoReconnectLast());
-
-    // Sync Services
-    final apiClient = HttpSyncApiClient(
-      baseUrl: SyncConfig.baseUrl,
-      tokenProvider: () => widget.authStateNotifier.session?.accessToken,
-      onRefresh: widget.authStateNotifier.refresh,
-    );
-    final networkMonitor = NetworkMonitor(api: apiClient);
-    final syncEngine = SyncEngine(
-      outbox: syncOutboxRepo,
-      meta: syncMetaRepo,
-      api: apiClient,
-      products: productRepo,
-      salesSync: salesSyncRepo,
-      customers: customerRepo,
-      businessId: businessId,
-    );
-    final syncStatusNotifier = SyncStatusNotifier(
-      networkMonitor: networkMonitor,
-      syncEngine: syncEngine,
-      outbox: syncOutboxRepo,
-      productRepository: productRepo,
-      businessId: businessId,
-      authStateNotifier: widget.authStateNotifier,
-    );
 
     return TenantDependencyGraph(
       db: db,
