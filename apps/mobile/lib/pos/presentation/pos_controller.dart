@@ -1,3 +1,5 @@
+import 'package:biz_erp_mobile/core/sync/branch_repository.dart';
+import 'package:biz_erp_mobile/core/sync/sync_models.dart';
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 import 'package:biz_erp_mobile/cart/data/cart_repository.dart';
@@ -20,6 +22,7 @@ class PosController extends ChangeNotifier {
   final SaleCalculationEngine _calcEngine;
   final CheckoutService _checkoutService;
   final CustomerRepository _customerRepo;
+  final BranchRepository _branchRepo;
 
   final PrintingService _printingService;
   PrintingService get printingService => _printingService;
@@ -37,7 +40,6 @@ class PosController extends ChangeNotifier {
   CheckoutResult? _lastReceipt;
   String? _selectedCustomerId;
   String? _selectedCustomerName;
-
   List<Customer> _customers = [];
 
   // Idempotency: Generated per checkout operation, reset on success or cart change
@@ -45,24 +47,26 @@ class PosController extends ChangeNotifier {
   static const _uuid = Uuid();
 
   final String _businessId;
+  String _branchId;
 
   // Constants
-  static const String _branchId = 'BRANCH-001';
-  static const String _cashierId = 'CASHIER-001';
-  static const String _deviceId = 'DEVICE-001';
-  static const int _taxRateBps = 1100; // 11% Tax
-  static const String _businessName = 'WARUNG DEMO BIZERP';
-  static const String _branchName = 'CABANG UTAMA';
+  final String _cashierId = 'CASHIER-001';
+  final String _deviceId = 'DEVICE-001';
+  final int _taxRateBps = 1100; // 11% Tax
+  final String _businessName = 'WARUNG DEMO BIZERP';
+  String _branchName = 'CABANG UTAMA';
 
   PosController({
     required this._businessId,
+    required String branchId,
+    required this._branchRepo,
     required this._productRepo,
     required this._cartRepo,
     required this._calcEngine,
     required this._checkoutService,
     required this._printingService,
     required this._customerRepo,
-  });
+  }) : _branchId = branchId;
 
   // Getters
   List<Product> get products => _products;
@@ -75,13 +79,43 @@ class PosController extends ChangeNotifier {
   CheckoutResult? get lastReceipt => _lastReceipt;
   String? get selectedCustomerId => _selectedCustomerId;
   String? get selectedCustomerName => _selectedCustomerName;
+  String get branchId => _branchId;
+  String get branchName => _branchName;
+  String get businessId => _businessId;
+  String get cashierId => _cashierId;
+  String get deviceId => _deviceId;
+  int get taxRateBps => _taxRateBps;
   bool get canCheckout =>
       _currentCart != null && _currentCart!.items.isNotEmpty && !_isLoading;
 
   Future<void> init() async {
     _products = await _productRepo.listActiveProducts(_businessId);
     _customers = await _customerRepo.listActiveCustomers(_businessId);
+    await _loadBranchName();
     await _refreshCart();
+  }
+
+  Future<void> _loadBranchName() async {
+    final branches = await _branchRepo.getCachedBranches(_businessId);
+    final branch = branches.where((b) => b.id == _branchId).firstOrNull;
+    if (branch != null) {
+      _branchName = branch.name;
+    }
+    notifyListeners();
+  }
+
+  Future<void> changeBranch(String newBranchId) async {
+    if (newBranchId == _branchId) return;
+    
+    _branchId = newBranchId;
+    await _branchRepo.setActiveBranch(_businessId, newBranchId);
+    await _loadBranchName();
+    await _refreshCart(); // Refresh cart (receipt sequence is branch-scoped)
+    notifyListeners();
+  }
+
+  Future<List<BranchDto>> getAvailableBranches() async {
+    return _branchRepo.getCachedBranches(_businessId);
   }
 
   Future<void> _refreshCart() async {
@@ -155,11 +189,19 @@ class PosController extends ChangeNotifier {
     }
   }
 
-  Future<void> updateQty(String itemId, int newQty) async {
-    if (newQty < 1) return removeItem(itemId);
+  Future<void> updateQty(String productId, int newQty) async {
+    if (_currentCart == null) return;
+    if (newQty <= 0) {
+      await removeFromCart(productId);
+      return;
+    }
     try {
+      // Find the cart item ID for this product
+      final cartItem = _currentCart!.items.where((i) => i.productId == productId).firstOrNull;
+      if (cartItem == null) return;
+      
       await _cartRepo.updateItemQuantity(
-        itemId,
+        cartItem.id,
         _businessId,
         newQty,
       );
@@ -170,9 +212,13 @@ class PosController extends ChangeNotifier {
     }
   }
 
-  Future<void> removeItem(String itemId) async {
+  Future<void> removeFromCart(String productId) async {
+    if (_currentCart == null) return;
     try {
-      await _cartRepo.removeItem(itemId, _businessId);
+      final cartItem = _currentCart!.items.where((i) => i.productId == productId).firstOrNull;
+      if (cartItem == null) return;
+      
+      await _cartRepo.removeItem(cartItem.id, _businessId);
       await _refreshCart();
     } catch (e) {
       _errorMessage = e.toString();
@@ -180,91 +226,119 @@ class PosController extends ChangeNotifier {
     }
   }
 
-  Future<bool> performCheckout(PaymentMethod method, int cashReceived) async {
-    if (!canCheckout || _currentCart == null) return false;
+  Future<void> clearCart() async {
+    if (_currentCart == null) return;
+    try {
+      // Remove all items one by one
+      for (final item in _currentCart!.items) {
+        await _cartRepo.removeItem(item.id, _businessId);
+      }
+      await _refreshCart();
+    } catch (e) {
+      _errorMessage = e.toString();
+      notifyListeners();
+    }
+  }
 
-    // Generate key if not exists (retry scenario)
-    _pendingIdempotencyKey ??= _uuid.v4();
+  // Alias for backward compatibility with tests
+  Future<CheckoutResult?> performCheckout({
+    required PaymentMethod paymentMethod,
+    required int cashReceivedMinor,
+    String? customerId,
+  }) async {
+    return checkout(
+      paymentMethod: paymentMethod,
+      cashReceivedMinor: cashReceivedMinor,
+      customerId: customerId,
+    );
+  }
+
+  Future<CheckoutResult?> checkout({
+    required PaymentMethod paymentMethod,
+    required int cashReceivedMinor,
+    String? customerId,
+  }) async {
+    if (_currentCart == null || _currentCart!.items.isEmpty) {
+      _errorMessage = 'Cart is empty';
+      notifyListeners();
+      return null;
+    }
+
+    if (_branchId.isEmpty) {
+      _errorMessage = 'No branch selected';
+      notifyListeners();
+      return null;
+    }
 
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      final req = CheckoutRequest(
+      final request = CheckoutRequest(
+        cartId: _currentCart!.cart.id,
         businessId: _businessId,
         branchId: _branchId,
+        paymentMethod: paymentMethod,
         cashierId: _cashierId,
-        deviceId: _deviceId,
-        idempotencyKey: _pendingIdempotencyKey!,
-        cartId: _currentCart!.cart.id,
+        customerId: customerId,
         discount: _currentDiscount,
         taxRateBps: _taxRateBps,
-        paymentMethod: method,
-        cashReceivedMinor: cashReceived,
-        customerId: _selectedCustomerId,
+        idempotencyKey: _pendingIdempotencyKey ?? _uuid.v4(),
+        deviceId: _deviceId,
+        cashReceivedMinor: cashReceivedMinor,
       );
 
-      final result = await _checkoutService.checkout(req);
+      final result = await _checkoutService.checkout(request);
 
-      // SUCCESS
       _lastReceipt = result;
-      _lastReceiptData = _buildReceiptData(result);
-      _pendingIdempotencyKey = null; // Reset for next sale
-      _isLoading = false;
-      notifyListeners();
+      _pendingIdempotencyKey = null;
 
-      // Fetch NEW active cart (Cart A becomes CHECKED_OUT, Cart B becomes ACTIVE)
+      // Build product name map for receipt
+      final productNames = <String, String>{};
+      for (final item in _currentCart!.items) {
+        final product = await _productRepo.getProductById(item.productId, _businessId);
+        if (product != null) {
+          productNames[item.productId] = product.name;
+        }
+      }
+
+      // Create receipt data for printing
+      _lastReceiptData = ReceiptData(
+        receiptNumber: result.receiptNumber,
+        businessName: _businessName,
+        branchName: _branchName,
+        cashierId: _cashierId,
+        createdAtEpochMs: DateTime.now().millisecondsSinceEpoch,
+        subtotalMinor: _calculation?.subtotalMinor ?? 0,
+        discountMinor: _calculation?.discountMinor ?? 0,
+        taxMinor: _calculation?.taxMinor ?? 0,
+        totalMinor: result.grandTotalMinor,
+        cashReceivedMinor: cashReceivedMinor,
+        changeMinor: result.changeMinor,
+        items: _currentCart!.items
+            .map((ci) => ReceiptItemData(
+                  productId: ci.productId,
+                  displayName: productNames[ci.productId] ?? ci.productId,
+                  quantity: ci.quantity,
+                  unitPriceMinor: ci.unitPriceMinor,
+                ))
+            .toList(),
+      );
+
+      // Reset cart after successful checkout
       await _refreshCart();
-      return true;
-    } catch (e) {
-      _errorMessage = e.toString();
+      _recalculate();
+
       _isLoading = false;
       notifyListeners();
-      return false;
+
+      return result;
+    } catch (e) {
+      _isLoading = false;
+      _errorMessage = e.toString();
+      notifyListeners();
+      return null;
     }
-  }
-
-  /// Snapshot struk dari data transaksi yang sudah COMMIT.
-  /// Harga/qty dari cart snapshot (identik sale_items_local),
-  /// total dari hasil kalkulasi (identik sales_local).
-  ReceiptData? _buildReceiptData(CheckoutResult result) {
-    final calc = _calculation;
-    final cart = _currentCart;
-    if (calc == null || cart == null) return null;
-
-    final items = cart.items
-        .map(
-          (item) => ReceiptItemData(
-            productId: item.productId,
-            displayName: _resolveProductName(item.productId),
-            quantity: item.quantity,
-            unitPriceMinor: item.unitPriceMinor,
-          ),
-        )
-        .toList();
-
-    return ReceiptData(
-      receiptNumber: result.receiptNumber,
-      businessName: _businessName,
-      branchName: _branchName,
-      cashierId: _cashierId,
-      createdAtEpochMs: DateTime.now().millisecondsSinceEpoch,
-      subtotalMinor: calc.subtotalMinor,
-      discountMinor: calc.discountMinor,
-      taxMinor: calc.taxMinor,
-      totalMinor: result.grandTotalMinor,
-      cashReceivedMinor: result.grandTotalMinor + result.changeMinor,
-      changeMinor: result.changeMinor,
-      items: items,
-    );
-  }
-
-  /// Nama hanya untuk display; fallback jika produk hilang/berubah.
-  String _resolveProductName(String productId) {
-    final prod = _products.where((p) => p.id == productId).firstOrNull;
-    if (prod != null) return prod.name;
-    final short = productId.replaceAll('-', '').substring(0, 6).toUpperCase();
-    return 'ITEM-$short';
   }
 }

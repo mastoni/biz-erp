@@ -1,4 +1,7 @@
+import 'package:biz_erp_mobile/core/sync/branch_repository.dart';
+import 'package:biz_erp_mobile/core/sync/sync_api_client.dart';
 import 'package:biz_erp_mobile/core/sync/sync_outbox_repository.dart';
+import 'package:biz_erp_mobile/core/sync/sync_models.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -26,6 +29,84 @@ class _DummyPrefs implements PrinterPreferences {
   Future<void> clearLastPrinter() async {}
 }
 
+class _MockBranchRepo extends BranchRepository {
+  _MockBranchRepo() : super(AppDatabase(NativeDatabase.memory()), _MockSyncApi());
+
+  @override
+  Future<List<BranchDto>> getCachedBranches(String businessId) async {
+    return [
+      BranchDto(
+        id: 'BRANCH-001',
+        businessId: businessId,
+        name: 'Test Branch',
+        status: true,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      ),
+    ];
+  }
+
+  @override
+  Future<void> setActiveBranch(String businessId, String branchId) async {}
+
+  @override
+  Future<String?> getSelectedBranchId(String businessId) async => 'BRANCH-001';
+}
+
+class _MockSyncApi implements SyncApiClient {
+  Future<bool> health() async => true;
+
+  Future<PullProductsResponse> pullProducts({
+    required String businessId,
+    required int sinceVersion,
+    int limit = 500,
+  }) async => const PullProductsResponse([], false, 0);
+
+  Future<PullCustomersResponse> pullCustomers({
+    required String businessId,
+    required int sinceVersion,
+    int limit = 500,
+  }) async => const PullCustomersResponse([], false, 0);
+
+  Future<PullSalesResponse> pullSales({
+    required String businessId,
+    required int sinceMs,
+    int limit = 100,
+  }) async => const PullSalesResponse([], false);
+
+  Future<PullBranchesResponse> pullBranches({
+    required String businessId,
+  }) async => const PullBranchesResponse([]);
+
+  Future<ProductPushResult> pushProduct(ProductDto product, {int? ifMatchVersion}) async =>
+      ProductPushResult(ok: true);
+
+  Future<ProductPushResult> createProduct(ProductDto product, {required String idempotencyKey}) async =>
+      ProductPushResult(ok: true);
+
+  Future<List<SalePushResultItem>> pushSalesBatch(List<SaleDto> sales) async =>
+      [];
+
+  Future<CustomerPushResult> pushCustomer(
+    CustomerDto customer, {
+    int? ifMatchVersion,
+    required String idempotencyKey,
+  }) async =>
+      CustomerPushResult(ok: true);
+
+  Future<CustomerPushResult> createCustomer(
+    CustomerDto customer, {
+    required String idempotencyKey,
+  }) async =>
+      CustomerPushResult(ok: true);
+
+  Future<CustomerPushResult> deleteCustomer(
+    CustomerDto customer, {
+    required String idempotencyKey,
+  }) async =>
+      CustomerPushResult(ok: true);
+}
+
 void main() {
   const biz = '11111111-1111-1111-1111-111111111111';
 
@@ -49,6 +130,8 @@ void main() {
 
     final controller = PosController(
       businessId: biz,
+      branchId: 'BRANCH-001',
+      branchRepo: _MockBranchRepo(),
       productRepo: repo,
       cartRepo: cartRepo,
       calcEngine: SaleCalculationEngine(),

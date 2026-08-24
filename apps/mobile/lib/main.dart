@@ -20,6 +20,7 @@ import 'package:biz_erp_mobile/core/sync/sync_engine.dart';
 import 'package:biz_erp_mobile/core/sync/sync_meta_repository.dart';
 import 'package:biz_erp_mobile/core/sync/sync_outbox_repository.dart';
 import 'package:biz_erp_mobile/core/sync/sync_status_notifier.dart';
+import 'package:biz_erp_mobile/core/sync/branch_repository.dart';
 import 'package:biz_erp_mobile/sales/data/sales_sync_repository.dart';
 import 'package:biz_erp_mobile/core/hardware/printing/printing_service.dart';
 import 'package:biz_erp_mobile/core/hardware/scanning/scanner_service.dart';
@@ -59,6 +60,7 @@ class TenantDependencyGraph {
   final HttpSyncApiClient apiClient;
   final SyncEngine syncEngine;
   final PrintingService printingService;
+  final BranchRepository branchRepo;
 
   TenantDependencyGraph({
     required this.db,
@@ -71,6 +73,7 @@ class TenantDependencyGraph {
     required this.apiClient,
     required this.syncEngine,
     required this.printingService,
+    required this.branchRepo,
   });
 
   Future<void> dispose() async {
@@ -196,6 +199,28 @@ class _MyAppState extends State<MyApp> {
       () => syncStatusNotifier.syncNow(),
     );
 
+    // Branch Repository - fetch and cache branches, get active/selected branch
+    final branchRepo = BranchRepository(db, apiClient);
+    
+    // Try to get previously selected branch first
+    String? branchId = await branchRepo.getSelectedBranchId(businessId);
+    
+    // If no selected branch, get active branch (online or cached)
+    if (branchId == null) {
+      final activeBranch = await branchRepo.getActiveBranch(businessId);
+      if (activeBranch != null) {
+        branchId = activeBranch.id;
+        // Persist as selected branch
+        await branchRepo.setActiveBranch(businessId, branchId);
+      }
+    }
+    
+    // If still no branch, we cannot proceed - this will be handled by UI
+    if (branchId == null) {
+      // Use a placeholder that will be caught by UI validation
+      branchId = '';
+    }
+
     // Printing Service
     final printingService = PrintingService(
       adapter: BluetoothPrinterAdapter(),
@@ -205,6 +230,8 @@ class _MyAppState extends State<MyApp> {
     // Controller
     final controller = PosController(
       businessId: businessId,
+      branchId: branchId!,
+      branchRepo: branchRepo,
       productRepo: productRepo,
       cartRepo: cartRepo,
       calcEngine: calcEngine,
@@ -234,6 +261,7 @@ class _MyAppState extends State<MyApp> {
       apiClient: apiClient,
       syncEngine: syncEngine,
       printingService: printingService,
+      branchRepo: branchRepo,
     );
   }
 

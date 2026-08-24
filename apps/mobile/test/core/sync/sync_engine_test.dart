@@ -17,6 +17,20 @@ const biz = '11111111-1111-1111-1111-111111111111';
 
 class MockSyncApi implements SyncApiClient {
   @override
+  Future<PullBranchesResponse> pullBranches({required String businessId}) async {
+    return const PullBranchesResponse([
+      BranchDto(
+        id: 'BRANCH-001',
+        businessId: '11111111-1111-1111-1111-111111111111',
+        name: 'Test Branch',
+        status: true,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      ),
+    ]);
+  }
+
+  @override
   Future<ProductPushResult> createProduct(ProductDto product, {required String idempotencyKey}) async {
     return ProductPushResult(ok: true, serverVersion: 1);
   }
@@ -175,6 +189,7 @@ void main() {
       paymentMethod: 'cash',
       cashReceivedMinor: 20000,
       changeMinor: 20,
+      branchId: 'BRANCH-001',
       clientCreatedAt: 1000,
       items: const [],
     );
@@ -232,6 +247,7 @@ void main() {
         paymentMethod: 'cash',
         cashReceivedMinor: 100,
         changeMinor: 0,
+        branchId: 'BRANCH-001',
         clientCreatedAt: 5000,
         serverCreatedAt: 6000,
         items: const [],
@@ -280,6 +296,7 @@ void main() {
       changeMinor: 0,
       cashierId: 'cashier-1',
       customerId: null,
+      branchId: 'BRANCH-001',
       clientCreatedAt: 1000,
       items: const [],
     );
@@ -344,6 +361,7 @@ void main() {
       changeMinor: 0,
       cashierId: 'cashier-1',
       customerId: null,
+      branchId: 'BRANCH-001',
       clientCreatedAt: 1000,
       items: const [],
     );
@@ -360,6 +378,7 @@ void main() {
       changeMinor: 0,
       cashierId: 'cashier-1',
       customerId: null,
+      branchId: 'BRANCH-001',
       clientCreatedAt: 1000,
       items: const [],
     );

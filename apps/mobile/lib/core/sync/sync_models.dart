@@ -43,6 +43,33 @@ class SyncCounts {
 
 // ===== DTOs =====
 
+class BranchDto {
+  final String id;
+  final String businessId;
+  final String name;
+  final bool status;
+  final String createdAt;
+  final String updatedAt;
+
+  const BranchDto({
+    required this.id,
+    required this.businessId,
+    required this.name,
+    required this.status,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  factory BranchDto.fromJson(Map<String, dynamic> j) => BranchDto(
+    id: j['id'] as String,
+    businessId: j['business_id'] as String,
+    name: j['name'] as String,
+    status: j['status'] as bool,
+    createdAt: j['created_at'] as String,
+    updatedAt: j['updated_at'] as String,
+  );
+}
+
 class ProductDto {
   final String id;
   final String name;
@@ -131,6 +158,7 @@ class SaleDto {
   final int changeMinor;
   final String? cashierId;
   final String? customerId;
+  final String branchId;
   final int clientCreatedAt;
   final int? serverCreatedAt;
   final List<SaleItemDto> items;
@@ -148,6 +176,7 @@ class SaleDto {
     required this.changeMinor,
     this.cashierId,
     this.customerId,
+    required this.branchId,
     required this.clientCreatedAt,
     this.serverCreatedAt,
     required this.items,
@@ -166,6 +195,7 @@ class SaleDto {
     'change_minor': changeMinor,
     'cashier_id': cashierId,
     'customer_id': customerId,
+    'branch_id': branchId,
     'client_created_at': clientCreatedAt,
     'items': items.map((e) => e.toJson()).toList(),
   };
@@ -183,6 +213,7 @@ class SaleDto {
     changeMinor: (j['change_minor'] as num).toInt(),
     cashierId: j['cashier_id'] as String?,
     customerId: j['customer_id'] as String?,
+    branchId: j['branch_id'] as String,
     clientCreatedAt: (j['client_created_at'] as num).toInt(),
     serverCreatedAt: (j['server_created_at'] as num?)?.toInt(),
     items: (j['items'] as List)
@@ -249,6 +280,11 @@ class PullCustomersResponse {
   final bool hasMore;
   final int currentVersion;
   const PullCustomersResponse(this.customers, this.hasMore, this.currentVersion);
+}
+
+class PullBranchesResponse {
+  final List<BranchDto> branches;
+  const PullBranchesResponse(this.branches);
 }
 
 class ProductPushResult {

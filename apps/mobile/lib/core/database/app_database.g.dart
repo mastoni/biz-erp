@@ -1224,6 +1224,745 @@ class BusinessSettingsLocalCompanion
   }
 }
 
+class $BranchesLocalTable extends BranchesLocal
+    with TableInfo<$BranchesLocalTable, BranchesLocalData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $BranchesLocalTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _businessIdMeta = const VerificationMeta(
+    'businessId',
+  );
+  @override
+  late final GeneratedColumn<String> businessId = GeneratedColumn<String>(
+    'business_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<bool> status = GeneratedColumn<bool>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("status" IN (0, 1))',
+    ),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<String> createdAt = GeneratedColumn<String>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<String> updatedAt = GeneratedColumn<String>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _cachedAtMeta = const VerificationMeta(
+    'cachedAt',
+  );
+  @override
+  late final GeneratedColumn<int> cachedAt = GeneratedColumn<int>(
+    'cached_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    businessId,
+    name,
+    status,
+    createdAt,
+    updatedAt,
+    cachedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'branches_local';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<BranchesLocalData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('business_id')) {
+      context.handle(
+        _businessIdMeta,
+        businessId.isAcceptableOrUnknown(data['business_id']!, _businessIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_businessIdMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_statusMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('cached_at')) {
+      context.handle(
+        _cachedAtMeta,
+        cachedAt.isAcceptableOrUnknown(data['cached_at']!, _cachedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_cachedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id, businessId};
+  @override
+  BranchesLocalData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return BranchesLocalData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      businessId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}business_id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}status'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      cachedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}cached_at'],
+      )!,
+    );
+  }
+
+  @override
+  $BranchesLocalTable createAlias(String alias) {
+    return $BranchesLocalTable(attachedDatabase, alias);
+  }
+}
+
+class BranchesLocalData extends DataClass
+    implements Insertable<BranchesLocalData> {
+  /// UUID from server branches.id
+  final String id;
+  final String businessId;
+  final String name;
+  final bool status;
+
+  /// Server-side timestamps for sync tracking
+  final String createdAt;
+  final String updatedAt;
+
+  /// Local metadata
+  final int cachedAt;
+  const BranchesLocalData({
+    required this.id,
+    required this.businessId,
+    required this.name,
+    required this.status,
+    required this.createdAt,
+    required this.updatedAt,
+    required this.cachedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['business_id'] = Variable<String>(businessId);
+    map['name'] = Variable<String>(name);
+    map['status'] = Variable<bool>(status);
+    map['created_at'] = Variable<String>(createdAt);
+    map['updated_at'] = Variable<String>(updatedAt);
+    map['cached_at'] = Variable<int>(cachedAt);
+    return map;
+  }
+
+  BranchesLocalCompanion toCompanion(bool nullToAbsent) {
+    return BranchesLocalCompanion(
+      id: Value(id),
+      businessId: Value(businessId),
+      name: Value(name),
+      status: Value(status),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      cachedAt: Value(cachedAt),
+    );
+  }
+
+  factory BranchesLocalData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return BranchesLocalData(
+      id: serializer.fromJson<String>(json['id']),
+      businessId: serializer.fromJson<String>(json['businessId']),
+      name: serializer.fromJson<String>(json['name']),
+      status: serializer.fromJson<bool>(json['status']),
+      createdAt: serializer.fromJson<String>(json['createdAt']),
+      updatedAt: serializer.fromJson<String>(json['updatedAt']),
+      cachedAt: serializer.fromJson<int>(json['cachedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'businessId': serializer.toJson<String>(businessId),
+      'name': serializer.toJson<String>(name),
+      'status': serializer.toJson<bool>(status),
+      'createdAt': serializer.toJson<String>(createdAt),
+      'updatedAt': serializer.toJson<String>(updatedAt),
+      'cachedAt': serializer.toJson<int>(cachedAt),
+    };
+  }
+
+  BranchesLocalData copyWith({
+    String? id,
+    String? businessId,
+    String? name,
+    bool? status,
+    String? createdAt,
+    String? updatedAt,
+    int? cachedAt,
+  }) => BranchesLocalData(
+    id: id ?? this.id,
+    businessId: businessId ?? this.businessId,
+    name: name ?? this.name,
+    status: status ?? this.status,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    cachedAt: cachedAt ?? this.cachedAt,
+  );
+  BranchesLocalData copyWithCompanion(BranchesLocalCompanion data) {
+    return BranchesLocalData(
+      id: data.id.present ? data.id.value : this.id,
+      businessId: data.businessId.present
+          ? data.businessId.value
+          : this.businessId,
+      name: data.name.present ? data.name.value : this.name,
+      status: data.status.present ? data.status.value : this.status,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      cachedAt: data.cachedAt.present ? data.cachedAt.value : this.cachedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BranchesLocalData(')
+          ..write('id: $id, ')
+          ..write('businessId: $businessId, ')
+          ..write('name: $name, ')
+          ..write('status: $status, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('cachedAt: $cachedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, businessId, name, status, createdAt, updatedAt, cachedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is BranchesLocalData &&
+          other.id == this.id &&
+          other.businessId == this.businessId &&
+          other.name == this.name &&
+          other.status == this.status &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.cachedAt == this.cachedAt);
+}
+
+class BranchesLocalCompanion extends UpdateCompanion<BranchesLocalData> {
+  final Value<String> id;
+  final Value<String> businessId;
+  final Value<String> name;
+  final Value<bool> status;
+  final Value<String> createdAt;
+  final Value<String> updatedAt;
+  final Value<int> cachedAt;
+  final Value<int> rowid;
+  const BranchesLocalCompanion({
+    this.id = const Value.absent(),
+    this.businessId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.status = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.cachedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  BranchesLocalCompanion.insert({
+    required String id,
+    required String businessId,
+    required String name,
+    required bool status,
+    required String createdAt,
+    required String updatedAt,
+    required int cachedAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       businessId = Value(businessId),
+       name = Value(name),
+       status = Value(status),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt),
+       cachedAt = Value(cachedAt);
+  static Insertable<BranchesLocalData> custom({
+    Expression<String>? id,
+    Expression<String>? businessId,
+    Expression<String>? name,
+    Expression<bool>? status,
+    Expression<String>? createdAt,
+    Expression<String>? updatedAt,
+    Expression<int>? cachedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (businessId != null) 'business_id': businessId,
+      if (name != null) 'name': name,
+      if (status != null) 'status': status,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (cachedAt != null) 'cached_at': cachedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  BranchesLocalCompanion copyWith({
+    Value<String>? id,
+    Value<String>? businessId,
+    Value<String>? name,
+    Value<bool>? status,
+    Value<String>? createdAt,
+    Value<String>? updatedAt,
+    Value<int>? cachedAt,
+    Value<int>? rowid,
+  }) {
+    return BranchesLocalCompanion(
+      id: id ?? this.id,
+      businessId: businessId ?? this.businessId,
+      name: name ?? this.name,
+      status: status ?? this.status,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      cachedAt: cachedAt ?? this.cachedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (businessId.present) {
+      map['business_id'] = Variable<String>(businessId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<bool>(status.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<String>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<String>(updatedAt.value);
+    }
+    if (cachedAt.present) {
+      map['cached_at'] = Variable<int>(cachedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BranchesLocalCompanion(')
+          ..write('id: $id, ')
+          ..write('businessId: $businessId, ')
+          ..write('name: $name, ')
+          ..write('status: $status, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('cachedAt: $cachedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ActiveBranchLocalTable extends ActiveBranchLocal
+    with TableInfo<$ActiveBranchLocalTable, ActiveBranchLocalData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ActiveBranchLocalTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _businessIdMeta = const VerificationMeta(
+    'businessId',
+  );
+  @override
+  late final GeneratedColumn<String> businessId = GeneratedColumn<String>(
+    'business_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _branchIdMeta = const VerificationMeta(
+    'branchId',
+  );
+  @override
+  late final GeneratedColumn<String> branchId = GeneratedColumn<String>(
+    'branch_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [businessId, branchId, updatedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'active_branch_local';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ActiveBranchLocalData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('business_id')) {
+      context.handle(
+        _businessIdMeta,
+        businessId.isAcceptableOrUnknown(data['business_id']!, _businessIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_businessIdMeta);
+    }
+    if (data.containsKey('branch_id')) {
+      context.handle(
+        _branchIdMeta,
+        branchId.isAcceptableOrUnknown(data['branch_id']!, _branchIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_branchIdMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {businessId};
+  @override
+  ActiveBranchLocalData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ActiveBranchLocalData(
+      businessId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}business_id'],
+      )!,
+      branchId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}branch_id'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $ActiveBranchLocalTable createAlias(String alias) {
+    return $ActiveBranchLocalTable(attachedDatabase, alias);
+  }
+}
+
+class ActiveBranchLocalData extends DataClass
+    implements Insertable<ActiveBranchLocalData> {
+  final String businessId;
+
+  /// Currently selected branch UUID (from branches_local.id)
+  final String branchId;
+  final int updatedAt;
+  const ActiveBranchLocalData({
+    required this.businessId,
+    required this.branchId,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['business_id'] = Variable<String>(businessId);
+    map['branch_id'] = Variable<String>(branchId);
+    map['updated_at'] = Variable<int>(updatedAt);
+    return map;
+  }
+
+  ActiveBranchLocalCompanion toCompanion(bool nullToAbsent) {
+    return ActiveBranchLocalCompanion(
+      businessId: Value(businessId),
+      branchId: Value(branchId),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory ActiveBranchLocalData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ActiveBranchLocalData(
+      businessId: serializer.fromJson<String>(json['businessId']),
+      branchId: serializer.fromJson<String>(json['branchId']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'businessId': serializer.toJson<String>(businessId),
+      'branchId': serializer.toJson<String>(branchId),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+    };
+  }
+
+  ActiveBranchLocalData copyWith({
+    String? businessId,
+    String? branchId,
+    int? updatedAt,
+  }) => ActiveBranchLocalData(
+    businessId: businessId ?? this.businessId,
+    branchId: branchId ?? this.branchId,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  ActiveBranchLocalData copyWithCompanion(ActiveBranchLocalCompanion data) {
+    return ActiveBranchLocalData(
+      businessId: data.businessId.present
+          ? data.businessId.value
+          : this.businessId,
+      branchId: data.branchId.present ? data.branchId.value : this.branchId,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ActiveBranchLocalData(')
+          ..write('businessId: $businessId, ')
+          ..write('branchId: $branchId, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(businessId, branchId, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ActiveBranchLocalData &&
+          other.businessId == this.businessId &&
+          other.branchId == this.branchId &&
+          other.updatedAt == this.updatedAt);
+}
+
+class ActiveBranchLocalCompanion
+    extends UpdateCompanion<ActiveBranchLocalData> {
+  final Value<String> businessId;
+  final Value<String> branchId;
+  final Value<int> updatedAt;
+  final Value<int> rowid;
+  const ActiveBranchLocalCompanion({
+    this.businessId = const Value.absent(),
+    this.branchId = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ActiveBranchLocalCompanion.insert({
+    required String businessId,
+    required String branchId,
+    required int updatedAt,
+    this.rowid = const Value.absent(),
+  }) : businessId = Value(businessId),
+       branchId = Value(branchId),
+       updatedAt = Value(updatedAt);
+  static Insertable<ActiveBranchLocalData> custom({
+    Expression<String>? businessId,
+    Expression<String>? branchId,
+    Expression<int>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (businessId != null) 'business_id': businessId,
+      if (branchId != null) 'branch_id': branchId,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ActiveBranchLocalCompanion copyWith({
+    Value<String>? businessId,
+    Value<String>? branchId,
+    Value<int>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return ActiveBranchLocalCompanion(
+      businessId: businessId ?? this.businessId,
+      branchId: branchId ?? this.branchId,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (businessId.present) {
+      map['business_id'] = Variable<String>(businessId.value);
+    }
+    if (branchId.present) {
+      map['branch_id'] = Variable<String>(branchId.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ActiveBranchLocalCompanion(')
+          ..write('businessId: $businessId, ')
+          ..write('branchId: $branchId, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $CartLocalTable extends CartLocal
     with TableInfo<$CartLocalTable, CartLocalData> {
   @override
@@ -6555,6 +7294,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $ProductsLocalTable productsLocal = $ProductsLocalTable(this);
   late final $BusinessSettingsLocalTable businessSettingsLocal =
       $BusinessSettingsLocalTable(this);
+  late final $BranchesLocalTable branchesLocal = $BranchesLocalTable(this);
+  late final $ActiveBranchLocalTable activeBranchLocal =
+      $ActiveBranchLocalTable(this);
   late final $CartLocalTable cartLocal = $CartLocalTable(this);
   late final $CartItemsLocalTable cartItemsLocal = $CartItemsLocalTable(this);
   late final $CustomersLocalTable customersLocal = $CustomersLocalTable(this);
@@ -6574,6 +7316,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   List<DatabaseSchemaEntity> get allSchemaEntities => [
     productsLocal,
     businessSettingsLocal,
+    branchesLocal,
+    activeBranchLocal,
     cartLocal,
     cartItemsLocal,
     customersLocal,
@@ -7303,6 +8047,427 @@ typedef $$BusinessSettingsLocalTableProcessedTableManager =
         >,
       ),
       BusinessSettingsLocalData,
+      PrefetchHooks Function()
+    >;
+typedef $$BranchesLocalTableCreateCompanionBuilder =
+    BranchesLocalCompanion Function({
+      required String id,
+      required String businessId,
+      required String name,
+      required bool status,
+      required String createdAt,
+      required String updatedAt,
+      required int cachedAt,
+      Value<int> rowid,
+    });
+typedef $$BranchesLocalTableUpdateCompanionBuilder =
+    BranchesLocalCompanion Function({
+      Value<String> id,
+      Value<String> businessId,
+      Value<String> name,
+      Value<bool> status,
+      Value<String> createdAt,
+      Value<String> updatedAt,
+      Value<int> cachedAt,
+      Value<int> rowid,
+    });
+
+class $$BranchesLocalTableFilterComposer
+    extends Composer<_$AppDatabase, $BranchesLocalTable> {
+  $$BranchesLocalTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get businessId => $composableBuilder(
+    column: $table.businessId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get cachedAt => $composableBuilder(
+    column: $table.cachedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$BranchesLocalTableOrderingComposer
+    extends Composer<_$AppDatabase, $BranchesLocalTable> {
+  $$BranchesLocalTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get businessId => $composableBuilder(
+    column: $table.businessId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get cachedAt => $composableBuilder(
+    column: $table.cachedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$BranchesLocalTableAnnotationComposer
+    extends Composer<_$AppDatabase, $BranchesLocalTable> {
+  $$BranchesLocalTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get businessId => $composableBuilder(
+    column: $table.businessId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<bool> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<String> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<String> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get cachedAt =>
+      $composableBuilder(column: $table.cachedAt, builder: (column) => column);
+}
+
+class $$BranchesLocalTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $BranchesLocalTable,
+          BranchesLocalData,
+          $$BranchesLocalTableFilterComposer,
+          $$BranchesLocalTableOrderingComposer,
+          $$BranchesLocalTableAnnotationComposer,
+          $$BranchesLocalTableCreateCompanionBuilder,
+          $$BranchesLocalTableUpdateCompanionBuilder,
+          (
+            BranchesLocalData,
+            BaseReferences<
+              _$AppDatabase,
+              $BranchesLocalTable,
+              BranchesLocalData
+            >,
+          ),
+          BranchesLocalData,
+          PrefetchHooks Function()
+        > {
+  $$BranchesLocalTableTableManager(_$AppDatabase db, $BranchesLocalTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$BranchesLocalTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$BranchesLocalTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$BranchesLocalTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> businessId = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<bool> status = const Value.absent(),
+                Value<String> createdAt = const Value.absent(),
+                Value<String> updatedAt = const Value.absent(),
+                Value<int> cachedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => BranchesLocalCompanion(
+                id: id,
+                businessId: businessId,
+                name: name,
+                status: status,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                cachedAt: cachedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String businessId,
+                required String name,
+                required bool status,
+                required String createdAt,
+                required String updatedAt,
+                required int cachedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => BranchesLocalCompanion.insert(
+                id: id,
+                businessId: businessId,
+                name: name,
+                status: status,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                cachedAt: cachedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$BranchesLocalTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $BranchesLocalTable,
+      BranchesLocalData,
+      $$BranchesLocalTableFilterComposer,
+      $$BranchesLocalTableOrderingComposer,
+      $$BranchesLocalTableAnnotationComposer,
+      $$BranchesLocalTableCreateCompanionBuilder,
+      $$BranchesLocalTableUpdateCompanionBuilder,
+      (
+        BranchesLocalData,
+        BaseReferences<_$AppDatabase, $BranchesLocalTable, BranchesLocalData>,
+      ),
+      BranchesLocalData,
+      PrefetchHooks Function()
+    >;
+typedef $$ActiveBranchLocalTableCreateCompanionBuilder =
+    ActiveBranchLocalCompanion Function({
+      required String businessId,
+      required String branchId,
+      required int updatedAt,
+      Value<int> rowid,
+    });
+typedef $$ActiveBranchLocalTableUpdateCompanionBuilder =
+    ActiveBranchLocalCompanion Function({
+      Value<String> businessId,
+      Value<String> branchId,
+      Value<int> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$ActiveBranchLocalTableFilterComposer
+    extends Composer<_$AppDatabase, $ActiveBranchLocalTable> {
+  $$ActiveBranchLocalTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get businessId => $composableBuilder(
+    column: $table.businessId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get branchId => $composableBuilder(
+    column: $table.branchId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$ActiveBranchLocalTableOrderingComposer
+    extends Composer<_$AppDatabase, $ActiveBranchLocalTable> {
+  $$ActiveBranchLocalTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get businessId => $composableBuilder(
+    column: $table.businessId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get branchId => $composableBuilder(
+    column: $table.branchId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ActiveBranchLocalTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ActiveBranchLocalTable> {
+  $$ActiveBranchLocalTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get businessId => $composableBuilder(
+    column: $table.businessId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get branchId =>
+      $composableBuilder(column: $table.branchId, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$ActiveBranchLocalTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ActiveBranchLocalTable,
+          ActiveBranchLocalData,
+          $$ActiveBranchLocalTableFilterComposer,
+          $$ActiveBranchLocalTableOrderingComposer,
+          $$ActiveBranchLocalTableAnnotationComposer,
+          $$ActiveBranchLocalTableCreateCompanionBuilder,
+          $$ActiveBranchLocalTableUpdateCompanionBuilder,
+          (
+            ActiveBranchLocalData,
+            BaseReferences<
+              _$AppDatabase,
+              $ActiveBranchLocalTable,
+              ActiveBranchLocalData
+            >,
+          ),
+          ActiveBranchLocalData,
+          PrefetchHooks Function()
+        > {
+  $$ActiveBranchLocalTableTableManager(
+    _$AppDatabase db,
+    $ActiveBranchLocalTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ActiveBranchLocalTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ActiveBranchLocalTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ActiveBranchLocalTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> businessId = const Value.absent(),
+                Value<String> branchId = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ActiveBranchLocalCompanion(
+                businessId: businessId,
+                branchId: branchId,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String businessId,
+                required String branchId,
+                required int updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => ActiveBranchLocalCompanion.insert(
+                businessId: businessId,
+                branchId: branchId,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$ActiveBranchLocalTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ActiveBranchLocalTable,
+      ActiveBranchLocalData,
+      $$ActiveBranchLocalTableFilterComposer,
+      $$ActiveBranchLocalTableOrderingComposer,
+      $$ActiveBranchLocalTableAnnotationComposer,
+      $$ActiveBranchLocalTableCreateCompanionBuilder,
+      $$ActiveBranchLocalTableUpdateCompanionBuilder,
+      (
+        ActiveBranchLocalData,
+        BaseReferences<
+          _$AppDatabase,
+          $ActiveBranchLocalTable,
+          ActiveBranchLocalData
+        >,
+      ),
+      ActiveBranchLocalData,
       PrefetchHooks Function()
     >;
 typedef $$CartLocalTableCreateCompanionBuilder =
@@ -10759,6 +11924,10 @@ class $AppDatabaseManager {
       $$ProductsLocalTableTableManager(_db, _db.productsLocal);
   $$BusinessSettingsLocalTableTableManager get businessSettingsLocal =>
       $$BusinessSettingsLocalTableTableManager(_db, _db.businessSettingsLocal);
+  $$BranchesLocalTableTableManager get branchesLocal =>
+      $$BranchesLocalTableTableManager(_db, _db.branchesLocal);
+  $$ActiveBranchLocalTableTableManager get activeBranchLocal =>
+      $$ActiveBranchLocalTableTableManager(_db, _db.activeBranchLocal);
   $$CartLocalTableTableManager get cartLocal =>
       $$CartLocalTableTableManager(_db, _db.cartLocal);
   $$CartItemsLocalTableTableManager get cartItemsLocal =>

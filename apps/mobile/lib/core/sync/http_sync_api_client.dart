@@ -108,6 +108,58 @@ class HttpSyncApiClient implements SyncApiClient {
   }
 
   @override
+  Future<PullBranchesResponse> pullBranches({
+    required String businessId,
+  }) async {
+    final uri = Uri.parse('$baseUrl/v1/branches').replace(
+      queryParameters: {
+        'business_id': businessId,
+      },
+    );
+
+    http.Response? response;
+    for (int attempt = 1; attempt <= 2; attempt++) {
+      response = await _client
+          .get(uri, headers: _headers)
+          .timeout(_timeout);
+
+      if (response.statusCode == 401 && attempt == 1 && _onRefresh != null) {
+        final result = await _onRefresh();
+        if (result == RefreshResult.success) {
+          continue; // retry
+        } else {
+          break; // do not retry
+        }
+      }
+      break; // exit loop if not 401 or attempt > 1
+    }
+
+    if (response!.statusCode != 200) {
+      throw HttpException(
+        'Failed to pull branches: HTTP ${response.statusCode}',
+        statusCode: response.statusCode,
+        requestId: response.headers['x-request-id'],
+      );
+    }
+
+    try {
+      final json = jsonDecode(response.body) as Map<String, dynamic>;
+      final items = json['items'] as List? ?? [];
+
+      final branches = items
+          .map((item) => BranchDto.fromJson(item as Map<String, dynamic>))
+          .toList();
+
+      return PullBranchesResponse(branches);
+    } catch (e) {
+      throw MalformedResponseException(
+        'Failed to parse pull branches response',
+        e,
+      );
+    }
+  }
+
+  @override
   Future<PullCustomersResponse> pullCustomers({
     required String businessId,
     required int sinceVersion,
@@ -460,7 +512,7 @@ class HttpSyncApiClient implements SyncApiClient {
     return bytes.toString();
   }
 
-  Map<String, dynamic> _saleDtoToBatchItem(SaleDto sale) {
+Map<String, dynamic> _saleDtoToBatchItem(SaleDto sale) {
     final items = sale.items.map((item) {
       return {
         'product_id': item.productId,
@@ -483,6 +535,7 @@ class HttpSyncApiClient implements SyncApiClient {
       'change_minor': sale.changeMinor,
       'cashier_id': sale.cashierId,
       'customer_id': sale.customerId,
+      'branch_id': sale.branchId,
       'created_at': DateTime.fromMillisecondsSinceEpoch(sale.clientCreatedAt, isUtc: true).toIso8601String(),
       'client_created_at': DateTime.fromMillisecondsSinceEpoch(sale.clientCreatedAt, isUtc: true).toIso8601String(),
     };

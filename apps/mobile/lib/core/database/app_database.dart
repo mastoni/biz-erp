@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'tables/business_settings_local.dart';
+import 'tables/branches_local.dart';
 import 'tables/cart_items_local.dart';
 import 'tables/cart_local.dart';
 import 'tables/customers_local.dart';
@@ -19,6 +20,8 @@ part 'app_database.g.dart';
   tables: [
     ProductsLocal,
     BusinessSettingsLocal,
+    BranchesLocal,
+    ActiveBranchLocal,
     CartLocal,
     CartItemsLocal,
     CustomersLocal,
@@ -38,7 +41,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.memory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -137,6 +140,11 @@ class AppDatabase extends _$AppDatabase {
         if (customerTables.isEmpty) {
           await m.createTable(customersLocal);
         }
+      }
+      if (from < 7) {
+        // V7: Add branch caching tables
+        await m.createTable(branchesLocal);
+        await m.createTable(activeBranchLocal);
       }
     },
     beforeOpen: (details) async {

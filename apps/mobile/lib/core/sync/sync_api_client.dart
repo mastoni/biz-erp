@@ -21,6 +21,10 @@ abstract class SyncApiClient {
     int limit = 100,
   });
 
+  Future<PullBranchesResponse> pullBranches({
+    required String businessId,
+  });
+
   Future<ProductPushResult> pushProduct(
     ProductDto product, {
     int? ifMatchVersion,
