@@ -84,10 +84,17 @@ export default function InventoryPage() {
           <h2 className="text-3xl font-bold tracking-tight text-zinc-900">Inventory</h2>
           <p className="text-zinc-600 mt-1">Current stock balance per branch</p>
         </div>
-        <Button variant="outline" size="sm" onClick={handleRefresh} disabled={loadingStocks || !selectedBranchId}>
-          <RefreshCw className="mr-2 h-4 w-4" />
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          {isOwner() && (
+            <Button variant="outline" size="sm" onClick={() => router.push('/inventory/branch')}>
+              Create Branch
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={handleRefresh} disabled={loadingStocks || !selectedBranchId}>
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {loadingBranches ? (
@@ -99,15 +106,6 @@ export default function InventoryPage() {
           <Package className="h-10 w-10 mx-auto mb-3 text-zinc-300" />
           <p className="font-medium">No active branches found.</p>
           <p className="text-sm mt-1">Create a branch before managing inventory.</p>
-          {isOwner() && (
-            <Button
-              type="button"
-              className="mt-4"
-              onClick={() => router.push('/inventory/branch')}
-            >
-              Create Branch
-            </Button>
-          )}
         </div>
       ) : (
         <>
