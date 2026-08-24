@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { getBranches, getStocks, getApiErrorMessage } from '@/features/inventory/api';
 import { Branch, Stock } from '@/features/inventory/types';
@@ -9,7 +10,8 @@ import { Button } from '@/components/ui/button';
 import { Loader2, RefreshCw, Package } from 'lucide-react';
 
 export default function InventoryPage() {
-  const { business } = useAuth();
+  const { business, isOwner } = useAuth();
+  const router = useRouter();
 
   const [branches, setBranches] = useState<Branch[]>([]);
   const [selectedBranchId, setSelectedBranchId] = useState<string>('');
@@ -97,6 +99,15 @@ export default function InventoryPage() {
           <Package className="h-10 w-10 mx-auto mb-3 text-zinc-300" />
           <p className="font-medium">No active branches found.</p>
           <p className="text-sm mt-1">Create a branch before managing inventory.</p>
+          {isOwner() && (
+            <Button
+              type="button"
+              className="mt-4"
+              onClick={() => router.push('/inventory/branch')}
+            >
+              Create Branch
+            </Button>
+          )}
         </div>
       ) : (
         <>

@@ -19,6 +19,24 @@ export async function getBranches(businessId: string): Promise<Branch[]> {
   return response.data.items;
 }
 
+export async function createBranch(businessId: string, name: string): Promise<Branch> {
+  const idempotencyKey = crypto.randomUUID();
+  const response = await api.post<Branch>(
+    '/v1/branches',
+    {
+      id: crypto.randomUUID(),
+      business_id: businessId,
+      name,
+    },
+    {
+      headers: {
+        'Idempotency-Key': idempotencyKey,
+      },
+    }
+  );
+  return response.data;
+}
+
 export async function getStocks(businessId: string, branchId: string): Promise<Stock[]> {
   const response = await api.get<StockListResponse>('/v1/inventory/stocks', {
     params: { business_id: businessId, branch_id: branchId },
