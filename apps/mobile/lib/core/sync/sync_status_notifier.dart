@@ -10,13 +10,7 @@ import 'sync_models.dart';
 import '../auth/auth_state_notifier.dart';
 import '../auth/auth_models.dart';
 
-enum SyncState {
-  offline,
-  syncing,
-  failed,
-  pending,
-  synced,
-}
+enum SyncState { offline, syncing, failed, pending, synced }
 
 class SyncStatusNotifier extends ChangeNotifier {
   SyncStatusNotifier({
@@ -57,6 +51,11 @@ class SyncStatusNotifier extends ChangeNotifier {
       _isOnline = reachable;
       await _refreshConflicts();
       _evaluateState();
+      if (reachable &&
+          authStateNotifier.status == AuthStatus.authenticated &&
+          !_isSyncing) {
+        syncNow();
+      }
     });
     outbox.counts().then((c) async {
       _counts = c;
@@ -88,7 +87,10 @@ class SyncStatusNotifier extends ChangeNotifier {
       dynamic localProduct;
       if (item.entityType == 'product' && item.idempotencyKey != null) {
         try {
-          localProduct = await productRepository.getProductById(item.idempotencyKey!, businessId);
+          localProduct = await productRepository.getProductById(
+            item.idempotencyKey!,
+            businessId,
+          );
         } catch (_) {}
       }
       infos.add(SyncConflictInfo.fromOutboxAndLocal(item, localProduct));
@@ -143,13 +145,16 @@ class SyncStatusNotifier extends ChangeNotifier {
     super.dispose();
   }
 
-  Future<void> acceptServerConflict(String outboxId, ProductDto serverProduct) async {
+  Future<void> acceptServerConflict(
+    String outboxId,
+    ProductDto serverProduct,
+  ) async {
     // Step 1: Overwrite local product (atomic-ish: if this fails, outbox remains)
     await productRepository.forceAcceptServerProduct(serverProduct, businessId);
-    
+
     // Step 2: Remove conflict from outbox
     await outbox.discardConflict(outboxId);
-    
+
     // Step 3: Refresh state
     await _refreshConflicts();
     _counts = await outbox.counts();
