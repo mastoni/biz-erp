@@ -28,7 +28,64 @@ export interface ProductPatch {
   is_active?: boolean
 }
 
+export interface ProductListParams {
+  search?: string
+  category?: string
+  barcode?: string
+}
+
 export const productRepository = {
+  async list(
+    client: PoolClient,
+    businessId: string,
+    params: ProductListParams,
+    limit: number,
+    offset: number
+  ): Promise<{ rows: ProductDto[]; total: number }> {
+    const conditions: string[] = ['business_id = $1']
+    const values: unknown[] = [businessId]
+    let paramIndex = 2
+
+    if (params.search && params.search.trim().length > 0) {
+      const searchTerm = `%${params.search.trim()}%`
+      conditions.push(`(name ILIKE $${paramIndex} OR sku ILIKE $${paramIndex + 1} OR barcode ILIKE $${paramIndex + 2})`)
+      values.push(searchTerm, searchTerm, searchTerm)
+      paramIndex += 3
+    }
+
+    if (params.category && params.category.trim().length > 0) {
+      conditions.push(`category = $${paramIndex}`)
+      values.push(params.category.trim())
+      paramIndex++
+    }
+
+    if (params.barcode && params.barcode.trim().length > 0) {
+      conditions.push(`barcode = $${paramIndex}`)
+      values.push(params.barcode.trim())
+      paramIndex++
+    }
+
+    const countSql = `
+      SELECT COUNT(*)::int AS total
+      FROM products
+      WHERE ${conditions.join(' AND ')}
+    `
+    const countResult = await client.query(countSql, values)
+    const total = countResult.rows[0].total as number
+
+    const rowSql = `
+      SELECT ${PRODUCT_COLUMNS}
+      FROM products
+      WHERE ${conditions.join(' AND ')}
+      ORDER BY created_at ASC, id ASC
+      LIMIT $${paramIndex}
+      OFFSET $${paramIndex + 1}
+    `
+    const rowResult = await client.query(rowSql, [...values, limit, offset])
+
+    return { rows: rowResult.rows as ProductDto[], total }
+  },
+
   async findByBusinessAfter(client: PoolClient, businessId: string, afterVersion: number, limit: number): Promise<ProductDto[]> {
     const sql = `
       SELECT ${PRODUCT_COLUMNS}

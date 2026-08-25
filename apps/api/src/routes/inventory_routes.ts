@@ -5,9 +5,12 @@ import { createJwtService } from '../services/jwt_service'
 import { asyncHandler } from '../utils/async_handler'
 import { validateStockAdjustment } from '../dto/inventory_dto'
 import { inventoryRepository } from '../repositories/inventory_repository'
+import { branchRepository } from '../repositories/branch_repository'
 import { createInventoryService } from '../services/inventory_service'
 import { ApiError } from '../errors/api_error'
+import { ValidationError } from '../errors/validation_error'
 import crypto from 'crypto'
+import { isUuid } from '../utils/uuid'
 
 export function createInventoryRoutes(pool: Pool): Router {
   const router = Router()
@@ -23,6 +26,55 @@ export function createInventoryRoutes(pool: Pool): Router {
   const jwtService = createJwtService(jwtSecret, jwtIssuer, jwtAudience)
 
   router.use(requireSyncAuth(jwtService) as RequestHandler)
+
+  router.get(
+    '/stock',
+    requireRole('OWNER', 'CASHIER') as RequestHandler,
+    asyncHandler<SyncAuthenticatedRequest>(async (req, res) => {
+      const businessId = req.query.business_id as string
+      const branchId = req.query.branch_id as string
+      const productId = req.query.product_id as string
+
+      if (!businessId || !branchId || !productId) {
+        throw new ApiError(400, 'BAD_REQUEST', 'business_id, branch_id, and product_id are required')
+      }
+
+      if (businessId !== req.tenantId) {
+        throw new ApiError(403, 'BUSINESS_ACCESS_DENIED', 'Business identity mismatch')
+      }
+
+      if (!isUuid(branchId) || !isUuid(productId)) {
+        throw new ValidationError('branch_id and product_id must be valid UUIDs')
+      }
+
+      const client = await pool.connect()
+      try {
+        const branch = await branchRepository.findById(client, businessId, branchId)
+        if (!branch || !branch.status) {
+          throw new ApiError(403, 'BUSINESS_ACCESS_DENIED', 'Branch not found or inaccessible')
+        }
+
+        const stock = await inventoryRepository.getStock(client, businessId, branchId, productId)
+
+        if (!stock) {
+          res.status(200).json({
+            product_id: productId,
+            branch_id: branchId,
+            quantity: 0,
+          })
+          return
+        }
+
+        res.status(200).json({
+          product_id: stock.product_id,
+          branch_id: stock.branch_id,
+          quantity: stock.quantity,
+        })
+      } finally {
+        client.release()
+      }
+    })
+  )
 
   router.get(
     '/stocks',

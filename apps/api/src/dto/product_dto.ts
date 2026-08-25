@@ -156,9 +156,80 @@ export function validateProductUpdate(body: unknown): ProductUpdateRequest {
     throw new ValidationError('Product update validation failed', errors)
   }
 
-  return result
+   return result
 }
 
+export interface ProductListQuery {
+  business_id: string
+  search?: string
+  category?: string
+  barcode?: string
+  limit: number
+  offset: number
+}
+
+export function validateProductListQuery(query: unknown): ProductListQuery {
+  if (!isObject(query)) throw new ValidationError('Query must be a valid object')
+  const errors: Record<string, string> = {}
+
+  const businessId = typeof query.business_id === 'string' && query.business_id.trim().length > 0
+    ? query.business_id.trim()
+    : undefined
+
+  if (!businessId || !isUuid(businessId)) {
+    errors.business_id = 'business_id must be a valid UUID'
+  }
+
+  const limit = typeof query.limit === 'string' || typeof query.limit === 'number'
+    ? Number(query.limit)
+    : 50
+  if (!Number.isInteger(limit) || limit < 1 || limit > 500) {
+    errors.limit = 'limit must be an integer between 1 and 500'
+  }
+
+  const offset = typeof query.offset === 'string' || typeof query.offset === 'number'
+    ? Number(query.offset)
+    : 0
+  if (!Number.isInteger(offset) || offset < 0) {
+    errors.offset = 'offset must be a non-negative integer'
+  }
+
+  const result: ProductListQuery = {
+    business_id: businessId ?? '',
+    limit: Number.isInteger(limit) && limit >= 1 && limit <= 500 ? limit : 50,
+    offset: Number.isInteger(offset) && offset >= 0 ? offset : 0,
+  }
+
+  if (query.search !== undefined) {
+    if (typeof query.search !== 'string') {
+      errors.search = 'search must be a string'
+    } else if (query.search.trim().length > 0) {
+      result.search = query.search.trim()
+    }
+  }
+
+  if (query.category !== undefined) {
+    if (typeof query.category !== 'string') {
+      errors.category = 'category must be a string'
+    } else if (query.category.trim().length > 0) {
+      result.category = query.category.trim()
+    }
+  }
+
+  if (query.barcode !== undefined) {
+    if (typeof query.barcode !== 'string') {
+      errors.barcode = 'barcode must be a string'
+    } else if (query.barcode.trim().length > 0) {
+      result.barcode = query.barcode.trim()
+    }
+  }
+
+  if (Object.keys(errors).length > 0) {
+    throw new ValidationError('Product list query validation failed', errors)
+  }
+
+  return result
+}
 
 export interface ProductCreateRequest {
   id: string

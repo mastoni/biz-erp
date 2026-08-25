@@ -9,6 +9,7 @@ import { requestId } from './middleware/request_id'
 import { createHealthRouter } from './routes/health_routes'
 import { createAuthRouter } from './routes/auth_routes'
 import { createProductSyncRouter } from './routes/product_sync_routes'
+import { createProductRoutes } from './routes/product_routes'
 import { createSalesSyncRouter } from './routes/sales_sync_routes'
 import { createBranchRoutes } from './routes/branch_routes'
 import { createInventoryRoutes } from './routes/inventory_routes'
@@ -77,6 +78,7 @@ export function createApp(pool: Pool): Express {
   app.use('/health', createHealthRouter(pool))
   app.use('/v1/auth', createAuthRouter(pool))
   app.use('/v1/sync/products', createProductSyncRouter(pool))
+  app.use('/v1/products', createProductRoutes(pool))
   app.use('/v1/sync/sales', createSalesSyncRouter(pool))
   app.use('/v1/branches', createBranchRoutes(pool))
   app.use('/v1/inventory', createInventoryRoutes(pool))
