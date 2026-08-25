@@ -5,12 +5,23 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { getBranches } from '@/features/inventory/api';
 import type { Branch } from '@/features/inventory/types';
 
+export type BranchStatus = 'loading' | 'available' | 'active' | 'switching' | 'error' | 'empty';
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+export function isValidBranchId(id: unknown): boolean {
+  if (typeof id !== 'string' || id.trim() === '') return false;
+  return UUID_REGEX.test(id);
+}
+
 export interface BranchContextType {
   branches: Branch[];
   activeBranch: Branch | null;
+  branchStatus: BranchStatus;
   isLoading: boolean;
   error: string | null;
   selectBranch: (branchId: string) => void;
+  switchBranch: (branchId: string) => Promise<void>;
   refreshBranches: () => Promise<void>;
   clearBranchContext: () => void;
 }
@@ -21,14 +32,14 @@ export function BranchProvider({ children }: { children: ReactNode }) {
   const { business, status, scope } = useAuth();
   const [branches, setBranches] = useState<Branch[]>([]);
   const [activeBranch, setActiveBranch] = useState<Branch | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [branchStatus, setBranchStatus] = useState<BranchStatus>('loading');
   const [error, setError] = useState<string | null>(null);
 
   const clearBranchContext = useCallback(() => {
     setBranches([]);
     setActiveBranch(null);
     setError(null);
-    setIsLoading(false);
+    setBranchStatus('empty');
   }, []);
 
   const refreshBranches = useCallback(async () => {
@@ -37,54 +48,89 @@ export function BranchProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    setIsLoading(true);
+    setBranchStatus('loading');
     setError(null);
 
     try {
       const items = await getBranches(business.id);
       setBranches(items);
+
       if (items.length > 0) {
-        // Default to first active branch if current selection is not in list
+        // Auto-select active branch
         setActiveBranch((curr) => {
           if (curr && items.some((b) => b.id === curr.id)) {
             return curr;
           }
-          return items[0];
+          const primary = items.find((b) => b.status) || items[0];
+          return primary;
         });
+        setBranchStatus('active');
       } else {
         setActiveBranch(null);
+        setBranchStatus('empty');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load branches');
+      const msg = err instanceof Error ? err.message : 'Failed to load branches';
+      setError(msg);
       setBranches([]);
       setActiveBranch(null);
-    } finally {
-      setIsLoading(false);
+      setBranchStatus('error');
     }
   }, [business?.id, status, scope, clearBranchContext]);
 
-  // Invalidate and refresh branch context whenever business context changes
+  // Invalidate and refresh branch context whenever business/tenant context changes
   useEffect(() => {
-    // Clear immediately to prevent cross-tenant branch data leakage during transition
     clearBranchContext();
     if (business?.id && status === 'authenticated' && scope === 'tenant') {
       refreshBranches();
     }
   }, [business?.id, status, scope, clearBranchContext, refreshBranches]);
 
-  const selectBranch = useCallback((branchId: string) => {
-    const target = branches.find((b) => b.id === branchId);
-    if (target) {
+  const switchBranch = useCallback(
+    async (branchId: string) => {
+      // 1. Strict RFC 4122 UUID validation
+      if (!isValidBranchId(branchId)) {
+        setBranchStatus('error');
+        const err = new Error(`Invalid branch UUID: ${branchId}`);
+        setError(err.message);
+        throw err;
+      }
+
+      // 2. Validate branch belongs to the active tenant
+      const target = branches.find((b) => b.id === branchId);
+      if (!target) {
+        setBranchStatus('error');
+        const err = new Error('Access denied: Branch does not belong to active tenant');
+        setError(err.message);
+        throw err;
+      }
+
+      // 3. Clear old branch UI state during transition
+      setBranchStatus('switching');
+      setError(null);
+
+      // 4. Set new active branch
       setActiveBranch(target);
-    }
-  }, [branches]);
+      setBranchStatus('active');
+    },
+    [branches]
+  );
+
+  const selectBranch = useCallback(
+    (branchId: string) => {
+      switchBranch(branchId).catch(() => {});
+    },
+    [switchBranch]
+  );
 
   const value: BranchContextType = {
     branches,
     activeBranch,
-    isLoading,
+    branchStatus,
+    isLoading: branchStatus === 'loading' || branchStatus === 'switching',
     error,
     selectBranch,
+    switchBranch,
     refreshBranches,
     clearBranchContext,
   };
