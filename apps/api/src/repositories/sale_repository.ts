@@ -18,6 +18,7 @@ export const saleRepository = {
         INSERT INTO sales (
           id,
           business_id,
+          branch_id,
           receipt_number,
           subtotal_minor,
           discount_minor,
@@ -33,7 +34,7 @@ export const saleRepository = {
           server_created_at
         )
         VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16
         )
         RETURNING id, receipt_number, server_created_at
       `
@@ -43,6 +44,7 @@ export const saleRepository = {
         saleResult = await client.query(saleSql, [
           sale.id,
           businessId,
+          sale.branch_id ?? null,
           sale.receipt_number,
           sale.subtotal_minor,
           sale.discount_minor,
@@ -101,6 +103,7 @@ export const saleRepository = {
       const salesSql = `
         SELECT
           s.id,
+          s.branch_id,
           s.receipt_number,
           s.subtotal_minor,
           s.discount_minor,
@@ -157,6 +160,7 @@ export const saleRepository = {
       const sales = salesRows.map((row: any) => ({
         id: row.id,
         idempotency_key: row.idempotency_key,
+        branch_id: row.branch_id ?? null,
         receipt_number: row.receipt_number,
         subtotal_minor: row.subtotal_minor ? Number(row.subtotal_minor) : 0,
         discount_minor: row.discount_minor ? Number(row.discount_minor) : 0,
@@ -170,7 +174,7 @@ export const saleRepository = {
         client_created_at: new Date(row.client_created_at || row.server_created_at).getTime(),
         server_created_at: new Date(row.server_created_at).getTime(),
         items: (itemsBySaleId.get(row.id) || []).map((item: any) => ({
-          product_id: item.product_id,
+          product_id: item.product_id ?? null,
           product_name_snapshot: item.product_name,
           quantity: Number(item.quantity),
           unit_price_minor: Number(item.unit_price_minor)

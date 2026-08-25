@@ -119,12 +119,12 @@ class ProductDto {
 }
 
 class SaleItemDto {
-  final String productId;
+  final String? productId;
   final String productNameSnapshot;
   final int quantity;
   final int unitPriceMinor;
   const SaleItemDto({
-    required this.productId,
+    this.productId,
     required this.productNameSnapshot,
     required this.quantity,
     required this.unitPriceMinor,
@@ -138,7 +138,7 @@ class SaleItemDto {
   };
 
   factory SaleItemDto.fromJson(Map<String, dynamic> j) => SaleItemDto(
-    productId: j['product_id'] as String,
+    productId: j['product_id'] as String?,
     productNameSnapshot: j['product_name_snapshot'] as String,
     quantity: (j['quantity'] as num).toInt(),
     unitPriceMinor: (j['unit_price_minor'] as num).toInt(),
@@ -158,7 +158,7 @@ class SaleDto {
   final int changeMinor;
   final String? cashierId;
   final String? customerId;
-  final String branchId;
+  final String? branchId;
   final int clientCreatedAt;
   final int? serverCreatedAt;
   final List<SaleItemDto> items;
@@ -176,7 +176,7 @@ class SaleDto {
     required this.changeMinor,
     this.cashierId,
     this.customerId,
-    required this.branchId,
+    this.branchId,
     required this.clientCreatedAt,
     this.serverCreatedAt,
     required this.items,
@@ -213,7 +213,7 @@ class SaleDto {
     changeMinor: (j['change_minor'] as num).toInt(),
     cashierId: j['cashier_id'] as String?,
     customerId: j['customer_id'] as String?,
-    branchId: j['branch_id'] as String,
+    branchId: j['branch_id'] as String?,
     clientCreatedAt: (j['client_created_at'] as num).toInt(),
     serverCreatedAt: (j['server_created_at'] as num?)?.toInt(),
     items: (j['items'] as List)

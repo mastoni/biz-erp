@@ -281,6 +281,7 @@ void main() {
         paymentMethod: 'cash',
         cashReceivedMinor: 1000,
         changeMinor: 0,
+        branchId: 'BRANCH-001',
         clientCreatedAt: DateTime.now().millisecondsSinceEpoch,
         items: const [],
       );
@@ -322,6 +323,7 @@ void main() {
         paymentMethod: 'cash',
         cashReceivedMinor: 1000,
         changeMinor: 0,
+        branchId: 'BRANCH-001',
         clientCreatedAt: DateTime.now().millisecondsSinceEpoch,
         items: const [],
       );
@@ -364,6 +366,7 @@ void main() {
         paymentMethod: 'cash',
         cashReceivedMinor: 1000,
         changeMinor: 0,
+        branchId: 'BRANCH-001',
         clientCreatedAt: DateTime.now().millisecondsSinceEpoch,
         items: const [],
       );
@@ -406,6 +409,7 @@ void main() {
         paymentMethod: 'cash',
         cashReceivedMinor: 1000,
         changeMinor: 0,
+        branchId: 'BRANCH-001',
         clientCreatedAt: DateTime.now().millisecondsSinceEpoch,
         items: const [],
       );
@@ -438,6 +442,7 @@ void main() {
         paymentMethod: 'cash',
         cashReceivedMinor: 1000,
         changeMinor: 0,
+        branchId: 'BRANCH-001',
         clientCreatedAt: DateTime.now().millisecondsSinceEpoch,
         items: const [],
       );
@@ -532,6 +537,107 @@ void main() {
       final result = await client.pushProduct(product);
       expect(result.ok, isFalse);
       expect(result.error, contains('401'));
+    });
+
+    test('HTTP-020: pullSales parses response with branch_id = null and product_id = null successfully', () async {
+      final mockClient = MockClient((request) async {
+        expect(request.url.path, '/v1/sync/sales');
+        return http.Response(
+          jsonEncode({
+            'sales': [
+              {
+                'id': 'sale-historical-1',
+                'idempotency_key': 'idem-hist-1',
+                'receipt_number': 'REC-HIST-001',
+                'subtotal_minor': 15000,
+                'discount_minor': 0,
+                'tax_minor': 0,
+                'grand_total_minor': 15000,
+                'payment_method': 'cash',
+                'cash_received_minor': 15000,
+                'change_minor': 0,
+                'cashier_id': null,
+                'customer_id': null,
+                'branch_id': null,
+                'client_created_at': 1700000000000,
+                'server_created_at': 1700000000100,
+                'items': [
+                  {
+                    'product_id': null,
+                    'product_name_snapshot': 'Custom / Open Item',
+                    'quantity': 1,
+                    'unit_price_minor': 15000,
+                  }
+                ]
+              }
+            ],
+            'has_more': false,
+          }),
+          200,
+        );
+      });
+
+      final client = HttpSyncApiClient(
+        baseUrl: baseUrl,
+        client: mockClient,
+        businessId: businessId,
+      );
+
+      final res = await client.pullSales(businessId: businessId, sinceMs: 0);
+      expect(res.sales, hasLength(1));
+      expect(res.sales.first.id, 'sale-historical-1');
+      expect(res.sales.first.branchId, isNull);
+      expect(res.sales.first.items.first.productId, isNull);
+      expect(res.sales.first.items.first.productNameSnapshot, 'Custom / Open Item');
+    });
+
+    test('HTTP-021: pullSales parses response with valid branch_id and product_id successfully', () async {
+      final mockClient = MockClient((request) async {
+        return http.Response(
+          jsonEncode({
+            'sales': [
+              {
+                'id': 'sale-modern-1',
+                'idempotency_key': 'idem-mod-1',
+                'receipt_number': 'REC-MOD-001',
+                'subtotal_minor': 20000,
+                'discount_minor': 0,
+                'tax_minor': 0,
+                'grand_total_minor': 20000,
+                'payment_method': 'cash',
+                'cash_received_minor': 20000,
+                'change_minor': 0,
+                'cashier_id': 'cashier-1',
+                'customer_id': 'cust-1',
+                'branch_id': '11111111-1111-4111-8111-111111111112',
+                'client_created_at': 1700000000000,
+                'server_created_at': 1700000000100,
+                'items': [
+                  {
+                    'product_id': 'prod-123',
+                    'product_name_snapshot': 'Product 123',
+                    'quantity': 2,
+                    'unit_price_minor': 10000,
+                  }
+                ]
+              }
+            ],
+            'has_more': false,
+          }),
+          200,
+        );
+      });
+
+      final client = HttpSyncApiClient(
+        baseUrl: baseUrl,
+        client: mockClient,
+        businessId: businessId,
+      );
+
+      final res = await client.pullSales(businessId: businessId, sinceMs: 0);
+      expect(res.sales, hasLength(1));
+      expect(res.sales.first.branchId, '11111111-1111-4111-8111-111111111112');
+      expect(res.sales.first.items.first.productId, 'prod-123');
     });
   });
 }

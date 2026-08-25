@@ -1,4 +1,5 @@
-﻿import 'package:drift/drift.dart' hide isNotNull;
+// ignore_for_file: avoid_print
+import 'package:drift/drift.dart' hide isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:biz_erp_mobile/core/database/app_database.dart';
@@ -643,8 +644,6 @@ void main() {
       ),
     ], false, 1);
 
-    // Different business ID
-    const otherBiz = '99999999-9999-9999-9999-999999999999';
     final summary = await engine.syncNow();
     // The engine only pulls for its own businessId (biz), so it should not apply
     // But this test just verifies the pull doesn't crash - isolation is enforced by server
@@ -722,5 +721,39 @@ void main() {
     expect(summary.pushed, 1);
     final counts2 = await outbox.counts();
     expect(counts2.pending, 0);
+  });
+
+  test('SYNC-024 historical sale with branch_id = null and product_id = null advances cursor without error', () async {
+    api.pullSalesResp = PullSalesResponse([
+      SaleDto(
+        id: 'srv-hist-null-branch',
+        idempotencyKey: 'k-hist-null',
+        receiptNumber: 'R-HIST-001',
+        subtotalMinor: 5000,
+        discountMinor: 0,
+        taxMinor: 0,
+        grandTotalMinor: 5000,
+        paymentMethod: 'cash',
+        cashReceivedMinor: 5000,
+        changeMinor: 0,
+        branchId: null,
+        clientCreatedAt: 8000,
+        serverCreatedAt: 9500,
+        items: const [
+          SaleItemDto(
+            productId: null,
+            productNameSnapshot: 'Historical Open Item',
+            quantity: 1,
+            unitPriceMinor: 5000,
+          ),
+        ],
+      ),
+    ], false);
+
+    final summary = await engine.syncNow();
+    expect(summary.reachable, isTrue);
+
+    final cursor = await meta.getInt('sales_pull_cursor');
+    expect(cursor, 9500);
   });
 }
