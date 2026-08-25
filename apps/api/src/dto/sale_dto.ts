@@ -13,6 +13,7 @@ export interface SalePayload {
   change_minor: number | null
   cashier_id: string | null
   customer_id: string | null
+  branch_id: string
   created_at: string | null
   client_created_at: string | null
 }
@@ -111,6 +112,12 @@ function validateSale(raw: unknown, path: string, errors: Errors): SalePayload |
     errors[`${path}.total_minor`] = 'total_minor must be a non-negative integer'
   }
 
+  const branchId = raw.branch_id
+
+  if (typeof branchId !== 'string' || branchId.trim().length === 0 || !isUuid(branchId)) {
+    errors[`${path}.branch_id`] = 'branch_id is required and must be a valid UUID'
+  }
+
   const paymentMethod = raw.payment_method
   const cashierId = raw.cashier_id
   const customerId = raw.customer_id
@@ -139,6 +146,7 @@ function validateSale(raw: unknown, path: string, errors: Errors): SalePayload |
     change_minor: validateOptionalNonNegativeInteger(raw, 'change_minor', path, errors),
     cashier_id: cashierId === undefined || cashierId === null || cashierId === '' ? null : String(cashierId).trim(),
     customer_id: customerId === undefined || customerId === null || customerId === '' ? null : String(customerId).trim(),
+    branch_id: typeof branchId === 'string' && isUuid(branchId) ? branchId.trim() : '',
     created_at: validateOptionalTimestamp(raw, 'created_at', path, errors),
     client_created_at: validateOptionalTimestamp(raw, 'client_created_at', path, errors)
   }

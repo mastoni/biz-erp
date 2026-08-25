@@ -11,6 +11,7 @@ import { seedTestUser, authenticateTestUser } from './auth_helper'
 
 const BUSINESS_A = '11111111-1111-4111-8111-111111111111'
 const BUSINESS_B = '22222222-2222-4222-8222-222222222222'
+const BRANCH_A = '11111111-1111-4111-8111-111111111112'
 
 let pool!: Pool
 let app!: Express
@@ -24,6 +25,9 @@ let cashierRefreshToken!: string
 async function resetDatabase(): Promise<void> {
   await pool.query(`
     TRUNCATE TABLE
+      stock_movements,
+      stocks,
+      branches,
       sale_items,
       sales,
       idempotency_keys,
@@ -42,6 +46,15 @@ async function resetDatabase(): Promise<void> {
       ON CONFLICT (id) DO NOTHING
     `,
     [BUSINESS_A, 'Business A', BUSINESS_B, 'Business B']
+  )
+
+  await pool.query(
+    `
+      INSERT INTO branches (id, business_id, name)
+      VALUES ($1, $2, 'Main Branch A')
+      ON CONFLICT (id) DO NOTHING
+    `,
+    [BRANCH_A, BUSINESS_A]
   )
 }
 
@@ -184,6 +197,7 @@ describe('Phase 4.0.13 RBAC Implementation', () => {
               paid_minor: 10000,
               change_minor: 0,
               cashier_id: 'cashier-1',
+              branch_id: BRANCH_A,
               created_at: new Date().toISOString(),
               client_created_at: new Date().toISOString()
             },

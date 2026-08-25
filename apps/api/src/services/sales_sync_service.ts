@@ -1,4 +1,4 @@
-import { Pool } from 'pg'
+import { Pool, PoolClient } from 'pg'
 import { SalesBatchRequest, validateSalesBatch } from '../dto/sale_dto'
 import { SalesBatchResponse, SaleSyncResult, SaleSyncListResponse } from '../dto/sync_dto'
 import { ApiError } from '../errors/api_error'
@@ -7,12 +7,24 @@ import { ValidationError } from '../errors/validation_error'
 import { idempotencyRepository } from '../repositories/idempotency_repository'
 import { productRepository } from '../repositories/product_repository'
 import { saleRepository } from '../repositories/sale_repository'
+import { inventoryRepository } from '../repositories/inventory_repository'
 import { withTransaction } from '../db/transaction'
+import { randomUUID } from 'crypto'
+import { createHash } from 'crypto'
 
 function assertTenant(businessId: string, tenantId: string): void {
   if (tenantId.toLowerCase() !== businessId.toLowerCase()) {
     throw new ApiError(401, 'UNAUTHORIZED', 'Business identity mismatch')
   }
+}
+
+function buildStockIdempotencyKey(saleIdempotencyKey: string, productId: string): string {
+  return `${saleIdempotencyKey}_stock_${productId}`
+}
+
+function buildStockRequestHash(saleIdempotencyKey: string, productId: string, quantity: number, branchId: string, businessId: string): string {
+  const hashStr = `${saleIdempotencyKey}|${productId}|${quantity}|${branchId}|${businessId}`
+  return createHash('sha256').update(hashStr).digest('hex')
 }
 
 export function createSalesSyncService(pool: Pool) {
@@ -66,6 +78,91 @@ export function createSalesSyncService(pool: Pool) {
             }
 
             const created = await saleRepository.createSaleWithItems(client, request.business_id, item.sale, item.sale_items)
+
+            // Deduct stock for each sale item in the sale's branch
+            const branchId = item.sale.branch_id
+            for (const saleItem of item.sale_items) {
+              if (saleItem.product_id && saleItem.quantity > 0) {
+                // Check current stock
+                const stock = await inventoryRepository.getStock(client, request.business_id, branchId, saleItem.product_id)
+
+                if (!stock) {
+                  // No stock record exists - create with negative quantity would fail, so we must reject
+                  throw new ValidationError('Insufficient stock: no stock record exists for product', {
+                    item_index: index,
+                    product_id: saleItem.product_id,
+                    branch_id: branchId
+                  })
+                }
+
+                // Check if sufficient stock
+                if (stock.quantity < saleItem.quantity) {
+                  throw new ValidationError('Insufficient stock for product', {
+                    item_index: index,
+                    product_id: saleItem.product_id,
+                    branch_id: branchId,
+                    available: stock.quantity,
+                    requested: saleItem.quantity
+                  })
+                }
+
+                // Update stock atomically with optimistic locking
+                const updatedStock = await inventoryRepository.updateStockAtomic(
+                  client,
+                  stock.id,
+                  -saleItem.quantity,
+                  stock.server_version
+                )
+
+                if (!updatedStock) {
+                  throw new ConflictError('CONFLICT', 'Failed to update stock due to concurrent modification', {
+                    item_index: index,
+                    product_id: saleItem.product_id
+                  })
+                }
+
+                // Create stock movement for the sale
+                const stockIdempotencyKey = buildStockIdempotencyKey(item.idempotency_key, saleItem.product_id)
+                const stockRequestHash = buildStockRequestHash(
+                  item.idempotency_key,
+                  saleItem.product_id,
+                  -saleItem.quantity,
+                  branchId,
+                  request.business_id
+                )
+
+                // Check idempotency for stock movement
+                const existingStockIdem = await idempotencyRepository.findActive(client, request.business_id, stockIdempotencyKey)
+                if (existingStockIdem) {
+                  if (existingStockIdem.request_hash !== stockRequestHash) {
+                    throw new ConflictError('IDEMPOTENCY_KEY_REUSE', 'Stock idempotency key was already used with a different request hash', {
+                      item_index: index,
+                      product_id: saleItem.product_id
+                    })
+                  }
+                  // Already processed - skip creating duplicate movement
+                  continue
+                }
+
+                const movement = await inventoryRepository.createMovement(
+                  client,
+                  randomUUID(),
+                  request.business_id,
+                  branchId,
+                  saleItem.product_id,
+                  -saleItem.quantity,
+                  'SALE',
+                  created.receipt_number,
+                  item.sale.cashier_id ?? 'SYSTEM'
+                )
+
+                // Record idempotency for stock movement
+                await idempotencyRepository.insert(client, request.business_id, stockIdempotencyKey, stockRequestHash, 201, {
+                  stock: updatedStock,
+                  movement: movement
+                })
+              }
+            }
 
             const responseBody = {
               sale_id: created.sale_id,

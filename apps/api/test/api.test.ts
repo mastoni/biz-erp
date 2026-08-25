@@ -11,6 +11,8 @@ import { seedTestUser, authenticateTestUser } from './auth_helper'
 
 const BUSINESS_A = '11111111-1111-4111-8111-111111111111'
 const BUSINESS_B = '22222222-2222-4222-8222-222222222222'
+const BRANCH_A = '11111111-1111-4111-8111-111111111112'
+const BRANCH_B = '22222222-2222-4222-8222-222222222223'
 
 let pool!: Pool
 let app!: Express
@@ -20,6 +22,9 @@ let tokenB!: string
 async function resetDatabase(): Promise<void> {
   await pool.query(`
     TRUNCATE TABLE
+      stock_movements,
+      stocks,
+      branches,
       sale_items,
       sales,
       idempotency_keys,
@@ -36,6 +41,15 @@ async function resetDatabase(): Promise<void> {
     `,
     [BUSINESS_A, 'Business A', BUSINESS_B, 'Business B']
   )
+
+  await pool.query(
+    `
+      INSERT INTO branches (id, business_id, name)
+      VALUES ($1, $2, 'Main Branch A'), ($3, $4, 'Main Branch B')
+      ON CONFLICT (id) DO NOTHING
+    `,
+    [BRANCH_A, BUSINESS_A, BRANCH_B, BUSINESS_B]
+  )
 }
 
 async function seedProduct(
@@ -45,6 +59,8 @@ async function seedProduct(
     barcode?: string | null
     priceMinor?: number
     serverVersion?: number
+    branchId?: string
+    stockQuantity?: number
   } = {}
 ): Promise<string> {
   const id = randomUUID()
@@ -69,10 +85,22 @@ async function seedProduct(
     [id, businessId, options.name ?? `Product ${id.slice(0, 8)}`, null, options.priceMinor ?? 10000, null, options.barcode ?? null, options.serverVersion ?? 1]
   )
 
+  const branchId = options.branchId ?? (businessId === BUSINESS_A ? BRANCH_A : BRANCH_B)
+  const stockQuantity = options.stockQuantity ?? 100
+  await pool.query(
+    `
+      INSERT INTO stocks (id, business_id, branch_id, product_id, quantity, server_version, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5, 1, now(), now())
+      ON CONFLICT (business_id, branch_id, product_id) DO UPDATE SET quantity = EXCLUDED.quantity
+    `,
+    [randomUUID(), businessId, branchId, id, stockQuantity]
+  )
+
   return id
 }
 
-function makeSaleBatch(productId: string | null, businessId = BUSINESS_A): any {
+function makeSaleBatch(productId: string | null, businessId = BUSINESS_A, branchId?: string): any {
+  const effectiveBranchId = branchId ?? (businessId === BUSINESS_A ? BRANCH_A : BRANCH_B)
   return {
     business_id: businessId,
     items: [
@@ -90,6 +118,7 @@ function makeSaleBatch(productId: string | null, businessId = BUSINESS_A): any {
           paid_minor: 10000,
           change_minor: 0,
           cashier_id: 'cashier-1',
+          branch_id: effectiveBranchId,
           created_at: new Date().toISOString(),
           client_created_at: new Date().toISOString()
         },
@@ -415,12 +444,13 @@ describe('Phase 3.0.2 API', () => {
             paid_minor: 10000,
             change_minor: 0,
             cashier_id: 'cashier-1',
+            branch_id: BRANCH_A,
             created_at: new Date().toISOString(),
             client_created_at: new Date().toISOString()
           },
           sale_items: [
             {
-              product_id: productId,
+              product_id: null,
               product_name: 'Test Product',
               quantity: 1,
               unit_price_minor: 10000,
@@ -463,6 +493,7 @@ describe('Phase 3.0.2 API', () => {
             paid_minor: 10000,
             change_minor: 0,
             cashier_id: 'cashier-1',
+            branch_id: BRANCH_A,
             created_at: new Date().toISOString(),
             client_created_at: new Date().toISOString()
           },
@@ -511,6 +542,7 @@ describe('Phase 3.0.2 API', () => {
             paid_minor: 10000,
             change_minor: 0,
             cashier_id: 'cashier-1',
+            branch_id: BRANCH_A,
             created_at: new Date().toISOString(),
             client_created_at: new Date().toISOString()
           },
@@ -544,6 +576,7 @@ describe('Phase 3.0.2 API', () => {
             paid_minor: 10000,
             change_minor: 0,
             cashier_id: 'cashier-1',
+            branch_id: BRANCH_B,
             created_at: new Date().toISOString(),
             client_created_at: new Date().toISOString()
           },
@@ -590,6 +623,7 @@ describe('Phase 3.0.2 API', () => {
             paid_minor: 10000,
             change_minor: 0,
             cashier_id: 'cashier-1',
+            branch_id: BRANCH_A,
             created_at: new Date().toISOString(),
             client_created_at: new Date().toISOString()
           },
@@ -617,6 +651,7 @@ describe('Phase 3.0.2 API', () => {
             paid_minor: 20000,
             change_minor: 0,
             cashier_id: 'cashier-1',
+            branch_id: BRANCH_A,
             created_at: new Date().toISOString(),
             client_created_at: new Date().toISOString()
           },
@@ -643,5 +678,95 @@ describe('Phase 3.0.2 API', () => {
     expect(res.body.results[1].status).toBe('created')
     expect(res.body.created_count).toBe(1)
     expect(await countRows('sales')).toBe(3)
+  })
+
+  it('API-023 missing branch_id returns 400 validation error', async () => {
+    const productId = await seedProduct(BUSINESS_A)
+    const body = makeSaleBatch(productId)
+    delete body.items[0].sale.branch_id
+
+    const res = await request(app)
+      .post('/v1/sync/sales/batch')
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send(body)
+      .expect(400)
+
+    expect(res.body.error.code).toBe('VALIDATION_ERROR')
+    expect(res.body.error.details['items[0].sale.branch_id']).toBeDefined()
+  })
+
+  it('API-024 invalid branch_id UUID returns 400 validation error', async () => {
+    const productId = await seedProduct(BUSINESS_A)
+    const body = makeSaleBatch(productId)
+    body.items[0].sale.branch_id = 'not-a-valid-uuid'
+
+    const res = await request(app)
+      .post('/v1/sync/sales/batch')
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send(body)
+      .expect(400)
+
+    expect(res.body.error.code).toBe('VALIDATION_ERROR')
+    expect(res.body.error.details['items[0].sale.branch_id']).toBeDefined()
+  })
+
+  it('API-025 valid sale with branch_id deducts stock atomically and creates stock movement', async () => {
+    const productId = await seedProduct(BUSINESS_A, { stockQuantity: 50 })
+    const body = makeSaleBatch(productId)
+    body.items[0].sale_items[0].quantity = 5
+
+    const res = await request(app)
+      .post('/v1/sync/sales/batch')
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send(body)
+      .expect(200)
+
+    expect(res.body.results[0].status).toBe('created')
+
+    // Verify stock was deducted: 50 - 5 = 45
+    const stockRes = await pool.query(
+      'SELECT quantity FROM stocks WHERE business_id = $1 AND branch_id = $2 AND product_id = $3',
+      [BUSINESS_A, BRANCH_A, productId]
+    )
+    expect(stockRes.rows[0].quantity).toBe(45)
+
+    // Verify movement was created
+    const movementRes = await pool.query(
+      'SELECT * FROM stock_movements WHERE business_id = $1 AND branch_id = $2 AND product_id = $3',
+      [BUSINESS_A, BRANCH_A, productId]
+    )
+    expect(movementRes.rows).toHaveLength(1)
+    expect(movementRes.rows[0].quantity).toBe(-5)
+    expect(movementRes.rows[0].movement_type).toBe('SALE')
+  })
+
+  it('API-026 historical sale with branch_id = NULL remains readable via pullSales', async () => {
+    const historicalSaleId = randomUUID()
+    const now = new Date()
+
+    // Insert historical sale row with branch_id NULL directly into database
+    await pool.query(
+      `
+        INSERT INTO sales (
+          id, business_id, branch_id, receipt_number, total_minor,
+          payment_method, paid_minor, change_minor, server_created_at
+        ) VALUES (
+          $1, $2, NULL, $3, $4,
+          'CASH', $4, 0, $5
+        )
+      `,
+      [historicalSaleId, BUSINESS_A, 'HISTORICAL-INV-001', 15000, now]
+    )
+
+    const res = await request(app)
+      .get(`/v1/sync/sales?business_id=${BUSINESS_A}&since=0&limit=100`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .expect(200)
+
+    expect(Array.isArray(res.body.sales)).toBe(true)
+    const found = res.body.sales.find((s: any) => s.id === historicalSaleId)
+    expect(found).toBeDefined()
+    expect(found.receipt_number).toBe('HISTORICAL-INV-001')
+    expect(found.grand_total_minor).toBe(15000)
   })
 })
