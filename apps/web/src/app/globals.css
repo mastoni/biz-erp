@@ -34,13 +34,13 @@
   --color-ocean: #35657f;
   --color-ocean-soft: #dfe9f0;
 
-  /* Spacing Scale */
-  --spacing-xs: 4px;
-  --spacing-sm: 8px;
-  --spacing-md: 12px;
-  --spacing-lg: 16px;
-  --spacing-xl: 24px;
-  --spacing-2xl: 32px;
+  /* Design System Spacing Scale (Namespaced to prevent collision with Tailwind v4 sizing utilities) */
+  --ds-space-xs: 4px;
+  --ds-space-sm: 8px;
+  --ds-space-md: 12px;
+  --ds-space-lg: 16px;
+  --ds-space-xl: 24px;
+  --ds-space-2xl: 32px;
 
   /* Corner Radius */
   --radius-sm: 4px;

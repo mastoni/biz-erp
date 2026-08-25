@@ -1,17 +1,57 @@
-'use client'
+'use client';
 
-import React, { useState, FormEvent } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect, Suspense, FormEvent } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { SKMNetworkLogo } from '@/components/brand/SKMNetworkLogo';
 import { api } from '@/lib/api';
+import { Check, Sparkles, Loader2, ArrowRight } from 'lucide-react';
 
-export default function RegisterPage() {
+interface PackageInfo {
+  id: string;
+  name: string;
+  badge?: string;
+  description: string;
+  features: string[];
+}
+
+const AVAILABLE_PACKAGES: Record<string, PackageInfo> = {
+  starter: {
+    id: 'starter',
+    name: 'Paket Starter',
+    badge: 'UMKM',
+    description: 'Solusi kasir POS & inventori lengkap untuk 1 cabang usaha.',
+    features: ['1 Cabang Operasional', 'POS Kasir Cepat', 'Manajemen Stok & Produk', 'Laporan Harian'],
+  },
+  business: {
+    id: 'business',
+    name: 'Paket Business',
+    badge: 'Populer',
+    description: 'Sistem ERP terintegrasi untuk bisnis berkembang dan multi-cabang.',
+    features: ['Multi-Cabang & Gudang', 'Multi-User & Role RBAC', 'Analisis Penjualan Lengkap', 'Integrasi Sync Realtime'],
+  },
+  enterprise: {
+    id: 'enterprise',
+    name: 'Paket Enterprise',
+    badge: 'Kustom',
+    description: 'Skalabilitas tinggi untuk jaringan ritel besar dan korporasi.',
+    features: ['Multi-Tenant Terpusat', 'Dukungan CCTV & Hardware', 'SLA & Dedicated Support', 'Kustom Modul Operasional'],
+  },
+};
+
+function RegisterForm() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const planParam = searchParams.get('plan')?.toLowerCase() || searchParams.get('package')?.toLowerCase() || 'starter';
+  const [selectedPlan, setSelectedPlan] = useState<string>(
+    AVAILABLE_PACKAGES[planParam] ? planParam : 'starter'
+  );
+
   const [businessName, setBusinessName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -20,7 +60,14 @@ export default function RegisterPage() {
   const [successMsg, setSuccessMsg] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const router = useRouter();
+  useEffect(() => {
+    const p = searchParams.get('plan')?.toLowerCase() || searchParams.get('package')?.toLowerCase();
+    if (p && AVAILABLE_PACKAGES[p]) {
+      setSelectedPlan(p);
+    }
+  }, [searchParams]);
+
+  const activePackage = AVAILABLE_PACKAGES[selectedPlan] || AVAILABLE_PACKAGES.starter;
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -29,31 +76,48 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     if (password !== confirmPassword) {
-      setErrorMsg('Password dan konfirmasi password tidak cocok.');
+      setErrorMsg('Kata sandi dan konfirmasi kata sandi tidak cocok.');
+      setIsLoading(false);
+      return;
+    }
+
+    if (password.length < 8) {
+      setErrorMsg('Kata sandi harus minimal 8 karakter.');
       setIsLoading(false);
       return;
     }
 
     try {
-      const response = await api.post('/v1/auth/register', {
+      await api.post('/v1/auth/register', {
         business_name: businessName,
         email,
         password,
       });
 
-      setSuccessMsg('Pendaftaran berhasil! Mengalihkan ke login...');
-      
+      setSuccessMsg('Pendaftaran berhasil! Mengalihkan ke halaman masuk...');
+
       setTimeout(() => {
         router.push('/login');
-      }, 2000);
+      }, 1800);
     } catch (error: unknown) {
-      const err = error as { response?: { data?: { error?: { message?: string; details?: Record<string, string> } }; status?: number } };
+      const err = error as {
+        response?: {
+          data?: {
+            error?: { message?: string; details?: Record<string, string> };
+            message?: string;
+          };
+          status?: number;
+        };
+      };
+
       if (err.response?.status === 429) {
-        setErrorMsg('Terlalu banyak percobaan pendaftaran. Silakan coba lagi nanti.');
+        setErrorMsg('Terlalu banyak percobaan pendaftaran. Silakan coba beberapa saat lagi.');
       } else if (err.response?.data?.error?.message) {
         setErrorMsg(err.response.data.error.message);
+      } else if (err.response?.data?.message) {
+        setErrorMsg(err.response.data.message);
       } else {
-        setErrorMsg('Terjadi kesalahan pada server.');
+        setErrorMsg('Terjadi kesalahan pada server. Silakan periksa data Anda.');
       }
     } finally {
       setIsLoading(false);
@@ -61,93 +125,181 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-paper p-4">
-      <Card className="w-full max-w-md border-2 border-ink/10 shadow-card">
-        <CardHeader className="space-y-4">
-          <SKMNetworkLogo size={48} />
-          <div>
-            <CardTitle className="text-2xl font-display font-bold text-ink">Daftar Akun Baru</CardTitle>
-            <CardDescription className="text-ink/60">Buat akun dan bisnis Anda untuk mengakses SKMNet ERP.</CardDescription>
+    <div className="w-full max-w-md bg-surface border border-line rounded-2xl shadow-card p-6 sm:p-8 space-y-6">
+      {/* Brand Header */}
+      <div className="flex flex-col items-center text-center space-y-2">
+        <SKMNetworkLogo size={44} className="justify-center mb-1" />
+        <h1 className="text-2xl font-extrabold font-heading text-ink tracking-tight">
+          Daftar Akun Baru
+        </h1>
+        <p className="text-xs text-fog">
+          Buat workspace bisnis Anda untuk mengakses SKMNet ERP
+        </p>
+      </div>
+
+      {/* Package Selector Context Banner */}
+      <div className="p-3.5 rounded-xl bg-surface-soft border border-line space-y-2.5">
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-fog">
+            Paket Pilihan:
+          </span>
+          <div className="flex items-center gap-1">
+            {Object.keys(AVAILABLE_PACKAGES).map((key) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setSelectedPlan(key)}
+                className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase transition-all cursor-pointer ${
+                  selectedPlan === key
+                    ? 'bg-pine text-paper shadow-sm'
+                    : 'bg-surface border border-line text-ink/70 hover:bg-surface-soft'
+                }`}
+              >
+                {AVAILABLE_PACKAGES[key].name.replace('Paket ', '')}
+              </button>
+            ))}
           </div>
-        </CardHeader>
-        <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-4">
-            {errorMsg && (
-              <Alert variant="destructive">
-                <AlertTitle>Gagal</AlertTitle>
-                <AlertDescription>{errorMsg}</AlertDescription>
-              </Alert>
+        </div>
+
+        <div className="pt-1">
+          <div className="flex items-center gap-1.5 font-bold text-xs text-ink">
+            <Sparkles className="h-3.5 w-3.5 text-honey" />
+            <span>{activePackage.name}</span>
+            {activePackage.badge && (
+              <span className="text-[9px] px-1.5 py-0.2 rounded bg-honey/20 text-honey font-bold uppercase">
+                {activePackage.badge}
+              </span>
             )}
-            {successMsg && (
-              <Alert className="border-leaf/20 bg-leaf/5 text-leaf">
-                <AlertTitle>Berhasil</AlertTitle>
-                <AlertDescription>{successMsg}</AlertDescription>
-              </Alert>
-            )}
-            <div className="space-y-2">
-              <Label htmlFor="businessName" className="text-ink">Nama Bisnis</Label>
-              <Input 
-                id="businessName" 
-                type="text" 
-                placeholder="Nama bisnis Anda" 
-                value={businessName}
-                onChange={(e) => setBusinessName(e.target.value)}
-                required
-                className="border-ink/15 focus:border-ink focus:ring-marigold/50"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-ink">Email</Label>
-              <Input 
-                id="email" 
-                type="email" 
-                placeholder="nama@perusahaan.com" 
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="border-ink/15 focus:border-ink focus:ring-marigold/50"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-ink">Password</Label>
-              <Input 
-                id="password" 
-                type="password" 
-                placeholder="Minimal 8 karakter" 
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={8}
-                className="border-ink/15 focus:border-ink focus:ring-marigold/50"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword" className="text-ink">Konfirmasi Password</Label>
-              <Input 
-                id="confirmPassword" 
-                type="password" 
-                placeholder="Ulangi password" 
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-                minLength={8}
-                className="border-ink/15 focus:border-ink focus:ring-marigold/50"
-              />
-            </div>
-          </CardContent>
-          <CardFooter className="flex flex-col gap-3">
-            <Button type="submit" className="w-full bg-ink text-paper hover:bg-ink-2" disabled={isLoading}>
-              {isLoading ? 'Mendaftarkan...' : 'Daftar'}
-            </Button>
-            <p className="text-sm text-ink/60 text-center">
-              Sudah punya akun?{' '}
-              <Link href="/login" className="text-marigold-2 hover:text-marigold font-medium underline">
-                Masuk
-              </Link>
-            </p>
-          </CardFooter>
-        </form>
-      </Card>
+          </div>
+          <p className="text-[11px] text-fog mt-0.5 leading-snug">
+            {activePackage.description}
+          </p>
+        </div>
+      </div>
+
+      {/* Error & Success Feedback Alerts */}
+      {errorMsg && (
+        <Alert variant="destructive" className="bg-clay-soft/50 border-clay/30 text-clay py-2.5">
+          <AlertTitle className="text-xs font-bold font-heading">Pendaftaran Gagal</AlertTitle>
+          <AlertDescription className="text-xs">{errorMsg}</AlertDescription>
+        </Alert>
+      )}
+
+      {successMsg && (
+        <Alert className="bg-pine-soft/50 border-pine/30 text-pine py-2.5">
+          <AlertTitle className="text-xs font-bold font-heading">Berhasil</AlertTitle>
+          <AlertDescription className="text-xs">{successMsg}</AlertDescription>
+        </Alert>
+      )}
+
+      {/* Registration Form */}
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-1.5">
+          <Label htmlFor="businessName" className="text-xs font-semibold text-ink">
+            Nama Bisnis / Perusahaan
+          </Label>
+          <Input
+            id="businessName"
+            type="text"
+            placeholder="Contoh: Toko Kopi Nusantara"
+            value={businessName}
+            onChange={(e) => setBusinessName(e.target.value)}
+            required
+            className="h-10 text-sm rounded-lg border-line bg-white/90 focus:border-pine focus:ring-2 focus:ring-pine/15 transition-all placeholder:text-fog/50"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="email" className="text-xs font-semibold text-ink">
+            Email Pemilik (Owner)
+          </Label>
+          <Input
+            id="email"
+            type="email"
+            placeholder="owner@perusahaan.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            className="h-10 text-sm rounded-lg border-line bg-white/90 focus:border-pine focus:ring-2 focus:ring-pine/15 transition-all placeholder:text-fog/50"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="password" className="text-xs font-semibold text-ink">
+            Kata Sandi
+          </Label>
+          <Input
+            id="password"
+            type="password"
+            placeholder="Minimal 8 karakter"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            minLength={8}
+            className="h-10 text-sm rounded-lg border-line bg-white/90 focus:border-pine focus:ring-2 focus:ring-pine/15 transition-all"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="confirmPassword" className="text-xs font-semibold text-ink">
+            Konfirmasi Kata Sandi
+          </Label>
+          <Input
+            id="confirmPassword"
+            type="password"
+            placeholder="Ulangi kata sandi"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            required
+            minLength={8}
+            className="h-10 text-sm rounded-lg border-line bg-white/90 focus:border-pine focus:ring-2 focus:ring-pine/15 transition-all"
+          />
+        </div>
+
+        <Button
+          type="submit"
+          disabled={isLoading}
+          className="w-full h-11 text-sm font-semibold rounded-lg bg-pine hover:bg-pine-dark text-paper shadow-[0_2px_0_rgba(12,32,24,0.35)] transition-all active:scale-[0.98] mt-2 cursor-pointer"
+        >
+          {isLoading ? (
+            <span className="inline-flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Mendaftarkan Bisnis...
+            </span>
+          ) : (
+            `Daftar dengan ${activePackage.name}`
+          )}
+        </Button>
+
+        <div className="pt-2 text-center">
+          <p className="text-xs text-fog">
+            Sudah memiliki akun?{' '}
+            <Link
+              href="/login"
+              className="font-semibold text-pine hover:underline transition-colors"
+            >
+              Masuk sekarang
+            </Link>
+          </p>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <div className="flex min-h-screen items-center justify-center p-4">
+      <Suspense
+        fallback={
+          <div className="flex flex-col items-center justify-center p-8 bg-surface rounded-2xl border border-line shadow-card">
+            <Loader2 className="h-6 w-6 animate-spin text-pine mb-2" />
+            <p className="text-xs text-fog">Memuat formulir pendaftaran...</p>
+          </div>
+        }
+      >
+        <RegisterForm />
+      </Suspense>
     </div>
   );
 }

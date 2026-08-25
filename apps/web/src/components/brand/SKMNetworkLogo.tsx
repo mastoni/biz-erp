@@ -23,7 +23,7 @@ export const LogoMark = ({ size = 40, className }: IconProps & { className?: str
 export const Wordmark = ({ dark = false, className }: { dark?: boolean; className?: string }) => (
   <span className={`leading-none ${className ?? ''}`}>
     <span className={`font-display block text-[21px] font-extrabold tracking-tight ${dark ? "text-paper" : "text-ink"}`}>
-      SKM<span className="text-marigold-2">Net</span>
+      SKM<span className="text-honey">Net</span>
     </span>
     <span className={`font-mono block text-[8px] font-bold uppercase tracking-[0.42em] ${dark ? "text-paper/45" : "text-ink/40"}`}>
       tech · network

@@ -37,6 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       className={`${geistSans.variable} ${geistMono.variable} ${plusJakartaSans.variable} ${bricolageGrotesque.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-body">
+        <div className="bg-wash" aria-hidden="true" />
         <AuthProvider>
           {children}
         </AuthProvider>

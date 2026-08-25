@@ -16,36 +16,41 @@ export function Sidebar() {
   const navigation = getAuthorizedNavigation(role as Role);
 
   return (
-    <aside className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 bg-white border-r border-ink/10">
-      <div className="flex h-16 items-center px-6 border-b border-ink/10">
-        <SKMNetworkLogo size={32} />
+    <aside className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 bg-[#0c2018] text-[#f0efe7] border-r border-[#1a2620] z-30">
+      {/* Brand Header */}
+      <div className="flex h-16 items-center px-6 border-b border-[#f0efe7]/10 bg-[#0c2018]">
+        <SKMNetworkLogo dark size={32} />
       </div>
 
-      <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-1">
+      {/* Navigation Links */}
+      <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-1">
         {navigation.map((item) => {
-          const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+          const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(`${item.href}/`));
           const Icon = item.icon;
 
           return (
             <Link
               key={item.name}
               href={item.href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
+              className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-medium transition-all ${
                 isActive
-                  ? 'bg-ink/5 text-ink'
-                  : 'text-ink/60 hover:bg-ink/5 hover:text-ink'
+                  ? 'bg-[#17593e] text-[#f0efe7] font-semibold shadow-sm border border-[#1f7350]/40'
+                  : 'text-[#f0efe7]/70 hover:bg-[#f0efe7]/8 hover:text-[#f0efe7]'
               }`}
             >
-              <Icon className={`h-5 w-5 ${isActive ? 'text-ink' : 'text-ink/50'}`} />
-              {item.name}
+              <Icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-[#d3921f]' : 'text-[#f0efe7]/50'}`} />
+              <span>{item.name}</span>
             </Link>
           );
         })}
       </nav>
 
-      <div className="p-4 border-t border-ink/10">
-        <div className="text-xs text-ink/40 text-center">
-          SKMNetwork ERP
+      {/* Bottom Footer */}
+      <div className="p-4 border-t border-[#f0efe7]/10 bg-[#0a1b14]">
+        <div className="flex items-center justify-between text-[11px] text-[#f0efe7]/45 font-mono">
+          <span>v1.1 ERP</span>
+          <span className="h-1.5 w-1.5 rounded-full bg-[#17593e]" />
+          <span>PROD</span>
         </div>
       </div>
     </aside>
