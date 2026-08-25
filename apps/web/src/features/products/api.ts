@@ -54,7 +54,7 @@ export function getConflictDetails(error: unknown) {
   return null;
 }
 
-// ─── Phase 3B.2 operational read endpoints ────────────────────────────────────
+// ─── Phase 3C operational read endpoints ────────────────────────────────────
 
 export async function fetchProducts(params: ProductListParams): Promise<ProductListViewModel> {
   const { business_id, search, category, barcode, limit, offset } = params;
@@ -108,4 +108,24 @@ export async function fetchProductStock(productId: string, branchId: string, ten
   });
 
   return mapStockToViewModel(response.data);
+}
+
+// ─── Phase 3D bulk stock fetch for branch-wide grid ────────────────────────
+
+export async function fetchBranchStocks(
+  tenantId: string,
+  branchId: string,
+  productIds: string[],
+): Promise<ProductStockViewModel[]> {
+  const response = await api.get<{
+    items: Array<{ product_id: string; branch_id: string; quantity: number }>;
+  }>('/v1/inventory/stocks', {
+    params: {
+      business_id: tenantId,
+      branch_id: branchId,
+      product_ids: productIds.join(','),
+    },
+  });
+
+  return response.data.items.map((s) => mapStockToViewModel(s));
 }
