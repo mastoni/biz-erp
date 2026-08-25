@@ -8,16 +8,19 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/80",
+        default: "bg-pine text-primary-foreground hover:bg-pine-dark shadow-[0_2px_0_rgba(12,32,24,0.35)] active:scale-[0.98]",
+        pine: "bg-pine text-primary-foreground hover:bg-pine-dark shadow-[0_2px_0_rgba(12,32,24,0.35)] active:scale-[0.98]",
+        honey: "bg-honey text-pine-deep hover:brightness-105 shadow-[0_2px_0_rgba(120,80,10,0.35)] active:scale-[0.98]",
+        clay: "bg-clay text-white hover:brightness-105 shadow-[0_2px_0_rgba(120,30,20,0.35)] active:scale-[0.98]",
         outline:
-          "border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
+          "border-line bg-surface text-ink hover:border-pine/50 hover:bg-pine-soft/60 aria-expanded:bg-pine-soft active:scale-[0.98]",
         secondary:
-          "bg-secondary text-secondary-foreground hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)] aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
+          "bg-pine-soft text-pine hover:bg-pine-soft/80 aria-expanded:bg-pine-soft aria-expanded:text-pine",
         ghost:
-          "hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50",
+          "hover:bg-pine-soft/50 hover:text-pine aria-expanded:bg-pine-soft/50 aria-expanded:text-pine",
         destructive:
-          "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
-        link: "text-primary underline-offset-4 hover:underline",
+          "bg-clay/10 text-clay hover:bg-clay/20 focus-visible:border-clay/40 focus-visible:ring-clay/20",
+        link: "text-pine underline-offset-4 hover:underline",
       },
       size: {
         default:
