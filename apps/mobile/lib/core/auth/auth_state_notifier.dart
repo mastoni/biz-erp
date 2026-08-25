@@ -8,12 +8,34 @@ class AuthStateNotifier extends ChangeNotifier {
   AuthStatus _status = AuthStatus.unknown;
   AuthSession? _session;
   String? _lastBusinessId;
+  List<AuthBusinessSelection> _availableBusinesses = [];
 
   AuthStateNotifier({required this._repository});
 
   AuthStatus get status => _status;
   AuthSession? get session => _session;
   String? get businessId => _session?.businessId ?? _lastBusinessId;
+  List<AuthBusinessSelection> get availableBusinesses => List.unmodifiable(_availableBusinesses);
+
+  void setAvailableBusinesses(List<AuthBusinessSelection> businesses) {
+    _availableBusinesses = List.from(businesses);
+    notifyListeners();
+  }
+
+  Future<void> switchTenant(String businessId, [String? role]) async {
+    if (_session != null) {
+      _session = AuthSession(
+        accessToken: _session!.accessToken,
+        refreshToken: _session!.refreshToken,
+        userId: _session!.userId,
+        businessId: businessId,
+        role: role ?? _session!.role,
+      );
+      _lastBusinessId = businessId;
+      await _repository.updateActiveBusinessId(businessId, role);
+      notifyListeners();
+    }
+  }
 
   Future<void> init() async {
     _lastBusinessId = await _repository.getLastBusinessId();

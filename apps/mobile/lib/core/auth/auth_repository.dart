@@ -37,6 +37,20 @@ class AuthRepository {
     return await _storage.getLastBusinessId();
   }
 
+  Future<void> updateActiveBusinessId(String businessId, [String? role]) async {
+    final session = await _storage.getSession();
+    if (session != null) {
+      final updated = AuthSession(
+        accessToken: session.accessToken,
+        refreshToken: session.refreshToken,
+        userId: session.userId,
+        businessId: businessId,
+        role: role ?? session.role,
+      );
+      await _storage.saveSession(updated);
+    }
+  }
+
   Future<RefreshResult> refreshSession() {
     if (_refreshFuture != null) {
       return _refreshFuture!;

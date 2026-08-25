@@ -40,6 +40,7 @@ class _LoginScreenState extends State<LoginScreen> {
       await widget.authNotifier.login(email, password);
     } on AuthException catch (e) {
       if (e.code == 'BUSINESS_SELECTION_REQUIRED' && e.businesses != null && e.businesses!.isNotEmpty) {
+        widget.authNotifier.setAvailableBusinesses(e.businesses!);
         if (!mounted) return;
         setState(() => _isLoading = false);
         final selectedId = await Navigator.of(context).push<String>(

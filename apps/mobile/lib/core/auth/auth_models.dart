@@ -58,13 +58,15 @@ class AuthSession {
 class AuthBusinessSelection {
   final String id;
   final String name;
+  final String? role;
 
-  AuthBusinessSelection({required this.id, required this.name});
+  AuthBusinessSelection({required this.id, required this.name, this.role});
 
   factory AuthBusinessSelection.fromMap(Map<String, dynamic> map) {
     return AuthBusinessSelection(
       id: map['id'] as String,
       name: map['name'] as String,
+      role: map['role'] as String?,
     );
   }
 }
