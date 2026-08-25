@@ -1,6 +1,6 @@
 import { Pool } from 'pg'
 import { withTransaction } from '../db/transaction'
-import { ReportDateRange, SalesSummaryReport, ProductSalesReport, CustomerSalesReport } from '../dto/report_dto'
+import { ReportDateRange, SalesSummaryReport, ProductSalesReport, CustomerSalesReport, HourlySalesResponse, HourlySalesBucket } from '../dto/report_dto'
 import { branchRepository } from '../repositories/branch_repository'
 import { ApiError } from '../errors/api_error'
 
@@ -141,6 +141,56 @@ export function createReportService(pool: Pool) {
           total_purchases: Number(row.total_purchases),
           total_spent_minor: Number(row.total_spent_minor),
         }))
+      })
+    },
+
+    async getHourlySales(businessId: string, dateRange: ReportDateRange): Promise<HourlySalesResponse> {
+      return withTransaction(pool, async (client) => {
+        if (dateRange.branch_id) {
+          const branch = await branchRepository.findById(client, businessId, dateRange.branch_id)
+          if (!branch) {
+            throw new ApiError(403, 'BUSINESS_ACCESS_DENIED', 'Branch not found or access denied')
+          }
+        }
+
+        const branchCondition = dateRange.branch_id ? ` AND sales.branch_id = $4` : ''
+        const params = dateRange.branch_id
+          ? [businessId, dateRange.from, dateRange.to, dateRange.branch_id]
+          : [businessId, dateRange.from, dateRange.to]
+
+        const result = await client.query(
+          `SELECT
+            EXTRACT(HOUR FROM created_at)::INTEGER as hour,
+            COALESCE(SUM(total_minor), 0) as total_revenue_minor,
+            COUNT(*) as transaction_count
+           FROM sales
+           WHERE business_id = $1
+             AND created_at >= $2
+             AND created_at <= $3${branchCondition}
+           GROUP BY EXTRACT(HOUR FROM created_at)
+           ORDER BY hour ASC`,
+          params
+        )
+
+        const bucketMap = new Map<number, { total_revenue_minor: number; transaction_count: number }>()
+        for (const row of result.rows) {
+          bucketMap.set(Number(row.hour), {
+            total_revenue_minor: Number(row.total_revenue_minor),
+            transaction_count: Number(row.transaction_count),
+          })
+        }
+
+        const buckets: HourlySalesBucket[] = []
+        for (let h = 0; h < 24; h++) {
+          const data = bucketMap.get(h)
+          buckets.push({
+            hour: h,
+            total_revenue_minor: data ? data.total_revenue_minor : 0,
+            transaction_count: data ? data.transaction_count : 0,
+          })
+        }
+
+        return { buckets }
       })
     },
   }

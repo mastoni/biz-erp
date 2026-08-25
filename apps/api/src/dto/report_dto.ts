@@ -30,8 +30,19 @@ export interface CustomerSalesReport {
   total_spent_minor: number
 }
 
+export interface HourlySalesBucket {
+  hour: number
+  total_revenue_minor: number
+  transaction_count: number
+}
+
+export interface HourlySalesResponse {
+  buckets: HourlySalesBucket[]
+}
+
 export interface ReportResponse {
   sales_summary?: SalesSummaryReport
   product_sales?: ProductSalesReport[]
   customer_sales?: CustomerSalesReport[]
+  hourly_sales?: HourlySalesResponse
 }

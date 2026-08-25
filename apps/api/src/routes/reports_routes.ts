@@ -59,6 +59,18 @@ export function createReportsRoutes(pool: Pool): Router {
     })
   )
 
+  router.get(
+    '/sales-hourly',
+    requireRole('OWNER', 'CASHIER') as any,
+    asyncHandler<SyncAuthenticatedRequest>(async (req, res) => {
+      const businessId = req.tenantId!
+      const dateRange = parseDateRange(req.query)
+
+      const report = await reportService.getHourlySales(businessId, dateRange)
+      res.status(200).json(report)
+    })
+  )
+
   return router
 }
 
