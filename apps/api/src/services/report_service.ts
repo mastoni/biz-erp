@@ -1,6 +1,16 @@
 import { Pool } from 'pg'
 import { withTransaction } from '../db/transaction'
-import { ReportDateRange, SalesSummaryReport, ProductSalesReport, CustomerSalesReport, HourlySalesResponse, HourlySalesBucket } from '../dto/report_dto'
+import {
+  ReportDateRange,
+  SalesSummaryReport,
+  ProductSalesReport,
+  CustomerSalesReport,
+  HourlySalesResponse,
+  HourlySalesBucket,
+  RecentSalesQuery,
+  RecentSalesResponse,
+  RecentSaleItem,
+} from '../dto/report_dto'
 import { branchRepository } from '../repositories/branch_repository'
 import { ApiError } from '../errors/api_error'
 
@@ -191,6 +201,53 @@ export function createReportService(pool: Pool) {
         }
 
         return { buckets }
+      })
+    },
+
+    async getRecentSales(businessId: string, query: RecentSalesQuery): Promise<RecentSalesResponse> {
+      return withTransaction(pool, async (client) => {
+        if (query.branch_id) {
+          const branch = await branchRepository.findById(client, businessId, query.branch_id)
+          if (!branch) {
+            throw new ApiError(403, 'BUSINESS_ACCESS_DENIED', 'Branch not found or access denied')
+          }
+        }
+
+        const limit = query.limit && query.limit > 0 ? Math.min(query.limit, 50) : 10
+        const branchCondition = query.branch_id ? ` AND sales.branch_id = $2` : ''
+        const params = query.branch_id
+          ? [businessId, query.branch_id, limit]
+          : [businessId, limit]
+
+        const limitParamIndex = query.branch_id ? '$3' : '$2'
+
+        const result = await client.query(
+          `SELECT
+            id,
+            receipt_number,
+            total_minor,
+            payment_method,
+            cashier_id,
+            created_at,
+            branch_id
+           FROM sales
+           WHERE business_id = $1${branchCondition}
+           ORDER BY created_at DESC, id DESC
+           LIMIT ${limitParamIndex}`,
+          params
+        )
+
+        const sales: RecentSaleItem[] = result.rows.map((row) => ({
+          id: row.id,
+          receipt_number: row.receipt_number,
+          total_minor: Number(row.total_minor),
+          payment_method: row.payment_method ?? null,
+          cashier_id: row.cashier_id ?? null,
+          created_at: row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at),
+          branch_id: row.branch_id ?? null,
+        }))
+
+        return { sales }
       })
     },
   }

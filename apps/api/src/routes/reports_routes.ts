@@ -71,6 +71,33 @@ export function createReportsRoutes(pool: Pool): Router {
     })
   )
 
+  router.get(
+    '/recent-sales',
+    requireRole('OWNER', 'CASHIER') as any,
+    asyncHandler<SyncAuthenticatedRequest>(async (req, res) => {
+      const businessId = req.tenantId!
+      let branch_id: string | undefined
+      if (req.query.branch_id !== undefined) {
+        if (typeof req.query.branch_id !== 'string' || !isUuid(req.query.branch_id)) {
+          throw new ApiError(400, 'BAD_REQUEST', 'branch_id must be a valid UUID')
+        }
+        branch_id = req.query.branch_id
+      }
+
+      let limit: number | undefined
+      if (req.query.limit !== undefined) {
+        const parsedLimit = Number(req.query.limit)
+        if (!Number.isInteger(parsedLimit) || parsedLimit < 1) {
+          throw new ApiError(400, 'BAD_REQUEST', 'limit must be a positive integer')
+        }
+        limit = Math.min(parsedLimit, 50)
+      }
+
+      const report = await reportService.getRecentSales(businessId, { branch_id, limit })
+      res.status(200).json(report)
+    })
+  )
+
   return router
 }
 

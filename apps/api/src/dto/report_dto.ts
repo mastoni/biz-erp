@@ -40,9 +40,29 @@ export interface HourlySalesResponse {
   buckets: HourlySalesBucket[]
 }
 
+export interface RecentSaleItem {
+  id: string
+  receipt_number: string
+  total_minor: number
+  payment_method: string | null
+  cashier_id: string | null
+  created_at: string
+  branch_id: string | null
+}
+
+export interface RecentSalesResponse {
+  sales: RecentSaleItem[]
+}
+
+export interface RecentSalesQuery {
+  branch_id?: string
+  limit?: number
+}
+
 export interface ReportResponse {
   sales_summary?: SalesSummaryReport
   product_sales?: ProductSalesReport[]
   customer_sales?: CustomerSalesReport[]
   hourly_sales?: HourlySalesResponse
+  recent_sales?: RecentSalesResponse
 }
