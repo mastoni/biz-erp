@@ -1,10 +1,12 @@
-import { Router, Request, Response, NextFunction } from 'express'
+import { Router } from 'express'
 import { Pool } from 'pg'
 import { createJwtService } from '../services/jwt_service'
 import { requireSyncAuth, SyncAuthenticatedRequest, requireRole } from '../middleware/auth'
 import { asyncHandler } from '../utils/async_handler'
 import { createReportService } from '../services/report_service'
+import { isUuid } from '../utils/uuid'
 import { ApiError } from '../errors/api_error'
+import { ReportDateRange } from '../dto/report_dto'
 
 export function createReportsRoutes(pool: Pool): Router {
   const router = Router()
@@ -60,7 +62,7 @@ export function createReportsRoutes(pool: Pool): Router {
   return router
 }
 
-function parseDateRange(query: any): { from: string; to: string } {
+function parseDateRange(query: any): ReportDateRange {
   const from = typeof query.from === 'string' ? query.from : new Date().toISOString().split('T')[0]
   const to = typeof query.to === 'string' ? query.to : new Date().toISOString().split('T')[0]
 
@@ -68,5 +70,13 @@ function parseDateRange(query: any): { from: string; to: string } {
     throw new ApiError(400, 'BAD_REQUEST', 'from and to query parameters are required (YYYY-MM-DD)')
   }
 
-  return { from, to }
+  let branch_id: string | undefined
+  if (query.branch_id !== undefined) {
+    if (typeof query.branch_id !== 'string' || !isUuid(query.branch_id)) {
+      throw new ApiError(400, 'BAD_REQUEST', 'branch_id must be a valid UUID')
+    }
+    branch_id = query.branch_id
+  }
+
+  return { from, to, branch_id }
 }

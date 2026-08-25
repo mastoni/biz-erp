@@ -1,9 +1,10 @@
-import { Router, Request, Response, NextFunction } from 'express'
+import { Router } from 'express'
 import { Pool } from 'pg'
 import { createJwtService } from '../services/jwt_service'
 import { requireSyncAuth, SyncAuthenticatedRequest, requireRole } from '../middleware/auth'
 import { asyncHandler } from '../utils/async_handler'
 import { createDashboardService } from '../services/dashboard_service'
+import { isUuid } from '../utils/uuid'
 import { ApiError } from '../errors/api_error'
 
 export function createDashboardRoutes(pool: Pool): Router {
@@ -26,9 +27,20 @@ export function createDashboardRoutes(pool: Pool): Router {
     requireRole('OWNER', 'CASHIER') as any,
     asyncHandler<SyncAuthenticatedRequest>(async (req, res) => {
       const businessId = req.tenantId!
+      const branchIdRaw = req.query.branch_id
+      let branchId: string | undefined
+
+      if (branchIdRaw !== undefined) {
+        if (typeof branchIdRaw !== 'string' || !isUuid(branchIdRaw)) {
+          throw new ApiError(400, 'BAD_REQUEST', 'branch_id must be a valid UUID')
+        }
+        branchId = branchIdRaw
+      }
+
       const query = {
         from: typeof req.query.from === 'string' ? req.query.from : undefined,
         to: typeof req.query.to === 'string' ? req.query.to : undefined,
+        branch_id: branchId,
       }
 
       const metrics = await dashboardService.getMetrics(businessId, query)

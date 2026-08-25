@@ -1,11 +1,25 @@
-import { Pool, PoolClient } from 'pg'
+import { Pool } from 'pg'
 import { withTransaction } from '../db/transaction'
-import { ReportDateRange, ReportResponse, SalesSummaryReport, ProductSalesReport, CustomerSalesReport } from '../dto/report_dto'
+import { ReportDateRange, SalesSummaryReport, ProductSalesReport, CustomerSalesReport } from '../dto/report_dto'
+import { branchRepository } from '../repositories/branch_repository'
+import { ApiError } from '../errors/api_error'
 
 export function createReportService(pool: Pool) {
   return {
     async getSalesSummary(businessId: string, dateRange: ReportDateRange): Promise<SalesSummaryReport> {
       return withTransaction(pool, async (client) => {
+        if (dateRange.branch_id) {
+          const branch = await branchRepository.findById(client, businessId, dateRange.branch_id)
+          if (!branch) {
+            throw new ApiError(403, 'BUSINESS_ACCESS_DENIED', 'Branch not found or access denied')
+          }
+        }
+
+        const branchCondition = dateRange.branch_id ? ` AND sales.branch_id = $4` : ''
+        const params = dateRange.branch_id
+          ? [businessId, dateRange.from, dateRange.to, dateRange.branch_id]
+          : [businessId, dateRange.from, dateRange.to]
+
         const summaryResult = await client.query(
           `SELECT
             COUNT(*) as total_sales,
@@ -17,8 +31,8 @@ export function createReportService(pool: Pool) {
            FROM sales
            WHERE business_id = $1
              AND created_at >= $2
-             AND created_at <= $3`,
-          [businessId, dateRange.from, dateRange.to]
+             AND created_at <= $3${branchCondition}`,
+          params
         )
 
         const paymentMethodsResult = await client.query(
@@ -29,11 +43,11 @@ export function createReportService(pool: Pool) {
            FROM sales
            WHERE business_id = $1
              AND created_at >= $2
-             AND created_at <= $3
+             AND created_at <= $3${branchCondition}
              AND payment_method IS NOT NULL
            GROUP BY payment_method
            ORDER BY total_minor DESC`,
-          [businessId, dateRange.from, dateRange.to]
+          params
         )
 
         const row = summaryResult.rows[0]
@@ -54,6 +68,18 @@ export function createReportService(pool: Pool) {
 
     async getProductSales(businessId: string, dateRange: ReportDateRange): Promise<ProductSalesReport[]> {
       return withTransaction(pool, async (client) => {
+        if (dateRange.branch_id) {
+          const branch = await branchRepository.findById(client, businessId, dateRange.branch_id)
+          if (!branch) {
+            throw new ApiError(403, 'BUSINESS_ACCESS_DENIED', 'Branch not found or access denied')
+          }
+        }
+
+        const branchCondition = dateRange.branch_id ? ` AND s.branch_id = $4` : ''
+        const params = dateRange.branch_id
+          ? [businessId, dateRange.from, dateRange.to, dateRange.branch_id]
+          : [businessId, dateRange.from, dateRange.to]
+
         const result = await client.query(
           `SELECT
             si.product_id,
@@ -64,10 +90,10 @@ export function createReportService(pool: Pool) {
            JOIN sales s ON s.id = si.sale_id
            WHERE s.business_id = $1
              AND s.created_at >= $2
-             AND s.created_at <= $3
+             AND s.created_at <= $3${branchCondition}
            GROUP BY si.product_id, si.product_name
            ORDER BY total_quantity DESC`,
-          [businessId, dateRange.from, dateRange.to]
+          params
         )
 
         return result.rows.map((row) => ({
@@ -81,6 +107,18 @@ export function createReportService(pool: Pool) {
 
     async getCustomerSales(businessId: string, dateRange: ReportDateRange): Promise<CustomerSalesReport[]> {
       return withTransaction(pool, async (client) => {
+        if (dateRange.branch_id) {
+          const branch = await branchRepository.findById(client, businessId, dateRange.branch_id)
+          if (!branch) {
+            throw new ApiError(403, 'BUSINESS_ACCESS_DENIED', 'Branch not found or access denied')
+          }
+        }
+
+        const branchCondition = dateRange.branch_id ? ` AND s.branch_id = $4` : ''
+        const params = dateRange.branch_id
+          ? [businessId, dateRange.from, dateRange.to, dateRange.branch_id]
+          : [businessId, dateRange.from, dateRange.to]
+
         const result = await client.query(
           `SELECT
             s.customer_id,
@@ -91,10 +129,10 @@ export function createReportService(pool: Pool) {
            LEFT JOIN customers c ON c.id = s.customer_id
            WHERE s.business_id = $1
              AND s.created_at >= $2
-             AND s.created_at <= $3
+             AND s.created_at <= $3${branchCondition}
            GROUP BY s.customer_id, c.name
            ORDER BY total_spent_minor DESC`,
-          [businessId, dateRange.from, dateRange.to]
+          params
         )
 
         return result.rows.map((row) => ({

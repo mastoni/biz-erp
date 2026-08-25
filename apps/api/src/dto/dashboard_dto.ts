@@ -14,4 +14,5 @@ export interface DashboardMetrics {
 export interface DateRangeQuery {
   from?: string
   to?: string
+  branch_id?: string
 }

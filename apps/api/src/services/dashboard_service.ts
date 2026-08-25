@@ -1,15 +1,27 @@
-import { Pool, PoolClient } from 'pg'
+import { Pool } from 'pg'
 import { withTransaction } from '../db/transaction'
 import { DashboardMetrics, DateRangeQuery } from '../dto/dashboard_dto'
+import { branchRepository } from '../repositories/branch_repository'
+import { ApiError } from '../errors/api_error'
 
 export function createDashboardService(pool: Pool) {
   return {
     async getMetrics(businessId: string, query: DateRangeQuery): Promise<DashboardMetrics> {
       return withTransaction(pool, async (client) => {
+        if (query.branch_id) {
+          const branch = await branchRepository.findById(client, businessId, query.branch_id)
+          if (!branch) {
+            throw new ApiError(403, 'BUSINESS_ACCESS_DENIED', 'Branch not found or access denied')
+          }
+        }
+
         const dateFilter = buildDateFilter(query)
         const dateParams = dateFilter.params
 
-        const salesFilter = `sales.business_id = $1${dateFilter.sql ? ` AND ${dateFilter.sql}` : ''}`
+        const branchSalesSql = query.branch_id ? ` AND sales.branch_id = $${dateParams.length + 2}` : ''
+        const salesFilter = `sales.business_id = $1${dateFilter.sql ? ` AND ${dateFilter.sql}` : ''}${branchSalesSql}`
+        const salesParams = query.branch_id ? [businessId, ...dateParams, query.branch_id] : [businessId, ...dateParams]
+
         const customerFilter = `business_id = $1${dateFilter.sql ? ` AND ${dateFilter.sql.replace('sales.created_at', 'customers.created_at')}` : ''}`
         const productFilter = `business_id = $1`
 
@@ -17,14 +29,14 @@ export function createDashboardService(pool: Pool) {
           `SELECT COALESCE(SUM(total_minor), 0) as total_revenue
            FROM sales
            WHERE ${salesFilter}`,
-          [businessId, ...dateParams]
+          salesParams
         )
 
         const totalSalesResult = await client.query(
           `SELECT COUNT(*) as total_sales
            FROM sales
            WHERE ${salesFilter}`,
-          [businessId, ...dateParams]
+          salesParams
         )
 
         const totalCustomersResult = await client.query(
@@ -37,16 +49,19 @@ export function createDashboardService(pool: Pool) {
         const totalProductsResult = await client.query(
           `SELECT COUNT(*) as total_products
            FROM products
-           WHERE ${productFilter} AND is_active = TRUE`,
+           WHERE ${productFilter} AND is_active = TRUE AND deleted_at IS NULL`,
           [businessId]
         )
+
+        const branchStockSql = query.branch_id ? ` AND branch_id = $2` : ''
+        const stockParams = query.branch_id ? [businessId, query.branch_id] : [businessId]
 
         const outOfStockResult = await client.query(
           `SELECT COUNT(*) as out_of_stock_count
            FROM stocks
            WHERE business_id = $1
-             AND quantity = 0`,
-          [businessId]
+             AND quantity = 0${branchStockSql}`,
+          stockParams
         )
 
         const topProductsResult = await client.query(
@@ -57,7 +72,7 @@ export function createDashboardService(pool: Pool) {
            GROUP BY si.product_id, si.product_name
            ORDER BY quantity_sold DESC
            LIMIT 5`,
-          [businessId, ...dateParams]
+          salesParams
         )
 
         return {
@@ -87,12 +102,12 @@ function buildDateFilter(query: DateRangeQuery): { sql: string; params: string[]
 
   if (query.from) {
     params.push(query.from)
-    conditions.push(`sales.created_at >= $${params.length}`)
+    conditions.push(`sales.created_at >= $${params.length + 1}`)
   }
 
   if (query.to) {
     params.push(query.to)
-    conditions.push(`sales.created_at <= $${params.length}`)
+    conditions.push(`sales.created_at <= $${params.length + 1}`)
   }
 
   return { sql: conditions.join(' AND '), params }

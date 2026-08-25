@@ -1,6 +1,7 @@
 export interface ReportDateRange {
   from: string
   to: string
+  branch_id?: string
 }
 
 export interface SalesSummaryReport {
