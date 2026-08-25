@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import 'dotenv/config'
+import { describe, it, expect, beforeAll, beforeEach, afterAll } from 'vitest'
 import request from 'supertest'
 import { Pool } from 'pg'
 import { createApp } from '../src/app'
@@ -17,7 +18,7 @@ describe('Security Hardening', () => {
     process.env.JWT_ISSUER = 'test-issuer'
     process.env.JWT_AUDIENCE = 'test-audience'
 
-    const databaseUrl = process.env.TEST_DATABASE_URL ?? (process.env.DATABASE_URL || 'postgres://bizerp:bizerp@localhost:54320/bizerp')
+    const databaseUrl = process.env.DATABASE_URL || 'postgres://bizerp:bizerp@localhost:5432/bizerp'
     process.env.DATABASE_URL = databaseUrl
     pool = createPool(databaseUrl)
     app = createApp(pool)
@@ -27,7 +28,9 @@ describe('Security Hardening', () => {
       VALUES ($1, $2)
       ON CONFLICT (id) DO NOTHING
     `, [BUSINESS_A, 'Security Test Business'])
+  })
 
+  beforeEach(async () => {
     await seedTestUser(pool, BUSINESS_A, { email: 'sec-owner@business1.com', password: 'password123', role: 'OWNER' })
   })
 

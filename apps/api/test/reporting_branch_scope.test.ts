@@ -1,3 +1,4 @@
+import 'dotenv/config'
 import { randomUUID } from 'crypto'
 import type { Express } from 'express'
 import { Pool } from 'pg'
@@ -106,9 +107,9 @@ describe('PHASE 2A — Reporting Branch Scope Test Suite', () => {
     // Seed sales in Branch A1: 1 sale with total 30.000 (minor 3000000), CASH
     const saleA1 = randomUUID()
     await pool.query(
-      `INSERT INTO sales (id, business_id, branch_id, idempotency_key, receipt_number, subtotal_minor, discount_minor, tax_minor, total_minor, payment_method, cash_received_minor, change_minor, client_created_at, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, 'REC-001', 3000000, 0, 0, 3000000, 'CASH', 5000000, 2000000, 1700000000000, now(), now())`,
-      [saleA1, BUSINESS_A, branchA1, randomUUID()]
+      `INSERT INTO sales (id, business_id, branch_id, receipt_number, subtotal_minor, discount_minor, tax_minor, total_minor, payment_method, paid_minor, change_minor, cashier_id, client_created_at, created_at, server_created_at)
+       VALUES ($1, $2, $3, 'REC-001', 3000000, 0, 0, 3000000, 'CASH', 5000000, 2000000, $4, now(), now(), now())`,
+      [saleA1, BUSINESS_A, branchA1, u1.userId]
     )
     await pool.query(
       `INSERT INTO sale_items (id, sale_id, product_id, product_name, quantity, unit_price_minor, subtotal_minor)
@@ -119,9 +120,9 @@ describe('PHASE 2A — Reporting Branch Scope Test Suite', () => {
     // Seed sales in Branch A2: 2 sales with total 40.000 (minor 4000000), QRIS
     const saleA2 = randomUUID()
     await pool.query(
-      `INSERT INTO sales (id, business_id, branch_id, idempotency_key, receipt_number, subtotal_minor, discount_minor, tax_minor, total_minor, payment_method, cash_received_minor, change_minor, client_created_at, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, 'REC-002', 4000000, 0, 0, 4000000, 'QRIS', 4000000, 0, 1700000000000, now(), now())`,
-      [saleA2, BUSINESS_A, branchA2, randomUUID()]
+      `INSERT INTO sales (id, business_id, branch_id, receipt_number, subtotal_minor, discount_minor, tax_minor, total_minor, payment_method, paid_minor, change_minor, cashier_id, client_created_at, created_at, server_created_at)
+       VALUES ($1, $2, $3, 'REC-002', 4000000, 0, 0, 4000000, 'QRIS', 4000000, 0, $4, now(), now(), now())`,
+      [saleA2, BUSINESS_A, branchA2, u1.userId]
     )
     await pool.query(
       `INSERT INTO sale_items (id, sale_id, product_id, product_name, quantity, unit_price_minor, subtotal_minor)
@@ -208,7 +209,7 @@ describe('PHASE 2A — Reporting Branch Scope Test Suite', () => {
       .set('Authorization', `Bearer ${tokenAOwner}`)
       .expect(403)
 
-    expect(res.body.error).toBe('BUSINESS_ACCESS_DENIED')
+    expect(res.body.error.code).toBe('BUSINESS_ACCESS_DENIED')
 
     // Attempt reports endpoint with branch from another tenant
     const reportRes = await request(app)
@@ -216,7 +217,7 @@ describe('PHASE 2A — Reporting Branch Scope Test Suite', () => {
       .set('Authorization', `Bearer ${tokenAOwner}`)
       .expect(403)
 
-    expect(reportRes.body.error).toBe('BUSINESS_ACCESS_DENIED')
+    expect(reportRes.body.error.code).toBe('BUSINESS_ACCESS_DENIED')
   })
 
   it('REPORT-BRANCH-004: invalid branch UUID rejected', async () => {
@@ -226,8 +227,8 @@ describe('PHASE 2A — Reporting Branch Scope Test Suite', () => {
       .set('Authorization', `Bearer ${tokenAOwner}`)
       .expect(400)
 
-    expect(res.body.error).toBe('BAD_REQUEST')
-    expect(res.body.message).toContain('branch_id must be a valid UUID')
+    expect(res.body.error.code).toBe('BAD_REQUEST')
+    expect(res.body.error.message).toContain('branch_id must be a valid UUID')
 
     // Reports endpoint with invalid UUID
     const reportRes = await request(app)
@@ -235,7 +236,7 @@ describe('PHASE 2A — Reporting Branch Scope Test Suite', () => {
       .set('Authorization', `Bearer ${tokenAOwner}`)
       .expect(400)
 
-    expect(reportRes.body.error).toBe('BAD_REQUEST')
+    expect(reportRes.body.error.code).toBe('BAD_REQUEST')
   })
 
   it('REPORT-BRANCH-005: existing API behavior remains unchanged', async () => {

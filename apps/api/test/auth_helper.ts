@@ -20,23 +20,36 @@ export async function seedTestUser(
 
   const hash = await bcrypt.hash(password, 10)
 
-  await pool.query(
+  const userRes = await pool.query(
     `
       INSERT INTO users (id, email, password_hash, status)
       VALUES ($1, $2, $3, 'ACTIVE')
+      ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash, status = EXCLUDED.status
+      RETURNING id
     `,
     [userId, email, hash]
+  )
+  const actualUserId = userRes.rows[0].id
+
+  await pool.query(
+    `
+      INSERT INTO businesses (id, name)
+      VALUES ($1, 'Test Business')
+      ON CONFLICT (id) DO NOTHING
+    `,
+    [businessId]
   )
 
   await pool.query(
     `
       INSERT INTO user_businesses (user_id, business_id, role, status)
       VALUES ($1, $2, $3, 'ACTIVE')
+      ON CONFLICT (user_id, business_id) DO UPDATE SET role = EXCLUDED.role, status = EXCLUDED.status
     `,
-    [userId, businessId, role]
+    [actualUserId, businessId, role]
   )
 
-  return { email, password, userId }
+  return { email, password, userId: actualUserId }
 }
 
 export async function authenticateTestUser(
