@@ -6,7 +6,9 @@ const PRODUCT_COLUMNS = `
   business_id,
   name,
   description,
+  sku,
   price_minor,
+  cost_minor,
   category,
   barcode,
   is_active,
@@ -18,7 +20,9 @@ const PRODUCT_COLUMNS = `
 export interface ProductPatch {
   name?: string
   description?: string | null
+  sku?: string | null
   price_minor?: number
+  cost_minor?: number | null
   category?: string | null
   barcode?: string | null
   is_active?: boolean
@@ -66,9 +70,19 @@ export const productRepository = {
       values.push(patch.description ?? null)
     }
 
+    if ('sku' in patch) {
+      setClauses.push(`sku = $${paramIndex++}`)
+      values.push(patch.sku ?? null)
+    }
+
     if (patch.price_minor !== undefined) {
       setClauses.push(`price_minor = $${paramIndex++}`)
       values.push(patch.price_minor)
+    }
+
+    if ('cost_minor' in patch) {
+      setClauses.push(`cost_minor = $${paramIndex++}`)
+      values.push(patch.cost_minor ?? null)
     }
 
     if ('category' in patch) {
@@ -104,16 +118,18 @@ export const productRepository = {
 
   async insert(client: PoolClient, product: {
     id: string; business_id: string; name: string; description: string | null;
-    price_minor: number; category: string | null; barcode: string | null; is_active: boolean;
+    sku: string | null; price_minor: number; cost_minor: number | null;
+    category: string | null; barcode: string | null; is_active: boolean;
   }): Promise<ProductDto> {
     const sql = `
-      INSERT INTO products (id, business_id, name, description, price_minor, category, barcode, is_active, server_version, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 1, now(), now())
+      INSERT INTO products (id, business_id, name, description, sku, price_minor, cost_minor, category, barcode, is_active, server_version, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 1, now(), now())
       RETURNING ${PRODUCT_COLUMNS}
     `
     const result = await client.query(sql, [
       product.id, product.business_id, product.name, product.description,
-      product.price_minor, product.category, product.barcode, product.is_active
+      product.sku, product.price_minor, product.cost_minor,
+      product.category, product.barcode, product.is_active
     ])
     return result.rows[0] as ProductDto
   }

@@ -6,7 +6,9 @@ export interface ProductDto {
   business_id: string
   name: string
   description: string | null
+  sku: string | null
   price_minor: number
+  cost_minor: number | null
   category: string | null
   barcode: string | null
   is_active: boolean
@@ -20,7 +22,9 @@ export interface ProductUpdateRequest {
   expected_server_version: number
   name?: string
   description?: string | null
+  sku?: string | null
   price_minor?: number
+  cost_minor?: number | null
   category?: string | null
   barcode?: string | null
   is_active?: boolean
@@ -76,6 +80,18 @@ export function validateProductUpdate(body: unknown): ProductUpdateRequest {
     }
   }
 
+  if ('sku' in body) {
+    hasPatch = true
+    const value = body.sku
+    if (value === null) {
+      result.sku = null
+    } else if (typeof value === 'string') {
+      result.sku = value.trim() === '' ? null : value.trim()
+    } else {
+      errors.sku = 'sku must be a string or null'
+    }
+  }
+
   if ('price_minor' in body) {
     hasPatch = true
     const value = body.price_minor
@@ -83,6 +99,18 @@ export function validateProductUpdate(body: unknown): ProductUpdateRequest {
       errors.price_minor = 'price_minor must be a non-negative integer'
     } else {
       result.price_minor = value
+    }
+  }
+
+  if ('cost_minor' in body) {
+    hasPatch = true
+    const value = body.cost_minor
+    if (value === null) {
+      result.cost_minor = null
+    } else if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
+      errors.cost_minor = 'cost_minor must be a non-negative integer or null'
+    } else {
+      result.cost_minor = value
     }
   }
 
@@ -132,7 +160,18 @@ export function validateProductUpdate(body: unknown): ProductUpdateRequest {
 }
 
 
-export interface ProductCreateRequest { id: string; business_id: string; name: string; description?: string | null; price_minor: number; category?: string | null; barcode?: string | null; is_active?: boolean; }
+export interface ProductCreateRequest {
+  id: string
+  business_id: string
+  name: string
+  description?: string | null
+  sku?: string | null
+  price_minor: number
+  cost_minor?: number | null
+  category?: string | null
+  barcode?: string | null
+  is_active?: boolean
+}
 
 export function validateProductCreate(body: unknown): ProductCreateRequest {
   if (!isObject(body)) throw new ValidationError('Request body must be a JSON object')
@@ -144,6 +183,8 @@ export function validateProductCreate(body: unknown): ProductCreateRequest {
   if (typeof priceMinor !== 'number' || !Number.isInteger(priceMinor) || priceMinor < 0) errors.price_minor = 'price_minor must be a non-negative integer'
   const result: any = { id: typeof id === 'string' ? id.trim() : '', business_id: typeof businessId === 'string' ? businessId.trim() : '', name: typeof name === 'string' ? name.trim() : '', price_minor: typeof priceMinor === 'number' ? priceMinor : 0 }
   if ('description' in body) { if (body.description === null) result.description = null; else if (typeof body.description === 'string') result.description = body.description; else errors.description = 'description must be a string or null' }
+  if ('sku' in body) { if (body.sku === null || body.sku === '') result.sku = null; else if (typeof body.sku === 'string') result.sku = body.sku.trim(); else errors.sku = 'sku must be a string or null' }
+  if ('cost_minor' in body) { if (body.cost_minor === null) result.cost_minor = null; else if (typeof body.cost_minor === 'number' && Number.isInteger(body.cost_minor) && body.cost_minor >= 0) result.cost_minor = body.cost_minor; else errors.cost_minor = 'cost_minor must be a non-negative integer or null' }
   if ('category' in body) { if (body.category === null) result.category = null; else if (typeof body.category === 'string') result.category = body.category; else errors.category = 'category must be a string or null' }
   if ('barcode' in body) { if (body.barcode === null || body.barcode === '') result.barcode = null; else if (typeof body.barcode === 'string') result.barcode = body.barcode.trim(); else errors.barcode = 'barcode must be a string or null' }
   if ('is_active' in body) { if (typeof body.is_active === 'boolean') result.is_active = body.is_active; else errors.is_active = 'is_active must be a boolean' } else { result.is_active = true }

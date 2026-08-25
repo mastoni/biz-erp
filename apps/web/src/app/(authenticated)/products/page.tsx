@@ -18,7 +18,7 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [nextVersion, setNextVersion] = useState(0);
+  const [currentVersion, setCurrentVersion] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [filter, setFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
 
@@ -38,7 +38,7 @@ export default function ProductsPage() {
         setProducts(res.items);
       }
       
-      setNextVersion(res.next_version);
+      setCurrentVersion(res.current_version);
       setHasMore(res.has_more);
     } catch (err: unknown) {
       if (err instanceof AxiosError) {
@@ -62,7 +62,7 @@ export default function ProductsPage() {
           const res = await getProducts(business.id, 0, 100);
           if (!active) return;
           setProducts(res.items);
-          setNextVersion(res.next_version);
+          setCurrentVersion(res.current_version);
           setHasMore(res.has_more);
           setLoading(false);
         } catch (err: unknown) {
@@ -173,7 +173,7 @@ export default function ProductsPage() {
       
       {hasMore && (
         <div className="flex justify-center mt-4">
-          <Button variant="outline" onClick={() => fetchProducts(nextVersion, true)} disabled={loadingMore}>
+          <Button variant="outline" onClick={() => fetchProducts(currentVersion, true)} disabled={loadingMore}>
             {loadingMore ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading...</> : 'Load More'}
           </Button>
         </div>

@@ -200,7 +200,7 @@ describe('Phase 3.0.2 API', () => {
 
     expect(Array.isArray(res.body.items)).toBe(true)
     expect(res.body.items).toHaveLength(2)
-    expect(typeof res.body.next_version).toBe('number')
+    expect(typeof res.body.current_version).toBe('number')
     expect(typeof res.body.has_more).toBe('boolean')
   })
 
@@ -213,7 +213,7 @@ describe('Phase 3.0.2 API', () => {
     expect(res.body.items).toHaveLength(1)
     expect(res.body.items[0].id).toBe(productV5)
     expect(res.body.items[0].server_version).toBe(5)
-    expect(res.body.next_version).toBe(5)
+    expect(res.body.current_version).toBe(5)
   })
 
   it('API-005 product pull enforces tenant isolation', async () => {

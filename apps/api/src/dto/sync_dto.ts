@@ -3,7 +3,7 @@ import { CustomerDto } from './customer_dto'
 
 export interface ProductSyncListResponse {
   items: ProductDto[]
-  next_version: number
+  current_version: number
   has_more: boolean
 }
 

@@ -68,11 +68,11 @@ export function createProductSyncService(pool: Pool) {
 
         const hasMore = rows.length > limit
         const items = hasMore ? rows.slice(0, limit) : rows
-        const nextVersion = items.length > 0 ? Number(items[items.length - 1].server_version) : afterVersion
+        const currentVersion = items.length > 0 ? Number(items[items.length - 1].server_version) : afterVersion
 
         return {
           items,
-          next_version: nextVersion,
+          current_version: currentVersion,
           has_more: hasMore
         }
       })
@@ -105,7 +105,9 @@ export function createProductSyncService(pool: Pool) {
 
         if (request.name !== undefined) patch.name = request.name
         if (request.description !== undefined) patch.description = request.description
+        if ('sku' in request) patch.sku = request.sku
         if (request.price_minor !== undefined) patch.price_minor = request.price_minor
+        if ('cost_minor' in request) patch.cost_minor = request.cost_minor
         if (request.category !== undefined) patch.category = request.category
         if (request.barcode !== undefined) patch.barcode = request.barcode
         if (request.is_active !== undefined) patch.is_active = request.is_active
@@ -142,13 +144,22 @@ export function createProductSyncService(pool: Pool) {
         try {
           created = await productRepository.insert(client, {
             id: request.id, business_id: request.business_id, name: request.name,
-            description: request.description ?? null, price_minor: request.price_minor,
+            description: request.description ?? null, sku: request.sku ?? null,
+            price_minor: request.price_minor, cost_minor: request.cost_minor ?? null,
             category: request.category ?? null, barcode: request.barcode ?? null,
             is_active: request.is_active ?? true
           })
         } catch (err: any) {
-          if (err.code === '23505' && err.constraint === 'idx_products_business_barcode_unique') {
-            throw new BarcodeConflictError(request.barcode ?? '')
+          if (err.code === '23505') {
+            if (err.constraint === 'idx_products_business_barcode_unique') {
+              throw new BarcodeConflictError(request.barcode ?? '')
+            }
+            if (err.constraint === 'idx_products_business_sku_unique') {
+              throw new ConflictError('SKU_CONFLICT', 'SKU already in use within this business', {
+                sku: request.sku,
+                business_id: request.business_id
+              })
+            }
           }
           throw err
         }

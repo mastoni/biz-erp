@@ -55,7 +55,7 @@ export default function EditProductPage() {
           while (hasMore && !found) {
             const res = await getProducts(business.id, afterVersion, 500);
             found = res.items.find(p => p.id === productId) || null;
-            afterVersion = res.next_version;
+            afterVersion = res.current_version;
             hasMore = res.has_more;
           }
 

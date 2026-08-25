@@ -3,7 +3,9 @@ export interface Product {
   business_id: string;
   name: string;
   description: string | null;
+  sku: string | null;
   price_minor: number;
+  cost_minor: number | null;
   category: string | null;
   barcode: string | null;
   is_active: boolean;
@@ -14,7 +16,7 @@ export interface Product {
 
 export interface ProductSyncResponse {
   items: Product[];
-  next_version: number;
+  current_version: number;
   has_more: boolean;
 }
 
@@ -24,6 +26,8 @@ export interface ProductCreatePayload {
   name: string;
   price_minor: number;
   description?: string | null;
+  sku?: string | null;
+  cost_minor?: number | null;
   category?: string | null;
   barcode?: string | null;
   is_active?: boolean;
@@ -35,6 +39,8 @@ export interface ProductUpdatePayload {
   name?: string;
   price_minor?: number;
   description?: string | null;
+  sku?: string | null;
+  cost_minor?: number | null;
   category?: string | null;
   barcode?: string | null;
   is_active?: boolean;
