@@ -44,8 +44,10 @@ export async function fetchDashboardViewModel(
   params: FetchDashboardParams = {}
 ): Promise<DashboardViewModel> {
   const today = new Date().toISOString().split('T')[0];
-  const from = params.from || today;
-  const to = params.to || today;
+  const rawFrom = params.from || today;
+  const rawTo = params.to || today;
+  const from = rawFrom.includes('T') ? rawFrom : `${rawFrom}T00:00:00.000Z`;
+  const to = rawTo.includes('T') ? rawTo : `${rawTo}T23:59:59.999Z`;
   const branchId = params.branchId?.trim() || undefined;
 
   const queryParams: Record<string, string> = { from, to };
