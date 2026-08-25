@@ -14,11 +14,22 @@
 export interface Business {
   id: string;
   name: string;
+  role?: string;
+  plan?: string;
+  status?: string;
 }
 
 export type AuthScope = 'tenant' | 'platform' | null;
 export type TenantRole = 'OWNER' | 'CASHIER' | null;
 export type PlatformRole = 'PLATFORM_ADMIN' | 'SUPER_ADMIN' | null;
+export type TenantStatus = 'loading' | 'available' | 'active' | 'switching' | 'error' | 'empty';
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+export function isValidBusinessId(id: unknown): boolean {
+  if (typeof id !== 'string') return false;
+  return UUID_REGEX.test(id);
+}
 
 export interface ScopeState {
   scope: AuthScope;

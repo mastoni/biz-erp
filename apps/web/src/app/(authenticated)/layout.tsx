@@ -4,6 +4,7 @@ import React, { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { TenantGuard } from '@/features/auth/guards';
+import { BranchProvider } from '@/features/branches/BranchContext';
 import { canAccessRoute, Role } from '@/lib/rbac';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
@@ -59,23 +60,25 @@ export default function AuthenticatedLayout({ children }: { children: React.Reac
   // enter the tenant shell by UI state alone. The server remains authoritative.
   return (
     <TenantGuard fallback={<TenantAccessDenied />}>
-      <div className="flex min-h-screen bg-paper">
-        {/* Desktop Sidebar */}
-        <Sidebar />
+      <BranchProvider>
+        <div className="flex min-h-screen bg-paper">
+          {/* Desktop Sidebar */}
+          <Sidebar />
 
-        {/* Main Content Area */}
-        <div className="flex w-full flex-col md:pl-64">
-          {/* Header */}
-          <Header />
+          {/* Main Content Area */}
+          <div className="flex w-full flex-col md:pl-64">
+            {/* Header */}
+            <Header />
 
-          {/* Page Content */}
-          <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
-            <div className="mx-auto max-w-7xl">
-              {children}
-            </div>
-          </main>
+            {/* Page Content */}
+            <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
+              <div className="mx-auto max-w-7xl">
+                {children}
+              </div>
+            </main>
+          </div>
         </div>
-      </div>
+      </BranchProvider>
     </TenantGuard>
   );
 }

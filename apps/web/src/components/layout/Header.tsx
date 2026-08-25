@@ -9,6 +9,7 @@ import { getAuthorizedNavigation, Role } from '@/lib/rbac';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { TenantSwitcher } from '@/components/layout/TenantSwitcher';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -81,13 +82,8 @@ export function Header() {
           </SheetContent>
         </Sheet>
 
-        <div className="hidden md:flex flex-col">
-          <span className="text-sm font-semibold text-ink font-display">{business?.name || 'Loading...'}</span>
-          <span className="text-xs text-ink/60 capitalize">{role.toLowerCase()}</span>
-        </div>
-          <div className="md:hidden flex flex-col">
-            <span className="text-sm font-semibold text-ink font-display">{business?.name || 'SKMNetwork'}</span>
-          </div>
+        {/* Canonical V1.1 Tenant Switcher */}
+        <TenantSwitcher />
       </div>
 
       <div className="flex items-center gap-4">
