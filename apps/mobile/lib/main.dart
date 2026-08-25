@@ -1,36 +1,16 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:biz_erp_mobile/core/database/app_database.dart';
-import 'package:biz_erp_mobile/core/database/db_key_service.dart';
-import 'package:biz_erp_mobile/core/database/db_opener.dart';
-import 'package:biz_erp_mobile/cart/data/cart_repository.dart';
-import 'package:biz_erp_mobile/customers/data/customer_repository.dart';
-import 'package:biz_erp_mobile/products/data/product_repository.dart';
-import 'package:biz_erp_mobile/sales/data/checkout_service.dart';
-import 'package:biz_erp_mobile/sales/domain/calculation/sale_calculation_engine.dart';
-import 'package:biz_erp_mobile/pos/presentation/pos_controller.dart';
-import 'package:biz_erp_mobile/pos/presentation/pos_screen.dart';
-import 'package:biz_erp_mobile/core/hardware/printing/bluetooth_printer_adapter.dart';
-import 'package:biz_erp_mobile/core/hardware/printing/printer_preferences.dart';
-import 'package:biz_erp_mobile/core/sync/sync_config.dart';
-import 'package:biz_erp_mobile/core/sync/http_sync_api_client.dart';
-import 'package:biz_erp_mobile/core/sync/network_monitor.dart';
-import 'package:biz_erp_mobile/core/sync/sync_engine.dart';
-import 'package:biz_erp_mobile/core/sync/sync_meta_repository.dart';
-import 'package:biz_erp_mobile/core/sync/sync_outbox_repository.dart';
-import 'package:biz_erp_mobile/core/sync/sync_status_notifier.dart';
-import 'package:biz_erp_mobile/core/sync/branch_repository.dart';
-import 'package:biz_erp_mobile/sales/data/sales_sync_repository.dart';
-import 'package:biz_erp_mobile/core/hardware/printing/printing_service.dart';
-import 'package:biz_erp_mobile/core/hardware/scanning/scanner_service.dart';
+
 import 'package:biz_erp_mobile/core/auth/auth_secure_storage.dart';
 import 'package:biz_erp_mobile/core/auth/auth_api_client.dart';
 import 'package:biz_erp_mobile/core/auth/auth_repository.dart';
 import 'package:biz_erp_mobile/core/auth/auth_state_notifier.dart';
 import 'package:biz_erp_mobile/core/auth/auth_models.dart';
 import 'package:biz_erp_mobile/core/auth/presentation/login_screen.dart';
+import 'package:biz_erp_mobile/core/composition/tenant_composition_root.dart';
 import 'package:biz_erp_mobile/core/observability/sentry_integration.dart';
+import 'package:biz_erp_mobile/core/sync/sync_config.dart';
+import 'package:biz_erp_mobile/pos/presentation/pos_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -47,40 +27,6 @@ Future<void> main() async {
       authStateNotifier: authStateNotifier,
     ));
   });
-}
-
-class TenantDependencyGraph {
-  final AppDatabase db;
-  final ProductRepository productRepo;
-  final CustomerRepository customerRepo;
-  final SyncOutboxRepository outboxRepo;
-  final SyncStatusNotifier syncStatusNotifier;
-  final PosController controller;
-  final ScannerService scannerService;
-  final HttpSyncApiClient apiClient;
-  final SyncEngine syncEngine;
-  final PrintingService printingService;
-  final BranchRepository branchRepo;
-
-  TenantDependencyGraph({
-    required this.db,
-    required this.productRepo,
-    required this.customerRepo,
-    required this.outboxRepo,
-    required this.syncStatusNotifier,
-    required this.controller,
-    required this.scannerService,
-    required this.apiClient,
-    required this.syncEngine,
-    required this.printingService,
-    required this.branchRepo,
-  });
-
-  Future<void> dispose() async {
-    scannerService.stop();
-    apiClient.close();
-    await db.close();
-  }
 }
 
 class MyApp extends StatefulWidget {
@@ -138,7 +84,10 @@ class _MyAppState extends State<MyApp> {
         await _graph!.dispose();
       }
 
-      final newGraph = await _buildTenantGraph(businessId);
+      final newGraph = await TenantCompositionRoot.compose(
+        businessId: businessId,
+        authStateNotifier: widget.authStateNotifier,
+      );
 
       if (mounted) {
         setState(() {
@@ -148,121 +97,6 @@ class _MyAppState extends State<MyApp> {
         });
       }
     }
-  }
-
-  Future<TenantDependencyGraph> _buildTenantGraph(String businessId) async {
-    final appDir = await getApplicationDocumentsDirectory();
-    final keyService = DbKeyService();
-    final opener = DbOpener(keyService: keyService, appRoot: appDir);
-    final db = await opener.open(businessId);
-
-    // Repositories
-    final productRepo = ProductRepository(db);
-    final cartRepo = CartRepository(db);
-    final customerRepo = CustomerRepository(db);
-    final calcEngine = SaleCalculationEngine();
-    final syncMetaRepo = SyncMetaRepository(db);
-    final syncOutboxRepo = SyncOutboxRepository(db);
-    final salesSyncRepo = SalesSyncRepository(db);
-
-    // Sync Services (created first for callback)
-    final apiClient = HttpSyncApiClient(
-      baseUrl: SyncConfig.baseUrl,
-      tokenProvider: () => widget.authStateNotifier.session?.accessToken,
-      onRefresh: widget.authStateNotifier.refresh,
-      businessId: businessId,
-    );
-    final networkMonitor = NetworkMonitor(api: apiClient);
-    final syncEngine = SyncEngine(
-      outbox: syncOutboxRepo,
-      meta: syncMetaRepo,
-      api: apiClient,
-      products: productRepo,
-      salesSync: salesSyncRepo,
-      customers: customerRepo,
-      businessId: businessId,
-    );
-    final syncStatusNotifier = SyncStatusNotifier(
-      networkMonitor: networkMonitor,
-      syncEngine: syncEngine,
-      outbox: syncOutboxRepo,
-      productRepository: productRepo,
-      businessId: businessId,
-      authStateNotifier: widget.authStateNotifier,
-    );
-
-    final checkoutService = CheckoutService(
-      db,
-      calcEngine,
-      syncOutboxRepo,
-      productRepo,
-      () => syncStatusNotifier.syncNow(),
-    );
-
-    // Branch Repository - fetch and cache branches, get active/selected branch
-    final branchRepo = BranchRepository(db, apiClient);
-    
-    // Try to get previously selected branch first
-    String? branchId = await branchRepo.getSelectedBranchId(businessId);
-    
-    // If no selected branch, get active branch (online or cached)
-    if (branchId == null) {
-      final activeBranch = await branchRepo.getActiveBranch(businessId);
-      if (activeBranch != null) {
-        branchId = activeBranch.id;
-        // Persist as selected branch
-        await branchRepo.setActiveBranch(businessId, branchId);
-      }
-    }
-    
-    // If still no branch, we cannot proceed - this will be handled by UI
-    if (branchId == null) {
-      // Use a placeholder that will be caught by UI validation
-      branchId = '';
-    }
-
-    // Printing Service
-    final printingService = PrintingService(
-      adapter: BluetoothPrinterAdapter(),
-      prefs: FilePrinterPreferences(baseDir: appDir),
-    );
-
-    // Controller
-    final controller = PosController(
-      businessId: businessId,
-      branchId: branchId!,
-      branchRepo: branchRepo,
-      productRepo: productRepo,
-      cartRepo: cartRepo,
-      calcEngine: calcEngine,
-      checkoutService: checkoutService,
-      printingService: printingService,
-      customerRepo: customerRepo,
-    );
-    await controller.init();
-
-    // Scanner Service
-    final scannerService = ScannerService(
-      productRepo: productRepo,
-      businessId: businessId,
-      addToCart: (productId) => controller.addToCart(productId),
-    );
-    scannerService.start();
-    unawaited(printingService.autoReconnectLast());
-
-    return TenantDependencyGraph(
-      db: db,
-      productRepo: productRepo,
-      customerRepo: customerRepo,
-      outboxRepo: syncOutboxRepo,
-      syncStatusNotifier: syncStatusNotifier,
-      controller: controller,
-      scannerService: scannerService,
-      apiClient: apiClient,
-      syncEngine: syncEngine,
-      printingService: printingService,
-      branchRepo: branchRepo,
-    );
   }
 
   @override
