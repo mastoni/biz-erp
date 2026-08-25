@@ -32,5 +32,15 @@ export const branchRepository = {
     `
     const result = await client.query(sql, [businessId, branchId])
     return (result.rows[0] as BranchDto | undefined) ?? null
+  },
+
+  async findByName(client: PoolClient, businessId: string, name: string): Promise<BranchDto | null> {
+    const sql = `
+      SELECT id, business_id, name, status, created_at, updated_at
+      FROM branches
+      WHERE business_id = $1 AND name = $2
+    `
+    const result = await client.query(sql, [businessId, name])
+    return (result.rows[0] as BranchDto | undefined) ?? null
   }
 }
