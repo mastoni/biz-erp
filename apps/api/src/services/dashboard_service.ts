@@ -22,7 +22,7 @@ export function createDashboardService(pool: Pool) {
         const salesFilter = `sales.business_id = $1${dateFilter.sql ? ` AND ${dateFilter.sql}` : ''}${branchSalesSql}`
         const salesParams = query.branch_id ? [businessId, ...dateParams, query.branch_id] : [businessId, ...dateParams]
 
-        const customerFilter = `business_id = $1${dateFilter.sql ? ` AND ${dateFilter.sql.replace('sales.created_at', 'customers.created_at')}` : ''}`
+        const customerFilter = `customers.business_id = $1${dateFilter.sql ? ` AND ${dateFilter.sql.replaceAll('sales.created_at', 'customers.created_at')}` : ''}`
         const productFilter = `business_id = $1`
 
         const revenueResult = await client.query(
@@ -49,7 +49,7 @@ export function createDashboardService(pool: Pool) {
         const totalProductsResult = await client.query(
           `SELECT COUNT(*) as total_products
            FROM products
-           WHERE ${productFilter} AND is_active = TRUE AND deleted_at IS NULL`,
+           WHERE ${productFilter} AND is_active = TRUE`,
           [businessId]
         )
 

@@ -102,11 +102,18 @@ export function createReportsRoutes(pool: Pool): Router {
 }
 
 function parseDateRange(query: any): ReportDateRange {
-  const from = typeof query.from === 'string' ? query.from : new Date().toISOString().split('T')[0]
-  const to = typeof query.to === 'string' ? query.to : new Date().toISOString().split('T')[0]
+  let from = typeof query.from === 'string' ? query.from : new Date().toISOString().split('T')[0]
+  let to = typeof query.to === 'string' ? query.to : new Date().toISOString().split('T')[0]
 
   if (!from || !to) {
     throw new ApiError(400, 'BAD_REQUEST', 'from and to query parameters are required (YYYY-MM-DD)')
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(from)) {
+    from = `${from}T00:00:00.000Z`
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(to)) {
+    to = `${to}T23:59:59.999Z`
   }
 
   let branch_id: string | undefined

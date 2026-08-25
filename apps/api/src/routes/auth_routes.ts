@@ -32,7 +32,7 @@ export function createAuthRouter(pool: Pool): Router {
 
   const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 10, // Limit each IP to 10 requests per windowMs
+    max: process.env.NODE_ENV === 'development' ? 1000 : 10,
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: 'TOO_MANY_REQUESTS', message: 'Too many login attempts, please try again later.' },
@@ -206,7 +206,13 @@ export function createAuthRouter(pool: Pool): Router {
           membership = activeBusinesses[0]
         } else {
           // Multiple businesses, require explicit selection
-          throw new ApiError(409, 'BUSINESS_SELECTION_REQUIRED', 'Multiple active businesses found. Please provide a business_id.')
+          throw new ApiError(409, 'BUSINESS_SELECTION_REQUIRED', 'Multiple active businesses found. Please provide a business_id.', {
+            available_businesses: activeBusinesses.map((b) => ({
+              id: b.business_id,
+              name: b.business_name,
+              role: b.role
+            }))
+          })
         }
       }
 
@@ -243,6 +249,9 @@ export function createAuthRouter(pool: Pool): Router {
         })
       }
 
+      // Fetch all active businesses for this user to support seamless tenant switching
+      const allActiveBusinesses = await userBusinessRepo.listActiveBusinesses(userId)
+
       // Step 5: Return success response
       res.status(200).json({
         access_token: accessToken,
@@ -256,8 +265,14 @@ export function createAuthRouter(pool: Pool): Router {
           id: businessId,
           name: businessName
         },
+        available_businesses: allActiveBusinesses.map((b) => ({
+          id: b.business_id,
+          name: b.business_name,
+          role: b.role
+        })),
         role,
-        expires_in: 900 // 15 minutes as configured in jwt_service
+        scope: 'tenant',
+        expires_in: 900
       })
     } catch (err) {
       next(err)
