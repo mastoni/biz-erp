@@ -19,6 +19,7 @@ export interface SalesSummaryReport {
 export interface ProductSalesReport {
   product_id: string
   product_name: string
+  category: string | null
   total_quantity: number
   total_revenue_minor: number
 }

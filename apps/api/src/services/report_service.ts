@@ -96,21 +96,24 @@ export function createReportService(pool: Pool) {
           `SELECT
             si.product_id,
             si.product_name,
+            p.category,
             SUM(si.quantity) as total_quantity,
             COALESCE(SUM(si.subtotal_minor), 0) as total_revenue_minor
            FROM sale_items si
            JOIN sales s ON s.id = si.sale_id
+           LEFT JOIN products p ON p.id = si.product_id AND p.business_id = s.business_id
            WHERE s.business_id = $1
              AND s.created_at >= $2
              AND s.created_at <= $3${branchCondition}
-           GROUP BY si.product_id, si.product_name
-           ORDER BY total_quantity DESC`,
+           GROUP BY si.product_id, si.product_name, p.category
+           ORDER BY total_quantity DESC, total_revenue_minor DESC, si.product_id ASC`,
           params
         )
 
         return result.rows.map((row) => ({
           product_id: row.product_id,
           product_name: row.product_name,
+          category: row.category ?? null,
           total_quantity: Number(row.total_quantity),
           total_revenue_minor: Number(row.total_revenue_minor),
         }))
