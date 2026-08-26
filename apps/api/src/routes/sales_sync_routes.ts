@@ -30,9 +30,18 @@ export function createSalesSyncRouter(pool: Pool): Router {
       const businessId = req.query.business_id as string
       const sinceRaw = req.query.since as string | undefined
       const limitRaw = req.query.limit as string | undefined
+      const branchIdRaw = req.query.branch_id as string | undefined
 
       if (!businessId || !isUuid(businessId)) {
         throw new ValidationError('business_id must be a valid UUID')
+      }
+
+      let branchId: string | undefined
+      if (branchIdRaw !== undefined) {
+        if (!isUuid(branchIdRaw)) {
+          throw new ValidationError('branch_id must be a valid UUID')
+        }
+        branchId = branchIdRaw
       }
 
       // Note: The middleware already throws 403 on tenant mismatch, so we don't need the redundant check here.
@@ -53,7 +62,7 @@ export function createSalesSyncRouter(pool: Pool): Router {
         }
       }
 
-      const result = await service.pullSales(businessId, sinceMs, limit)
+      const result = await service.pullSales(businessId, sinceMs, limit, branchId)
       res.status(200).json(result)
     })
   )

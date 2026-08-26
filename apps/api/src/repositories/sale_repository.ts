@@ -97,8 +97,13 @@ export const saleRepository = {
     }
   },
 
-    async findSalesSince(client: PoolClient, businessId: string, sinceMs: number, limit: number) {
+    async findSalesSince(client: PoolClient, businessId: string, sinceMs: number, limit: number, branchId?: string) {
       const sinceTimestamp = new Date(sinceMs)
+
+      const branchCondition = branchId ? ` AND s.branch_id = $4` : ''
+      const params = branchId
+        ? [businessId, sinceTimestamp, limit + 1, branchId]
+        : [businessId, sinceTimestamp, limit + 1]
 
       const salesSql = `
         SELECT
@@ -122,11 +127,11 @@ export const saleRepository = {
           ON ik.business_id = s.business_id
           AND (ik.response_body->>'sale_id') = s.id::text
         WHERE s.business_id = $1
-          AND s.server_created_at > $2
+          AND s.server_created_at > $2${branchCondition}
         ORDER BY s.server_created_at ASC
         LIMIT $3
       `
-      const salesResult = await client.query(salesSql, [businessId, sinceTimestamp, limit + 1])
+      const salesResult = await client.query(salesSql, params)
 
       const hasMore = salesResult.rows.length > limit
       const salesRows = hasMore ? salesResult.rows.slice(0, limit) : salesResult.rows

@@ -8,6 +8,7 @@ import { idempotencyRepository } from '../repositories/idempotency_repository'
 import { productRepository } from '../repositories/product_repository'
 import { saleRepository } from '../repositories/sale_repository'
 import { inventoryRepository } from '../repositories/inventory_repository'
+import { branchRepository } from '../repositories/branch_repository'
 import { withTransaction } from '../db/transaction'
 import { randomUUID } from 'crypto'
 import { createHash } from 'crypto'
@@ -217,9 +218,15 @@ export function createSalesSyncService(pool: Pool) {
       })
     },
 
-    async pullSales(businessId: string, sinceMs: number, limit: number): Promise<SaleSyncListResponse> {
+    async pullSales(businessId: string, sinceMs: number, limit: number, branchId?: string): Promise<SaleSyncListResponse> {
       return withTransaction(pool, async (client) => {
-        return saleRepository.findSalesSince(client, businessId, sinceMs, limit)
+        if (branchId) {
+          const branch = await branchRepository.findById(client, businessId, branchId)
+          if (!branch) {
+            throw new ApiError(403, 'BUSINESS_ACCESS_DENIED', 'Branch not found or access denied')
+          }
+        }
+        return saleRepository.findSalesSince(client, businessId, sinceMs, limit, branchId)
       })
     }
   }

@@ -98,6 +98,18 @@ export function createReportsRoutes(pool: Pool): Router {
     })
   )
 
+  router.get(
+    '/sales-daily',
+    requireRole('OWNER', 'CASHIER') as any,
+    asyncHandler<SyncAuthenticatedRequest>(async (req, res) => {
+      const businessId = req.tenantId!
+      const dateRange = parseDateRange(req.query)
+
+      const report = await reportService.getDailySales(businessId, dateRange)
+      res.status(200).json(report)
+    })
+  )
+
   return router
 }
 

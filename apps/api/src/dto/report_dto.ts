@@ -59,10 +59,21 @@ export interface RecentSalesQuery {
   limit?: number
 }
 
+export interface DailySalesPoint {
+  date: string
+  total_revenue_minor: number
+  transaction_count: number
+}
+
+export interface DailySalesResponse {
+  points: DailySalesPoint[]
+}
+
 export interface ReportResponse {
   sales_summary?: SalesSummaryReport
   product_sales?: ProductSalesReport[]
   customer_sales?: CustomerSalesReport[]
   hourly_sales?: HourlySalesResponse
   recent_sales?: RecentSalesResponse
+  daily_sales?: DailySalesResponse
 }

@@ -10,6 +10,8 @@ import {
   RecentSalesQuery,
   RecentSalesResponse,
   RecentSaleItem,
+  DailySalesResponse,
+  DailySalesPoint,
 } from '../dto/report_dto'
 import { branchRepository } from '../repositories/branch_repository'
 import { ApiError } from '../errors/api_error'
@@ -248,6 +250,69 @@ export function createReportService(pool: Pool) {
         }))
 
         return { sales }
+      })
+    },
+
+    async getDailySales(businessId: string, dateRange: ReportDateRange): Promise<DailySalesResponse> {
+      return withTransaction(pool, async (client) => {
+        if (dateRange.branch_id) {
+          const branch = await branchRepository.findById(client, businessId, dateRange.branch_id)
+          if (!branch) {
+            throw new ApiError(403, 'BUSINESS_ACCESS_DENIED', 'Branch not found or access denied')
+          }
+        }
+
+        const branchCondition = dateRange.branch_id ? ` AND sales.branch_id = $4` : ''
+        const params = dateRange.branch_id
+          ? [businessId, dateRange.from, dateRange.to, dateRange.branch_id]
+          : [businessId, dateRange.from, dateRange.to]
+
+        const result = await client.query(
+          `SELECT
+            TO_CHAR(created_at, 'YYYY-MM-DD') as date_str,
+            COALESCE(SUM(total_minor), 0) as total_revenue_minor,
+            COUNT(*) as transaction_count
+           FROM sales
+           WHERE business_id = $1
+             AND created_at >= $2
+             AND created_at <= $3${branchCondition}
+           GROUP BY TO_CHAR(created_at, 'YYYY-MM-DD')
+           ORDER BY date_str ASC`,
+          params
+        )
+
+        const dateMap = new Map<string, { total_revenue_minor: number; transaction_count: number }>()
+        for (const row of result.rows) {
+          dateMap.set(row.date_str, {
+            total_revenue_minor: Number(row.total_revenue_minor),
+            transaction_count: Number(row.transaction_count),
+          })
+        }
+
+        const fromDateStr = dateRange.from.split('T')[0]
+        const toDateStr = dateRange.to.split('T')[0]
+
+        const [fromY, fromM, fromD] = fromDateStr.split('-').map(Number)
+        const [toY, toM, toD] = toDateStr.split('-').map(Number)
+
+        const startUtc = new Date(Date.UTC(fromY, fromM - 1, fromD))
+        const endUtc = new Date(Date.UTC(toY, toM - 1, toD))
+
+        const points: DailySalesPoint[] = []
+        const currentUtc = new Date(startUtc.getTime())
+
+        while (currentUtc <= endUtc) {
+          const dStr = currentUtc.toISOString().split('T')[0]
+          const existing = dateMap.get(dStr)
+          points.push({
+            date: dStr,
+            total_revenue_minor: existing ? existing.total_revenue_minor : 0,
+            transaction_count: existing ? existing.transaction_count : 0,
+          })
+          currentUtc.setUTCDate(currentUtc.getUTCDate() + 1)
+        }
+
+        return { points }
       })
     },
   }
