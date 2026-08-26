@@ -24,6 +24,21 @@ export const METHOD_COLORS: Record<CanonicalPaymentMethod, string> = {
 const DAY_NAMES = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
 
 /**
+ * Format minor-unit integers to abbreviated IDR (e.g. "Rp 8,45 jt" / "Rp 845 rb").
+ */
+export function idrShort(minor: number): string {
+  const major = minor / 100;
+  const abs = Math.abs(major);
+  const sign = major < 0 ? '-' : '';
+  const f = (v: number) =>
+    v.toLocaleString('id-ID', { maximumFractionDigits: v >= 100 ? 0 : v >= 10 ? 1 : 2 });
+  if (abs >= 1_000_000_000) return `Rp ${sign}${f(abs / 1_000_000_000)} M`;
+  if (abs >= 1_000_000) return `Rp ${sign}${f(abs / 1_000_000)} jt`;
+  if (abs >= 1_000) return `Rp ${sign}${f(abs / 1_000)} rb`;
+  return `Rp ${sign}${abs}`;
+}
+
+/**
  * Normalizes any backend payment string to canonical blueprint types ('Tunai' | 'QRIS' | 'Debit').
  */
 export function normalizePaymentMethod(rawMethod: string | null | undefined): {

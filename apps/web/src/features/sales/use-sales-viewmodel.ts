@@ -122,6 +122,8 @@ export function useSalesViewModel({
       setRawDailyPoints([]);
       setRawSales([]);
       setFreshSaleIds(new Set());
+      setSearch('');
+      setPaymentMethod('Semua');
       setDataState('loading');
       setError(null);
     }
