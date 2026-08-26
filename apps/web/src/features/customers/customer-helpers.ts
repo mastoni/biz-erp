@@ -15,6 +15,32 @@ import type {
 } from './types';
 
 /**
+ * Format numeric value with ID locale thousand separators.
+ */
+export function num(n: number | string | undefined | null): string {
+  if (n === undefined || n === null) return '0';
+  const parsed = typeof n === 'string' ? Number(n) : n;
+  if (isNaN(parsed)) return '0';
+  return parsed.toLocaleString('id-ID');
+}
+
+/**
+ * Format minor-unit integers to abbreviated IDR (e.g. "Rp 73,28 jt" / "Rp 845 rb").
+ */
+export function idrShort(minor: number | undefined | null): string {
+  if (minor === undefined || minor === null) return 'Rp 0';
+  const major = minor / 100;
+  const abs = Math.abs(major);
+  const sign = major < 0 ? '-' : '';
+  const f = (v: number) =>
+    v.toLocaleString('id-ID', { maximumFractionDigits: v >= 100 ? 0 : v >= 10 ? 1 : 2 });
+  if (abs >= 1_000_000_000) return `Rp ${sign}${f(abs / 1_000_000_000)} M`;
+  if (abs >= 1_000_000) return `Rp ${sign}${f(abs / 1_000_000)} jt`;
+  if (abs >= 1_000) return `Rp ${sign}${f(abs / 1_000)} rb`;
+  return `Rp ${sign}${abs}`;
+}
+
+/**
  * Maps CustomerTier to blueprint badge tone color.
  * Gold -> honey, Silver -> tide, Reguler -> fog
  */

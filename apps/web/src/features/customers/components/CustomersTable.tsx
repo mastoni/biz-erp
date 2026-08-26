@@ -1,97 +1,123 @@
 'use client';
 
 import React from 'react';
-import { Customer } from '@/features/customers/types';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
-import { Eye, Pencil } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import { formatCustomerDate } from '../list-helpers';
+import { Users } from 'lucide-react';
+import type { CustomerViewModel } from '../types';
+import { idrShort, num } from '../customer-helpers';
 
 interface CustomersTableProps {
-  customers: Customer[];
-  isOwner: boolean;
+  customers: CustomerViewModel[];
+  isLoading?: boolean;
 }
 
-export function CustomersTable({ customers, isOwner }: CustomersTableProps) {
-  const router = useRouter();
+export function CustomersTable({ customers, isLoading }: CustomersTableProps) {
+  if (isLoading) {
+    return (
+      <div className="overflow-hidden rounded-2xl border border-line bg-card shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[720px]">
+            <thead>
+              <tr className="border-b border-line bg-paper/60 text-left">
+                <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-fog">Pelanggan</th>
+                <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-fog">Telepon</th>
+                <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-fog">Tier</th>
+                <th className="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-fog">Poin</th>
+                <th className="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-fog">Total Belanja</th>
+                <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-fog">Kunjungan Terakhir</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <tr key={i} className="border-b border-line/60">
+                  <td colSpan={6} className="px-4 py-4">
+                    <div className="h-5 w-full animate-pulse rounded bg-paper/70" />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="bg-card border-2 border-ink/10 rounded-md overflow-hidden">
+    <div className="overflow-hidden rounded-2xl border border-line bg-card shadow-sm">
       <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-ink/5">
-              <TableHead className="whitespace-nowrap font-semibold text-ink">Nama</TableHead>
-              <TableHead className="whitespace-nowrap font-semibold text-ink">Telepon</TableHead>
-              <TableHead className="whitespace-nowrap font-semibold text-ink">Email</TableHead>
-              <TableHead className="whitespace-nowrap font-semibold text-ink">Dibuat</TableHead>
-              <TableHead className="whitespace-nowrap font-semibold text-ink">Diperbarui</TableHead>
-              <TableHead className="whitespace-nowrap font-semibold text-ink text-right">Aksi</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {customers.map((cust) => (
-              <TableRow key={cust.id} className="hover:bg-ink/5 transition-colors">
-                <TableCell className="font-medium text-sm whitespace-nowrap">
-                  <button
-                    type="button"
-                    onClick={() => router.push(`/customers/${cust.id}`)}
-                    className="text-left hover:underline focus:underline text-ink"
-                  >
-                    {cust.name}
-                  </button>
-                </TableCell>
-                <TableCell className="text-sm whitespace-nowrap text-ink/60">
-                  {cust.phone ?? <span className="text-ink/40">-</span>}
-                </TableCell>
-                <TableCell className="text-sm whitespace-nowrap text-ink/60">
-                  {cust.email ?? <span className="text-ink/40">-</span>}
-                </TableCell>
-                    <TableCell className="text-sm text-ink/60 whitespace-nowrap">
-                      {formatCustomerDate(cust.created_at)}
-                    </TableCell>
-                    <TableCell className="text-sm text-ink/60 whitespace-nowrap">
-                      {formatCustomerDate(cust.updated_at)}
-                    </TableCell>
-                <TableCell className="text-right whitespace-nowrap">
-                  <div className="flex items-center justify-end gap-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => router.push(`/customers/${cust.id}`)}
-                      aria-label={`View ${cust.name}`}
-                      className="text-ink hover:bg-ink/5"
+        <table className="w-full min-w-[720px]">
+          <thead>
+            <tr className="border-b border-line bg-paper/60 text-left">
+              <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-fog">Pelanggan</th>
+              <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-fog">Telepon</th>
+              <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-fog">Tier</th>
+              <th className="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-fog">Poin</th>
+              <th className="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-fog">Total Belanja</th>
+              <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-fog">Kunjungan Terakhir</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-line/60">
+            {customers.map((c) => (
+              <tr key={c.id} className="transition-colors hover:bg-paper/60">
+                {/* 1. Pelanggan */}
+                <td className="px-4 py-3.5">
+                  <div className="flex items-center gap-3">
+                    <span
+                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full font-display text-[12px] font-bold ${
+                        c.tier === 'Gold'
+                          ? 'bg-[#fae4af] text-[#17593e]'
+                          : c.tier === 'Silver'
+                          ? 'bg-[#d2e6ec] text-[#35657f]'
+                          : 'bg-ink/8 text-fog'
+                      }`}
                     >
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                    {isOwner && (
-                      <>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => router.push(`/customers/${cust.id}/edit`)}
-                          aria-label={`Edit ${cust.name}`}
-                          className="text-ink hover:bg-ink/5"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                      </>
-                    )}
+                      {c.initials}
+                    </span>
+                    <div>
+                      <p className="font-semibold leading-tight text-ink">{c.name}</p>
+                      <p className="num text-[10.5px] text-fog">{c.code}</p>
+                    </div>
                   </div>
-                </TableCell>
-              </TableRow>
+                </td>
+
+                {/* 2. Telepon */}
+                <td className="px-4 py-3.5 num text-[12.5px] text-fog">{c.phone}</td>
+
+                {/* 3. Tier */}
+                <td className="px-4 py-3.5">
+                  <span
+                    className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold tracking-wide ${
+                      c.tier === 'Gold'
+                        ? 'bg-[#fae4af]/70 text-[#8a5f10] border border-[#fae4af]'
+                        : c.tier === 'Silver'
+                        ? 'bg-[#d2e6ec]/70 text-[#35657f] border border-[#d2e6ec]'
+                        : 'bg-ink/5 text-fog border border-line'
+                    }`}
+                  >
+                    {c.tier}
+                  </span>
+                </td>
+
+                {/* 4. Poin */}
+                <td className="px-4 py-3.5 num text-right font-semibold text-ink">{num(c.points)}</td>
+
+                {/* 5. Total Belanja */}
+                <td className="px-4 py-3.5 num text-right font-bold text-pine">{idrShort(c.spend_minor)}</td>
+
+                {/* 6. Kunjungan Terakhir */}
+                <td className="px-4 py-3.5 text-[12.5px] text-fog">{c.last_visit}</td>
+              </tr>
             ))}
-          </TableBody>
-        </Table>
+          </tbody>
+        </table>
       </div>
+
+      {customers.length === 0 && (
+        <div className="px-5 py-12 text-center">
+          <Users width={24} height={24} className="mx-auto mb-2 text-fog/60" />
+          <p className="text-sm font-semibold text-ink">Tidak ada pelanggan ditemukan</p>
+          <p className="mt-1 text-xs text-fog">Coba kata kunci lain atau daftarkan member baru.</p>
+        </div>
+      )}
     </div>
   );
 }
