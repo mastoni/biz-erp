@@ -6,7 +6,13 @@
  * are all managed by the shared client — not duplicated here.
  */
 import { api } from '@/lib/api';
-import { Customer, CustomerListResponse, CustomerCreateInput, CustomerUpdateInput } from './types';
+import {
+  Customer,
+  CustomerListResponse,
+  CustomerSummaryKPI,
+  CustomerCreateInput,
+  CustomerUpdateInput,
+} from './types';
 
 export async function getCustomers(
   businessId: string,
@@ -15,6 +21,13 @@ export async function getCustomers(
 ): Promise<CustomerListResponse> {
   const response = await api.get<CustomerListResponse>('/v1/customers', {
     params: { business_id: businessId, limit, offset },
+  });
+  return response.data;
+}
+
+export async function getCustomersSummary(businessId: string): Promise<CustomerSummaryKPI> {
+  const response = await api.get<CustomerSummaryKPI>('/v1/customers/summary', {
+    params: { business_id: businessId },
   });
   return response.data;
 }
