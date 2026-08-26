@@ -1,42 +1,73 @@
+/**
+ * Phase 7C — Reports API Client
+ */
 import { api } from '@/lib/api';
+import type {
+  SalesSummaryReport,
+  ProductSalesReport,
+  CustomerSalesReport,
+  DailySalesResponse,
+  RecentSalesResponse,
+} from './types';
 
-export interface SalesSummaryReport {
-  total_sales: number;
-  total_revenue_minor: number;
-  total_items_sold: number;
-  average_order_value_minor: number;
-  payment_methods: Array<{
-    payment_method: string;
-    count: number;
-    total_minor: number;
-  }>;
-}
+export type {
+  SalesSummaryReport,
+  ProductSalesReport,
+  CustomerSalesReport,
+  DailySalesResponse,
+  RecentSalesResponse,
+};
 
-export interface ProductSalesReport {
-  product_id: string;
-  product_name: string;
-  total_quantity: number;
-  total_revenue_minor: number;
-}
-
-export interface CustomerSalesReport {
-  customer_id?: string;
-  customer_name: string;
-  total_purchases: number;
-  total_spent_minor: number;
-}
-
-export async function getSalesSummary(from: string, to: string): Promise<{ sales_summary: SalesSummaryReport }> {
-  const response = await api.get('/v1/reports/sales-summary', { params: { from, to } });
+export async function getSalesSummary(
+  from: string,
+  to: string,
+  branchId?: string
+): Promise<{ sales_summary: SalesSummaryReport }> {
+  const params: Record<string, string> = { from, to };
+  if (branchId) params.branch_id = branchId;
+  const response = await api.get('/v1/reports/sales-summary', { params });
   return response.data;
 }
 
-export async function getProductSales(from: string, to: string): Promise<{ product_sales: ProductSalesReport[] }> {
-  const response = await api.get('/v1/reports/product-sales', { params: { from, to } });
+export async function getProductSales(
+  from: string,
+  to: string,
+  branchId?: string
+): Promise<{ product_sales: ProductSalesReport[] }> {
+  const params: Record<string, string> = { from, to };
+  if (branchId) params.branch_id = branchId;
+  const response = await api.get('/v1/reports/product-sales', { params });
   return response.data;
 }
 
-export async function getCustomerSales(from: string, to: string): Promise<{ customer_sales: CustomerSalesReport[] }> {
-  const response = await api.get('/v1/reports/customer-sales', { params: { from, to } });
+export async function getCustomerSales(
+  from: string,
+  to: string,
+  branchId?: string
+): Promise<{ customer_sales: CustomerSalesReport[] }> {
+  const params: Record<string, string> = { from, to };
+  if (branchId) params.branch_id = branchId;
+  const response = await api.get('/v1/reports/customer-sales', { params });
+  return response.data;
+}
+
+export async function getDailySales(
+  from: string,
+  to: string,
+  branchId?: string
+): Promise<DailySalesResponse> {
+  const params: Record<string, string> = { from, to };
+  if (branchId) params.branch_id = branchId;
+  const response = await api.get('/v1/reports/sales-daily', { params });
+  return response.data;
+}
+
+export async function getRecentSales(
+  branchId?: string,
+  limit: number = 10
+): Promise<RecentSalesResponse> {
+  const params: Record<string, string | number> = { limit };
+  if (branchId) params.branch_id = branchId;
+  const response = await api.get('/v1/reports/recent-sales', { params });
   return response.data;
 }
