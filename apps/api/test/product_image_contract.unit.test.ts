@@ -26,6 +26,7 @@ describe('PHASE 8E — Product Image Contract & Media Foundation Unit Tests', ()
     category: 'Minuman',
     barcode: '8991234567890',
     image_url: 'https://cdn.example.com/products/kopi-susu.jpg',
+    image_enabled: true,
     is_active: true,
     server_version: 1,
     created_at: '2026-08-27T00:00:00.000Z',

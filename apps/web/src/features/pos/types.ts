@@ -19,6 +19,7 @@ export interface POSProductViewModel {
   stock_status: StockStatus;
   min_stock: number;
   image_url?: string | null;
+  image_enabled?: boolean;
 }
 
 export interface POSCustomerViewModel {

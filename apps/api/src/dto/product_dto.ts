@@ -12,6 +12,7 @@ export interface ProductDto {
   category: string | null
   barcode: string | null
   image_url: string | null
+  image_enabled: boolean
   is_active: boolean
   server_version: number
   created_at: string
@@ -29,6 +30,7 @@ export interface ProductUpdateRequest {
   category?: string | null
   barcode?: string | null
   image_url?: string | null
+  image_enabled?: boolean
   is_active?: boolean
 }
 
@@ -152,6 +154,16 @@ export function validateProductUpdate(body: unknown): ProductUpdateRequest {
     }
   }
 
+  if ('image_enabled' in body) {
+    hasPatch = true
+    const value = body.image_enabled
+    if (typeof value !== 'boolean') {
+      errors.image_enabled = 'image_enabled must be a boolean'
+    } else {
+      result.image_enabled = value
+    }
+  }
+
   if ('is_active' in body) {
     hasPatch = true
     const value = body.is_active
@@ -256,6 +268,7 @@ export interface ProductCreateRequest {
   category?: string | null
   barcode?: string | null
   image_url?: string | null
+  image_enabled?: boolean
   is_active?: boolean
 }
 
@@ -313,6 +326,13 @@ export function validateProductCreate(body: unknown): ProductCreateRequest {
     if (body.image_url === null || body.image_url === '') result.image_url = null
     else if (typeof body.image_url === 'string') result.image_url = body.image_url.trim()
     else errors.image_url = 'image_url must be a string or null'
+  }
+
+  if ('image_enabled' in body) {
+    if (typeof body.image_enabled === 'boolean') result.image_enabled = body.image_enabled
+    else errors.image_enabled = 'image_enabled must be a boolean'
+  } else {
+    result.image_enabled = false
   }
 
   if ('is_active' in body) {

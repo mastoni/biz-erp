@@ -50,6 +50,7 @@ export function mapProductToViewModel(
     category: product.category,
     barcode: product.barcode,
     image_url: product.image_url ?? null,
+    image_enabled: product.image_enabled ?? false,
     price_minor: product.price_minor,
     cost_minor: product.cost_minor,
     margin_minor: margin.margin_minor,

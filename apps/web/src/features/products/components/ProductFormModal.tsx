@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { AlertTriangle, Loader2, Save } from 'lucide-react';
+import { AlertTriangle, Loader2, Save, Image as ImageIcon, X, Upload } from 'lucide-react';
 import type {
   ProductViewModel,
   ProductFormModel,
@@ -33,6 +33,8 @@ const initialForm: ProductFormModel = {
   sku: '',
   category: '',
   barcode: '',
+  image_url: '',
+  image_enabled: false,
   price_minor: 0,
   cost_minor: null,
   is_active: true,
@@ -46,6 +48,8 @@ function formFromProduct(product: ProductViewModel | undefined): ProductFormMode
     sku: product.sku || '',
     category: product.category || '',
     barcode: product.barcode || '',
+    image_url: product.image_url || '',
+    image_enabled: product.image_enabled ?? Boolean(product.image_url),
     price_minor: product.price_minor,
     cost_minor: product.cost_minor,
     is_active: product.is_active,
@@ -67,9 +71,19 @@ export function ProductFormModal({
   const [form, setForm] = useState<ProductFormModel>(() => formFromProduct(mode === 'edit' ? product : undefined));
   const [saveState, setSaveState] = useState<ProductSaveState>('saved');
   const [fieldError, setFieldError] = useState<string | null>(null);
+  const [imagePreviewError, setImagePreviewError] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
+
+    if (name === 'image_url') {
+      setImagePreviewError(false);
+      if (value.trim().length > 0 && !form.image_enabled) {
+        setForm((prev) => ({ ...prev, image_url: value, image_enabled: true }));
+        return;
+      }
+    }
 
     if (type === 'checkbox') {
       const checked = (e.target as HTMLInputElement).checked;
@@ -82,11 +96,44 @@ export function ProductFormModal({
     }
   };
 
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setFieldError('Hanya file gambar (JPG, PNG, WEBP, GIF) yang diperbolehkan');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setFieldError('Ukuran file tidak boleh lebih dari 5MB');
+      return;
+    }
+
+    // Convert to object URL for local preview or reference
+    const localUrl = URL.createObjectURL(file);
+    setForm((prev) => ({
+      ...prev,
+      image_url: localUrl,
+      image_enabled: true,
+    }));
+    setImagePreviewError(false);
+    setFieldError(null);
+  };
+
   const validate = (): string | null => {
     if (!form.name.trim()) return 'Nama produk wajib diisi';
     if (form.price_minor < 0) return 'Harga jual tidak boleh negatif';
     if (form.cost_minor !== null && form.cost_minor < 0) return 'HPP tidak boleh negatif';
     return null;
+  };
+
+  const handleClearImage = () => {
+    setForm((prev) => ({ ...prev, image_url: '', image_enabled: false }));
+    setImagePreviewError(false);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -100,15 +147,21 @@ export function ProductFormModal({
     setFieldError(null);
     setSaveState('saving');
 
+    const cleanPayload: ProductFormModel = {
+      ...form,
+      image_url: form.image_url?.trim() ? form.image_url.trim() : undefined,
+      image_enabled: form.image_enabled ?? false,
+    };
+
     try {
       if (mode === 'edit') {
         await onSave(
-          { ...form, id: product?.id, business_id: businessId, expected_server_version: serverVersion },
+          { ...cleanPayload, id: product?.id, business_id: businessId, expected_server_version: serverVersion },
         );
       } else {
         const idempotencyKey = crypto.randomUUID();
         await onSave(
-          { ...form, business_id: businessId },
+          { ...cleanPayload, business_id: businessId },
           idempotencyKey,
         );
       }
@@ -258,6 +311,101 @@ export function ProductFormModal({
               disabled={isSaving || !!conflictError}
               placeholder="e.g. Minuman"
             />
+          </div>
+        </div>
+
+        {/* Product Media & Image Section */}
+        <div className="space-y-2 rounded-lg border border-line p-3 bg-paper/30">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="image_url" className="label">
+              URL Gambar Produk
+            </Label>
+            <span className="text-[11px] font-normal text-fog">URL atau Unggah Berkas</span>
+          </div>
+
+          <div className="flex gap-2">
+            <Input
+              id="image_url"
+              name="image_url"
+              type="url"
+              value={form.image_url || ''}
+              onChange={handleChange}
+              disabled={isSaving || !!conflictError}
+              placeholder="https://example.com/gambar-produk.jpg"
+              className="flex-1"
+            />
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              onChange={handleFileUpload}
+              className="hidden"
+              id="product-file-upload"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="shrink-0 px-3"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isSaving || !!conflictError}
+            >
+              <Upload className="mr-1.5 h-3.5 w-3.5" />
+              Unggah
+            </Button>
+          </div>
+
+          {form.image_url && form.image_url.trim().length > 0 && (
+            <div className="mt-2.5 flex items-center gap-3 rounded-lg border border-line bg-paper/60 p-2.5">
+              <div className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-md border border-line bg-surface">
+                {!imagePreviewError ? (
+                  <img
+                    src={form.image_url.trim()}
+                    alt="Pratinjau gambar produk"
+                    className="h-full w-full object-cover"
+                    onError={() => setImagePreviewError(true)}
+                  />
+                ) : (
+                  <div className="flex flex-col items-center justify-center text-center p-1">
+                    <ImageIcon className="h-4 w-4 text-clay" />
+                    <span className="text-[9.5px] font-semibold text-clay mt-0.5">Gagal</span>
+                  </div>
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-semibold text-ink">{form.image_url.trim()}</p>
+                <p className="text-[11px] text-fog">
+                  {!imagePreviewError ? 'Pratinjau gambar valid' : 'Tautan gambar tidak dapat dimuat'}
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 px-2 text-xs text-clay hover:bg-clay-soft/50"
+                onClick={handleClearImage}
+                disabled={isSaving || !!conflictError}
+              >
+                <X className="mr-1 h-3 w-3" />
+                Hapus
+              </Button>
+            </div>
+          )}
+
+          {/* image_enabled toggle */}
+          <div className="flex items-center gap-2 pt-1.5 border-t border-line/60">
+            <input
+              id="image_enabled"
+              name="image_enabled"
+              type="checkbox"
+              checked={form.image_enabled ?? false}
+              onChange={handleChange}
+              disabled={isSaving || !!conflictError}
+              className="h-4 w-4 rounded border-line text-pine focus:ring-pine"
+            />
+            <Label htmlFor="image_enabled" className="text-xs font-medium text-ink cursor-pointer">
+              Tampilkan gambar di katalog dan kasir POS
+            </Label>
           </div>
         </div>
 

@@ -145,6 +145,7 @@ export function mapPOSProductViewModel(
     stock_status: status,
     min_stock: minStock,
     image_url: product.image_url ?? null,
+    image_enabled: product.image_enabled ?? false,
   };
 }
 

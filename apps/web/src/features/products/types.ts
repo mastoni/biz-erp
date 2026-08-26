@@ -11,6 +11,7 @@ export interface Product {
   category: string | null;
   barcode: string | null;
   image_url?: string | null;
+  image_enabled?: boolean;
   is_active: boolean;
   server_version: number;
   created_at: string;
@@ -34,6 +35,7 @@ export interface ProductCreatePayload {
   category?: string | null;
   barcode?: string | null;
   image_url?: string | null;
+  image_enabled?: boolean;
   is_active?: boolean;
 }
 
@@ -48,6 +50,7 @@ export interface ProductUpdatePayload {
   category?: string | null;
   barcode?: string | null;
   image_url?: string | null;
+  image_enabled?: boolean;
   is_active?: boolean;
 }
 
@@ -63,6 +66,7 @@ export interface ProductViewModel {
   category: string | null;
   barcode: string | null;
   image_url?: string | null;
+  image_enabled?: boolean;
   price_minor: number;
   cost_minor: number | null;
   margin_minor: number | null;
@@ -101,6 +105,8 @@ export interface ProductFormModel {
   sku: string;
   category: string;
   barcode: string;
+  image_url?: string;
+  image_enabled?: boolean;
   price_minor: number;
   cost_minor: number | null;
   is_active: boolean;
