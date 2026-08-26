@@ -26,12 +26,12 @@ export function createCustomerRoutes(pool: Pool): Router {
   // Request hash helpers (server-side canonical computation)
   // -------------------------------------------------------------------------
   function computeCreateHash(reqBody: Record<string, any>): string {
-    const hashStr = `create|${reqBody.business_id}|${reqBody.id}|${reqBody.name}|${reqBody.phone ?? 'null'}|${reqBody.email ?? 'null'}`
+    const hashStr = `create|${reqBody.business_id}|${reqBody.id}|${reqBody.name}|${reqBody.phone ?? 'null'}|${reqBody.email ?? 'null'}|${reqBody.tier ?? 'Reguler'}|${reqBody.points ?? 0}`
     return createHash('sha256').update(hashStr).digest('hex')
   }
 
   function computeUpdateHash(reqBody: Record<string, any>, customerId: string): string {
-    const hashStr = `update|${reqBody.business_id}|${customerId}|${reqBody.expected_server_version}|${reqBody.name ?? 'null'}|${reqBody.phone ?? 'null'}|${reqBody.email ?? 'null'}`
+    const hashStr = `update|${reqBody.business_id}|${customerId}|${reqBody.expected_server_version}|${reqBody.name ?? 'null'}|${reqBody.phone ?? 'null'}|${reqBody.email ?? 'null'}|${reqBody.tier ?? 'null'}|${reqBody.points ?? 'null'}`
     return createHash('sha256').update(hashStr).digest('hex')
   }
 
@@ -66,6 +66,21 @@ export function createCustomerRoutes(pool: Pool): Router {
   )
 
   // -------------------------------------------------------------------------
+  // GET /v1/customers/summary
+  // RBAC: OWNER + CASHIER
+  // Query: business_id (required)
+  // -------------------------------------------------------------------------
+  router.get(
+    '/summary',
+    requireRole('OWNER', 'CASHIER') as RequestHandler,
+    asyncHandler<SyncAuthenticatedRequest>(async (req, res) => {
+      const businessId = typeof req.query.business_id === 'string' ? req.query.business_id.trim() : req.tenantId!
+      const summary = await service.getSummary(businessId, req.tenantId!)
+      res.status(200).json(summary)
+    })
+  )
+
+  // -------------------------------------------------------------------------
   // GET /v1/customers/:id
   // RBAC: OWNER + CASHIER
   // -------------------------------------------------------------------------
@@ -81,7 +96,7 @@ export function createCustomerRoutes(pool: Pool): Router {
   // -------------------------------------------------------------------------
   // POST /v1/customers
   // RBAC: OWNER only
-  // Body: { id, business_id, name, phone?, email? }
+  // Body: { id, business_id, name, phone?, email?, tier?, points? }
   // Header: Idempotency-Key (UUID)
   // -------------------------------------------------------------------------
   router.post(
@@ -98,7 +113,7 @@ export function createCustomerRoutes(pool: Pool): Router {
   // -------------------------------------------------------------------------
   // PUT /v1/customers/:id
   // RBAC: OWNER only
-  // Body: { business_id, expected_server_version, name?, phone?, email? }
+  // Body: { business_id, expected_server_version, name?, phone?, email?, tier?, points? }
   // Header: Idempotency-Key (UUID)
   // -------------------------------------------------------------------------
   router.put(

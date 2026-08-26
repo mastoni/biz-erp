@@ -2,7 +2,19 @@ import { ValidationError } from '../errors/validation_error'
 import { isUuid } from '../utils/uuid'
 
 // ---------------------------------------------------------------------------
-// Response DTO — includes deleted_at for sync tombstones
+// Types & Constants
+// ---------------------------------------------------------------------------
+
+export type CustomerTier = 'Reguler' | 'Silver' | 'Gold'
+
+export const VALID_CUSTOMER_TIERS: readonly CustomerTier[] = ['Reguler', 'Silver', 'Gold'] as const
+
+export function isValidCustomerTier(value: unknown): value is CustomerTier {
+  return typeof value === 'string' && VALID_CUSTOMER_TIERS.includes(value as CustomerTier)
+}
+
+// ---------------------------------------------------------------------------
+// Response DTOs
 // ---------------------------------------------------------------------------
 
 export interface CustomerDto {
@@ -11,10 +23,22 @@ export interface CustomerDto {
   name: string
   phone: string | null
   email: string | null
+  tier: CustomerTier
+  points: number
+  spend_minor: number
+  last_visit_epoch: number | null
   server_version: number
   created_at: string
   updated_at: string
   deleted_at: string | null
+}
+
+export interface CustomerSummaryDto {
+  total_customers: number
+  gold_members: number
+  silver_members: number
+  regular_members: number
+  monthly_spend_minor: number
 }
 
 // ---------------------------------------------------------------------------
@@ -27,6 +51,8 @@ export interface CustomerCreateRequest {
   name: string
   phone: string | null
   email: string | null
+  tier: CustomerTier
+  points: number
 }
 
 export interface CustomerUpdateRequest {
@@ -35,6 +61,8 @@ export interface CustomerUpdateRequest {
   name?: string
   phone?: string | null
   email?: string | null
+  tier?: CustomerTier
+  points?: number
 }
 
 // ---------------------------------------------------------------------------
@@ -109,6 +137,27 @@ export function validateCustomerCreate(body: unknown): CustomerCreateRequest {
     }
   }
 
+  // tier (optional, defaults to 'Reguler')
+  let tier: CustomerTier = 'Reguler'
+  if ('tier' in body && body.tier !== undefined && body.tier !== null) {
+    if (!isValidCustomerTier(body.tier)) {
+      errors.tier = `tier must be one of: ${VALID_CUSTOMER_TIERS.join(', ')}`
+    } else {
+      tier = body.tier
+    }
+  }
+
+  // points (optional, integer >= 0, defaults to 0)
+  let points = 0
+  if ('points' in body && body.points !== undefined && body.points !== null) {
+    const rawPoints = body.points
+    if (typeof rawPoints !== 'number' || !Number.isInteger(rawPoints) || rawPoints < 0) {
+      errors.points = 'points must be a non-negative integer'
+    } else {
+      points = rawPoints
+    }
+  }
+
   if (Object.keys(errors).length > 0) {
     throw new ValidationError('Customer create validation failed', errors)
   }
@@ -119,6 +168,8 @@ export function validateCustomerCreate(body: unknown): CustomerCreateRequest {
     name: (name as string).trim(),
     phone,
     email,
+    tier,
+    points,
   }
 }
 
@@ -189,8 +240,30 @@ export function validateCustomerUpdate(body: unknown): CustomerUpdateRequest {
     }
   }
 
+  // tier (optional)
+  if ('tier' in body) {
+    hasPatch = true
+    const value = body.tier
+    if (!isValidCustomerTier(value)) {
+      errors.tier = `tier must be one of: ${VALID_CUSTOMER_TIERS.join(', ')}`
+    } else {
+      result.tier = value
+    }
+  }
+
+  // points (optional, integer >= 0)
+  if ('points' in body) {
+    hasPatch = true
+    const value = body.points
+    if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
+      errors.points = 'points must be a non-negative integer'
+    } else {
+      result.points = value
+    }
+  }
+
   if (!hasPatch) {
-    errors.body = 'At least one updatable field (name, phone, email) is required'
+    errors.body = 'At least one updatable field (name, phone, email, tier, points) is required'
   }
 
   if (Object.keys(errors).length > 0) {

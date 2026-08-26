@@ -4,6 +4,7 @@ import { ValidationError } from '../errors/validation_error'
 import { ConflictError } from '../errors/conflict_error'
 import {
   CustomerDto,
+  CustomerSummaryDto,
   validateCustomerCreate,
   validateCustomerUpdate,
 } from '../dto/customer_dto'
@@ -52,21 +53,6 @@ function parseOffset(value: unknown): number {
   return parsed
 }
 
-function computeCreateHash(request: { business_id: string; id: string; name: string; phone: string | null; email: string | null }): string {
-  const hashStr = `create|${request.business_id}|${request.id}|${request.name}|${request.phone ?? 'null'}|${request.email ?? 'null'}`
-  return createHash('sha256').update(hashStr).digest('hex')
-}
-
-function computeUpdateHash(request: { business_id: string; customerId: string; expected_server_version: number; name?: string; phone?: string | null; email?: string | null }): string {
-  const hashStr = `update|${request.business_id}|${request.customerId}|${request.expected_server_version}|${request.name ?? 'null'}|${request.phone ?? 'null'}|${request.email ?? 'null'}`
-  return createHash('sha256').update(hashStr).digest('hex')
-}
-
-function computeDeleteHash(businessId: string, customerId: string): string {
-  const hashStr = `delete|${businessId}|${customerId}`
-  return createHash('sha256').update(hashStr).digest('hex')
-}
-
 // ---------------------------------------------------------------------------
 // Service factory
 // ---------------------------------------------------------------------------
@@ -74,8 +60,7 @@ function computeDeleteHash(businessId: string, customerId: string): string {
 export function createCustomerService(pool: Pool) {
   return {
     /**
-     * List active customers for the authenticated tenant.
-     * If business_id is supplied in the query, it must match the JWT tenant claim.
+     * List active customers for the authenticated tenant with joined spend, last visit, and summary KPI.
      */
     async list(
       query: unknown,
@@ -86,6 +71,7 @@ export function createCustomerService(pool: Pool) {
       limit: number
       offset: number
       has_more: boolean
+      summary: CustomerSummaryDto
     }> {
       const q = query as Record<string, unknown>
       const businessId = typeof q.business_id === 'string' ? q.business_id.trim() : undefined
@@ -100,7 +86,10 @@ export function createCustomerService(pool: Pool) {
       const offset = parseOffset(q.offset)
 
       return withTransaction(pool, async (client) => {
-        const { rows, total } = await customerRepository.list(client, tenantId, limit, offset)
+        const [{ rows, total }, summary] = await Promise.all([
+          customerRepository.list(client, tenantId, limit, offset),
+          customerRepository.getSummary(client, tenantId),
+        ])
 
         return {
           items: rows,
@@ -108,13 +97,27 @@ export function createCustomerService(pool: Pool) {
           limit,
           offset,
           has_more: offset + rows.length < total,
+          summary,
         }
       })
     },
 
     /**
+     * Return customer summary metrics for KPI cards.
+     */
+    async getSummary(businessId: string, tenantId: string): Promise<CustomerSummaryDto> {
+      if (!isUuid(businessId)) {
+        throw new ValidationError('business_id must be a valid UUID')
+      }
+      assertTenant(businessId, tenantId)
+
+      return withTransaction(pool, async (client) => {
+        return customerRepository.getSummary(client, tenantId)
+      })
+    },
+
+    /**
      * Return a single active customer belonging to the tenant.
-     * Treats both missing and soft-deleted as 404 to avoid tenant leakage.
      */
     async findById(customerId: string, tenantId: string): Promise<CustomerDto> {
       if (!isUuid(customerId)) {
@@ -133,7 +136,7 @@ export function createCustomerService(pool: Pool) {
     },
 
     /**
-     * Create a new customer belonging to the tenant.
+     * Create a new customer belonging to the tenant with tier and points.
      * Idempotent: same idempotency key + same request hash returns original response.
      */
     async create(body: unknown, idempotencyKey: string, requestHash: string, tenantId: string): Promise<CustomerDto> {
@@ -162,6 +165,8 @@ export function createCustomerService(pool: Pool) {
           name: request.name,
           phone: request.phone,
           email: request.email,
+          tier: request.tier,
+          points: request.points,
         })
 
         await idempotencyRepository.insert(client, request.business_id, idempotencyKey, requestHash, 201, created)
@@ -171,7 +176,6 @@ export function createCustomerService(pool: Pool) {
 
     /**
      * Update mutable fields on an active customer belonging to the tenant.
-     * Idempotent: same idempotency key + same request hash returns original response.
      * Optimistic locking via expected_server_version.
      */
     async update(
@@ -203,6 +207,8 @@ export function createCustomerService(pool: Pool) {
         if (request.name !== undefined) patch.name = request.name
         if ('phone' in request) patch.phone = request.phone ?? null
         if ('email' in request) patch.email = request.email ?? null
+        if (request.tier !== undefined) patch.tier = request.tier
+        if (request.points !== undefined) patch.points = request.points
 
         const updated = await customerRepository.update(client, tenantId, customerId, request.expected_server_version, patch)
 
@@ -226,9 +232,6 @@ export function createCustomerService(pool: Pool) {
 
     /**
      * Soft-delete a customer belonging to the tenant.
-     * Idempotent: same idempotency key + same request hash returns 204 (replay).
-     * Increments server_version so deletion appears in sync as tombstone.
-     * Throws 404 if not found or already deleted (tenant-safe, no existence leakage).
      */
     async softDelete(customerId: string, idempotencyKey: string, requestHash: string, tenantId: string): Promise<void> {
       if (!isUuid(customerId)) {
@@ -242,7 +245,6 @@ export function createCustomerService(pool: Pool) {
           if (existing.request_hash !== requestHash) {
             throw new ConflictError('IDEMPOTENCY_KEY_REUSE', 'Idempotency key was already used with a different request hash', { idempotency_key: idempotencyKey })
           }
-          // Idempotent replay: return void (204)
           return
         }
 
@@ -252,7 +254,6 @@ export function createCustomerService(pool: Pool) {
           throw new ApiError(404, 'NOT_FOUND', 'Customer not found')
         }
 
-        // Store idempotency record with empty response body for 204
         await idempotencyRepository.insert(client, tenantId, idempotencyKey, requestHash, 204, null)
       })
     },
