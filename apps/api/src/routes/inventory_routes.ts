@@ -12,6 +12,9 @@ import { ValidationError } from '../errors/validation_error'
 import crypto from 'crypto'
 import { isUuid } from '../utils/uuid'
 
+const DEFAULT_MOVEMENT_LIMIT = 50
+const MAX_MOVEMENT_LIMIT = 500
+
 export function createInventoryRoutes(pool: Pool): Router {
   const router = Router()
   const jwtSecret = process.env.JWT_SECRET
@@ -61,6 +64,7 @@ export function createInventoryRoutes(pool: Pool): Router {
             product_id: productId,
             branch_id: branchId,
             quantity: 0,
+            server_version: 0,
           })
           return
         }
@@ -69,6 +73,7 @@ export function createInventoryRoutes(pool: Pool): Router {
           product_id: stock.product_id,
           branch_id: stock.branch_id,
           quantity: stock.quantity,
+          server_version: stock.server_version,
         })
       } finally {
         client.release()
@@ -82,7 +87,7 @@ export function createInventoryRoutes(pool: Pool): Router {
     asyncHandler<SyncAuthenticatedRequest>(async (req, res) => {
       const businessId = req.query.business_id as string
       const branchId = req.query.branch_id as string
-      
+
       if (!businessId || !branchId) {
           throw new ApiError(400, 'BAD_REQUEST', 'business_id and branch_id are required')
       }
@@ -91,9 +96,32 @@ export function createInventoryRoutes(pool: Pool): Router {
           throw new ApiError(403, 'BUSINESS_ACCESS_DENIED', 'Business identity mismatch')
       }
 
+      if (!isUuid(branchId)) {
+        throw new ValidationError('branch_id must be a valid UUID')
+      }
+
+      let productIds: string[] | undefined
+      if (req.query.product_ids) {
+        const raw = req.query.product_ids as string
+        productIds = raw.split(',').map(s => s.trim()).filter(Boolean)
+        for (const id of productIds) {
+          if (!isUuid(id)) {
+            throw new ValidationError('Each product_id in product_ids must be a valid UUID')
+          }
+        }
+        if (productIds.length === 0) {
+          throw new ValidationError('product_ids must contain at least one valid UUID')
+        }
+      }
+
       const client = await pool.connect()
       try {
-        const stocks = await inventoryRepository.getStocks(client, businessId, branchId)
+        const branch = await branchRepository.findById(client, businessId, branchId)
+        if (!branch || !branch.status) {
+          throw new ApiError(403, 'BUSINESS_ACCESS_DENIED', 'Branch not found or inaccessible')
+        }
+
+        const stocks = await inventoryRepository.getStocks(client, businessId, branchId, productIds)
         res.status(200).json({ items: stocks })
       } finally {
         client.release()
@@ -102,13 +130,47 @@ export function createInventoryRoutes(pool: Pool): Router {
   )
 
   router.get(
+    '/summary',
+    requireRole('OWNER', 'CASHIER') as RequestHandler,
+    asyncHandler<SyncAuthenticatedRequest>(async (req, res) => {
+      const businessId = req.query.business_id as string
+      const branchId = req.query.branch_id as string
+
+      if (!businessId || !branchId) {
+        throw new ApiError(400, 'BAD_REQUEST', 'business_id and branch_id are required')
+      }
+
+      if (businessId !== req.tenantId) {
+        throw new ApiError(403, 'BUSINESS_ACCESS_DENIED', 'Business identity mismatch')
+      }
+
+      if (!isUuid(branchId)) {
+        throw new ValidationError('branch_id must be a valid UUID')
+      }
+
+      const client = await pool.connect()
+      try {
+        const branch = await branchRepository.findById(client, businessId, branchId)
+        if (!branch || !branch.status) {
+          throw new ApiError(403, 'BUSINESS_ACCESS_DENIED', 'Branch not found or inaccessible')
+        }
+
+        const summary = await inventoryRepository.getStockSummary(client, businessId, branchId)
+        res.status(200).json(summary)
+      } finally {
+        client.release()
+      }
+    })
+  )
+
+  router.get(
     '/movements',
-    requireRole('OWNER') as RequestHandler, // CASHIER NOT ALLOWED
+    requireRole('OWNER') as RequestHandler, // CASHIER NOT ALLOWED — pending business decision
     asyncHandler<SyncAuthenticatedRequest>(async (req, res) => {
       const businessId = req.query.business_id as string
       const branchId = req.query.branch_id as string
       const productId = req.query.product_id as string | undefined
-      
+
       if (!businessId || !branchId) {
           throw new ApiError(400, 'BAD_REQUEST', 'business_id and branch_id are required')
       }
@@ -117,10 +179,42 @@ export function createInventoryRoutes(pool: Pool): Router {
           throw new ApiError(403, 'BUSINESS_ACCESS_DENIED', 'Business identity mismatch')
       }
 
+      if (!isUuid(branchId)) {
+        throw new ValidationError('branch_id must be a valid UUID')
+      }
+
+      if (productId && !isUuid(productId)) {
+        throw new ValidationError('product_id must be a valid UUID')
+      }
+
+      let limit = DEFAULT_MOVEMENT_LIMIT
+      let offset = 0
+
+      if (req.query.limit !== undefined) {
+        const parsedLimit = Number(req.query.limit)
+        if (!Number.isInteger(parsedLimit) || parsedLimit < 1 || parsedLimit > MAX_MOVEMENT_LIMIT) {
+          throw new ValidationError('limit must be an integer between 1 and 500')
+        }
+        limit = parsedLimit
+      }
+
+      if (req.query.offset !== undefined) {
+        const parsedOffset = Number(req.query.offset)
+        if (!Number.isInteger(parsedOffset) || parsedOffset < 0) {
+          throw new ValidationError('offset must be a non-negative integer')
+        }
+        offset = parsedOffset
+      }
+
       const client = await pool.connect()
       try {
-        const movements = await inventoryRepository.getMovements(client, businessId, branchId, productId)
-        res.status(200).json({ items: movements })
+        const branch = await branchRepository.findById(client, businessId, branchId)
+        if (!branch || !branch.status) {
+          throw new ApiError(403, 'BUSINESS_ACCESS_DENIED', 'Branch not found or inaccessible')
+        }
+
+        const result = await inventoryRepository.getMovementsPaginated(client, businessId, branchId, productId, limit, offset)
+        res.status(200).json(result)
       } finally {
         client.release()
       }
