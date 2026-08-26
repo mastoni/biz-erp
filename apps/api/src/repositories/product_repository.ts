@@ -1,4 +1,4 @@
-﻿import { PoolClient } from 'pg'
+import { PoolClient } from 'pg'
 import { ProductDto } from '../dto/product_dto'
 
 const PRODUCT_COLUMNS = `
@@ -11,6 +11,7 @@ const PRODUCT_COLUMNS = `
   cost_minor,
   category,
   barcode,
+  image_url,
   is_active,
   server_version,
   created_at,
@@ -25,6 +26,7 @@ export interface ProductPatch {
   cost_minor?: number | null
   category?: string | null
   barcode?: string | null
+  image_url?: string | null
   is_active?: boolean
 }
 
@@ -152,6 +154,11 @@ export const productRepository = {
       values.push(patch.barcode ?? null)
     }
 
+    if ('image_url' in patch) {
+      setClauses.push(`image_url = $${paramIndex++}`)
+      values.push(patch.image_url ?? null)
+    }
+
     if (patch.is_active !== undefined) {
       setClauses.push(`is_active = $${paramIndex++}`)
       values.push(patch.is_active)
@@ -176,17 +183,18 @@ export const productRepository = {
   async insert(client: PoolClient, product: {
     id: string; business_id: string; name: string; description: string | null;
     sku: string | null; price_minor: number; cost_minor: number | null;
-    category: string | null; barcode: string | null; is_active: boolean;
+    category: string | null; barcode: string | null; image_url?: string | null;
+    is_active: boolean;
   }): Promise<ProductDto> {
     const sql = `
-      INSERT INTO products (id, business_id, name, description, sku, price_minor, cost_minor, category, barcode, is_active, server_version, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 1, now(), now())
+      INSERT INTO products (id, business_id, name, description, sku, price_minor, cost_minor, category, barcode, image_url, is_active, server_version, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 1, now(), now())
       RETURNING ${PRODUCT_COLUMNS}
     `
     const result = await client.query(sql, [
       product.id, product.business_id, product.name, product.description,
       product.sku, product.price_minor, product.cost_minor,
-      product.category, product.barcode, product.is_active
+      product.category, product.barcode, product.image_url ?? null, product.is_active
     ])
     return result.rows[0] as ProductDto
   }

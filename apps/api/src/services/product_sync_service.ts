@@ -110,6 +110,7 @@ export function createProductSyncService(pool: Pool) {
         if ('cost_minor' in request) patch.cost_minor = request.cost_minor
         if (request.category !== undefined) patch.category = request.category
         if (request.barcode !== undefined) patch.barcode = request.barcode
+        if ('image_url' in request) patch.image_url = request.image_url
         if (request.is_active !== undefined) patch.is_active = request.is_active
 
         const updated = await productRepository.update(client, request.business_id, productId, request.expected_server_version, patch)
@@ -147,6 +148,7 @@ export function createProductSyncService(pool: Pool) {
             description: request.description ?? null, sku: request.sku ?? null,
             price_minor: request.price_minor, cost_minor: request.cost_minor ?? null,
             category: request.category ?? null, barcode: request.barcode ?? null,
+            image_url: request.image_url ?? null,
             is_active: request.is_active ?? true
           })
         } catch (err: any) {

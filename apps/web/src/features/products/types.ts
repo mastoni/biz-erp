@@ -10,6 +10,7 @@ export interface Product {
   cost_minor: number | null;
   category: string | null;
   barcode: string | null;
+  image_url?: string | null;
   is_active: boolean;
   server_version: number;
   created_at: string;
@@ -32,6 +33,7 @@ export interface ProductCreatePayload {
   cost_minor?: number | null;
   category?: string | null;
   barcode?: string | null;
+  image_url?: string | null;
   is_active?: boolean;
 }
 
@@ -45,6 +47,7 @@ export interface ProductUpdatePayload {
   cost_minor?: number | null;
   category?: string | null;
   barcode?: string | null;
+  image_url?: string | null;
   is_active?: boolean;
 }
 
@@ -59,6 +62,7 @@ export interface ProductViewModel {
   sku: string | null;
   category: string | null;
   barcode: string | null;
+  image_url?: string | null;
   price_minor: number;
   cost_minor: number | null;
   margin_minor: number | null;

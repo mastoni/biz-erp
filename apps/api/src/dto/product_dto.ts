@@ -11,6 +11,7 @@ export interface ProductDto {
   cost_minor: number | null
   category: string | null
   barcode: string | null
+  image_url: string | null
   is_active: boolean
   server_version: number
   created_at: string
@@ -27,6 +28,7 @@ export interface ProductUpdateRequest {
   cost_minor?: number | null
   category?: string | null
   barcode?: string | null
+  image_url?: string | null
   is_active?: boolean
 }
 
@@ -138,6 +140,18 @@ export function validateProductUpdate(body: unknown): ProductUpdateRequest {
     }
   }
 
+  if ('image_url' in body) {
+    hasPatch = true
+    const value = body.image_url
+    if (value === null) {
+      result.image_url = null
+    } else if (typeof value === 'string') {
+      result.image_url = value.trim() === '' ? null : value.trim()
+    } else {
+      errors.image_url = 'image_url must be a string or null'
+    }
+  }
+
   if ('is_active' in body) {
     hasPatch = true
     const value = body.is_active
@@ -156,7 +170,7 @@ export function validateProductUpdate(body: unknown): ProductUpdateRequest {
     throw new ValidationError('Product update validation failed', errors)
   }
 
-   return result
+  return result
 }
 
 export interface ProductListQuery {
@@ -241,24 +255,73 @@ export interface ProductCreateRequest {
   cost_minor?: number | null
   category?: string | null
   barcode?: string | null
+  image_url?: string | null
   is_active?: boolean
 }
 
 export function validateProductCreate(body: unknown): ProductCreateRequest {
   if (!isObject(body)) throw new ValidationError('Request body must be a JSON object')
   const errors: Record<string, string> = {}
-  const id = body.id; const businessId = body.business_id; const name = body.name; const priceMinor = body.price_minor
+  const id = body.id
+  const businessId = body.business_id
+  const name = body.name
+  const priceMinor = body.price_minor
+
   if (typeof id !== 'string' || !isUuid(id)) errors.id = 'id must be a valid UUID'
   if (typeof businessId !== 'string' || !isUuid(businessId)) errors.business_id = 'business_id must be a valid UUID'
   if (typeof name !== 'string' || name.trim().length === 0) errors.name = 'name must be a non-empty string'
   if (typeof priceMinor !== 'number' || !Number.isInteger(priceMinor) || priceMinor < 0) errors.price_minor = 'price_minor must be a non-negative integer'
-  const result: any = { id: typeof id === 'string' ? id.trim() : '', business_id: typeof businessId === 'string' ? businessId.trim() : '', name: typeof name === 'string' ? name.trim() : '', price_minor: typeof priceMinor === 'number' ? priceMinor : 0 }
-  if ('description' in body) { if (body.description === null) result.description = null; else if (typeof body.description === 'string') result.description = body.description; else errors.description = 'description must be a string or null' }
-  if ('sku' in body) { if (body.sku === null || body.sku === '') result.sku = null; else if (typeof body.sku === 'string') result.sku = body.sku.trim(); else errors.sku = 'sku must be a string or null' }
-  if ('cost_minor' in body) { if (body.cost_minor === null) result.cost_minor = null; else if (typeof body.cost_minor === 'number' && Number.isInteger(body.cost_minor) && body.cost_minor >= 0) result.cost_minor = body.cost_minor; else errors.cost_minor = 'cost_minor must be a non-negative integer or null' }
-  if ('category' in body) { if (body.category === null) result.category = null; else if (typeof body.category === 'string') result.category = body.category; else errors.category = 'category must be a string or null' }
-  if ('barcode' in body) { if (body.barcode === null || body.barcode === '') result.barcode = null; else if (typeof body.barcode === 'string') result.barcode = body.barcode.trim(); else errors.barcode = 'barcode must be a string or null' }
-  if ('is_active' in body) { if (typeof body.is_active === 'boolean') result.is_active = body.is_active; else errors.is_active = 'is_active must be a boolean' } else { result.is_active = true }
+
+  const result: any = {
+    id: typeof id === 'string' ? id.trim() : '',
+    business_id: typeof businessId === 'string' ? businessId.trim() : '',
+    name: typeof name === 'string' ? name.trim() : '',
+    price_minor: typeof priceMinor === 'number' ? priceMinor : 0
+  }
+
+  if ('description' in body) {
+    if (body.description === null) result.description = null
+    else if (typeof body.description === 'string') result.description = body.description
+    else errors.description = 'description must be a string or null'
+  }
+
+  if ('sku' in body) {
+    if (body.sku === null || body.sku === '') result.sku = null
+    else if (typeof body.sku === 'string') result.sku = body.sku.trim()
+    else errors.sku = 'sku must be a string or null'
+  }
+
+  if ('cost_minor' in body) {
+    if (body.cost_minor === null) result.cost_minor = null
+    else if (typeof body.cost_minor === 'number' && Number.isInteger(body.cost_minor) && body.cost_minor >= 0) result.cost_minor = body.cost_minor
+    else errors.cost_minor = 'cost_minor must be a non-negative integer or null'
+  }
+
+  if ('category' in body) {
+    if (body.category === null) result.category = null
+    else if (typeof body.category === 'string') result.category = body.category
+    else errors.category = 'category must be a string or null'
+  }
+
+  if ('barcode' in body) {
+    if (body.barcode === null || body.barcode === '') result.barcode = null
+    else if (typeof body.barcode === 'string') result.barcode = body.barcode.trim()
+    else errors.barcode = 'barcode must be a string or null'
+  }
+
+  if ('image_url' in body) {
+    if (body.image_url === null || body.image_url === '') result.image_url = null
+    else if (typeof body.image_url === 'string') result.image_url = body.image_url.trim()
+    else errors.image_url = 'image_url must be a string or null'
+  }
+
+  if ('is_active' in body) {
+    if (typeof body.is_active === 'boolean') result.is_active = body.is_active
+    else errors.is_active = 'is_active must be a boolean'
+  } else {
+    result.is_active = true
+  }
+
   if (Object.keys(errors).length > 0) throw new ValidationError('Product create validation failed', errors)
   return result
 }
