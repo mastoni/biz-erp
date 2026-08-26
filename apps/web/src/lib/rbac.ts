@@ -1,9 +1,10 @@
-import { LayoutDashboard, Package, Boxes, ShoppingCart, Users, FileText, UserCog, LucideIcon } from 'lucide-react';
+import { LayoutDashboard, Package, Boxes, ShoppingCart, Users, FileText, UserCog, Sliders, LucideIcon } from 'lucide-react';
 
 export type Role = 'OWNER' | 'CASHIER';
 
 export const ROUTE_PERMISSIONS: Record<string, Role[]> = {
   '/dashboard': ['OWNER', 'CASHIER'],
+  '/pos': ['OWNER', 'CASHIER'],
   '/products': ['OWNER'],
   '/inventory': ['OWNER', 'CASHIER'],
   '/inventory/movements': ['OWNER'],
@@ -13,6 +14,7 @@ export const ROUTE_PERMISSIONS: Record<string, Role[]> = {
   '/customers/new': ['OWNER'],
   '/users': ['OWNER'],
   '/reports': ['OWNER', 'CASHIER'],
+  '/settings': ['OWNER', 'CASHIER'],
 };
 
 export function canAccessRoute(role: Role | null, pathname: string): boolean {
@@ -41,6 +43,7 @@ export interface NavigationItem {
 
 export const NAVIGATION_ITEMS: NavigationItem[] = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Kasir', href: '/pos', icon: ShoppingCart },
   { name: 'Products', href: '/products', icon: Package },
   { name: 'Inventory', href: '/inventory', icon: Boxes },
   { name: 'Movement History', href: '/inventory/movements', icon: Boxes },
@@ -49,6 +52,7 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
   { name: 'Customers', href: '/customers', icon: Users },
   { name: 'Users', href: '/users', icon: UserCog },
   { name: 'Reports', href: '/reports', icon: FileText },
+  { name: 'Pengaturan', href: '/settings', icon: Sliders },
 ];
 
 export function getAuthorizedNavigation(role: Role | null): NavigationItem[] {
