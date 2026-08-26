@@ -1,241 +1,143 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
+import { FileText, ShoppingBag, Receipt } from 'lucide-react';
 import { useAuth } from '@/features/auth/AuthContext';
-import { getSalesSummary, getProductSales, getCustomerSales, SalesSummaryReport, ProductSalesReport, CustomerSalesReport } from '@/features/reports/api';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { Skeleton } from '@/components/ui/skeleton';
-import { formatMinor } from '@/lib/format';
-import { TrendingUp, Package, Users, DollarSign } from 'lucide-react';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-
-const today = new Date().toISOString().split('T')[0];
-const monthStart = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+import { useReportsViewModel } from '@/features/reports/use-reports-viewmodel';
+import { ReportsExecutiveKPICards } from '@/features/reports/components/ReportsExecutiveKPICards';
+import { CashFlowChart, SalesCompositionChart } from '@/features/reports/components/ReportsCharts';
+import { ReportsTabSelector } from '@/features/reports/components/ReportsTabSelector';
+import { ReportsActivePanel } from '@/features/reports/components/ReportsActivePanel';
 
 export default function ReportsPage() {
   const { business } = useAuth();
-  const [from, setFrom] = useState(monthStart);
-  const [to, setTo] = useState(today);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [summary, setSummary] = useState<SalesSummaryReport | null>(null);
-  const [productSales, setProductSales] = useState<ProductSalesReport[]>([]);
-  const [customerSales, setCustomerSales] = useState<CustomerSalesReport[]>([]);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  const fetchReports = useCallback(async () => {
-    if (!business?.id) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const [summaryRes, productRes, customerRes] = await Promise.all([
-        getSalesSummary(from, to),
-        getProductSales(from, to),
-        getCustomerSales(from, to),
-      ]);
-      setSummary(summaryRes.sales_summary);
-      setProductSales(productRes.product_sales);
-      setCustomerSales(customerRes.customer_sales);
-    } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { message?: string } } };
-      setError(axiosErr.response?.data?.message || 'Gagal memuat laporan.');
-    } finally {
-      setLoading(false);
-    }
-  }, [business?.id, from, to]);
+  const {
+    range,
+    setRange,
+    activeTab,
+    setActiveTab,
+    state,
+    isLoading,
+    error,
+    kpi,
+    cashFlow,
+    salesComposition,
+    salesReport,
+    inventoryReport,
+    profitLoss,
+    isP1Tab,
+    p1TabUnavailableMessage,
+    exportCsv,
+  } = useReportsViewModel({
+    businessId: business?.id,
+  });
 
-  useEffect(() => {
-    fetchReports();
-  }, [fetchReports]);
+  const handleExportCsv = () => {
+    const csvContent = exportCsv();
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const stamp = new Date().toISOString().slice(0, 10);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `laporan-${activeTab}-${stamp}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    setToastMessage('Laporan diunduh sebagai CSV.');
+    setTimeout(() => setToastMessage(null), 4000);
+  };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-3xl font-display font-bold tracking-tight text-ink">Laporan Penjualan</h2>
-        <p className="text-ink/60 mt-1">Ringkasan penjualan berdasarkan rentang tanggal.</p>
+    <div className="space-y-5 pb-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div
+          data-testid="reports-toast"
+          className="fixed top-4 right-4 z-50 rounded-xl border border-pine/30 bg-pine text-white px-4 py-2.5 text-xs font-semibold shadow-lg animate-in fade-in slide-in-from-top-2 duration-200"
+        >
+          {toastMessage}
+        </div>
+      )}
+
+      {/* Section Head with 7d / 30d Toggle */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2">
+        <div>
+          <h1 className="font-display text-2xl font-bold tracking-tight text-ink">
+            Laporan & Analisis
+          </h1>
+          <p className="text-xs text-fog mt-0.5">
+            Seluruh laporan dihitung langsung dari data transaksi, stok, dan pembukuan.
+          </p>
+        </div>
+
+        <div className="flex rounded-lg border border-line bg-surface p-0.5 shadow-sm self-start sm:self-auto" data-testid="range-toggle">
+          {(['7d', '30d'] as const).map((r) => {
+            const isSelected = range === r;
+            return (
+              <button
+                key={r}
+                type="button"
+                onClick={() => setRange(r)}
+                data-testid={`range-btn-${r}`}
+                className={`rounded-md px-3.5 py-1.5 text-xs font-bold transition-all cursor-pointer ${
+                  isSelected
+                    ? 'bg-pine text-[#f2efe2] shadow-sm'
+                    : 'text-fog hover:text-ink'
+                }`}
+              >
+                {r === '7d' ? '7 Hari' : '30 Hari'}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      <Card className="border-2 border-ink/10 bg-card">
-        <CardContent className="pt-6">
-          <div className="flex flex-col sm:flex-row gap-4 items-end">
-            <div className="space-y-2">
-              <Label htmlFor="from" className="text-ink">Dari</Label>
-              <Input
-                id="from"
-                type="date"
-                value={from}
-                onChange={(e) => setFrom(e.target.value)}
-                className="border-ink/15 focus:border-ink focus:ring-marigold/50"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="to" className="text-ink">Sampai</Label>
-              <Input
-                id="to"
-                type="date"
-                value={to}
-                onChange={(e) => setTo(e.target.value)}
-                className="border-ink/15 focus:border-ink focus:ring-marigold/50"
-              />
-            </div>
-            <Button onClick={fetchReports} disabled={loading} className="bg-ink text-paper hover:bg-ink-2">
-              {loading ? 'Memuat...' : 'Terapkan'}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
+      {/* Error state */}
       {error && (
-        <Alert variant="destructive">
-          <AlertTitle>Gagal</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
-
-      {loading && (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Card key={i} className="border-2 border-ink/10">
-              <CardHeader className="pb-2">
-                <Skeleton className="h-4 w-24" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-8 w-32" />
-              </CardContent>
-            </Card>
-          ))}
+        <div className="rounded-xl border border-clay/30 bg-clay/10 p-4 text-xs font-medium text-clay">
+          {error}
         </div>
       )}
 
-      {!loading && summary && (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card className="border-2 border-ink/10 bg-card shadow-card">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-ink/60 uppercase tracking-wider">Total Pendapatan</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-display font-bold text-ink">{formatMinor(summary.total_revenue_minor)}</div>
-              <p className="text-xs text-ink/50 mt-1">Total penjualan</p>
-            </CardContent>
-          </Card>
-          <Card className="border-2 border-ink/10 bg-card shadow-card">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-ink/60 uppercase tracking-wider">Total Transaksi</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-display font-bold text-ink">{summary.total_sales.toLocaleString('id-ID')}</div>
-              <p className="text-xs text-ink/50 mt-1">Transaksi pada periode ini</p>
-            </CardContent>
-          </Card>
-          <Card className="border-2 border-ink/10 bg-card shadow-card">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-ink/60 uppercase tracking-wider">Rata-rata Order</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-display font-bold text-ink">{formatMinor(summary.average_order_value_minor)}</div>
-              <p className="text-xs text-ink/50 mt-1">Nilai transaksi rata-rata</p>
-            </CardContent>
-          </Card>
-          <Card className="border-2 border-ink/10 bg-card shadow-card">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-ink/60 uppercase tracking-wider">Item Terjual</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-display font-bold text-ink">{summary.total_items_sold.toLocaleString('id-ID')}</div>
-              <p className="text-xs text-ink/50 mt-1">Total unit terjual</p>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+      {/* Executive KPI Cards */}
+      <ReportsExecutiveKPICards kpi={kpi} />
 
-      {!loading && (
-        <div className="grid gap-6 lg:grid-cols-2">
-          <Card className="border-2 border-ink/10 bg-card">
-            <CardHeader>
-              <CardTitle className="font-display font-medium text-ink flex items-center gap-2">
-                <Package className="h-4 w-4" />
-                Produk Terlaris
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {productSales.length === 0 ? (
-                <p className="text-sm text-ink/40 text-center py-8">Belum ada data produk untuk periode ini.</p>
-              ) : (
-                <div className="rounded-md border border-ink/10 overflow-hidden">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-ink/5">
-                        <TableHead className="text-ink font-medium">Produk</TableHead>
-                        <TableHead className="text-ink font-medium text-right">Qty</TableHead>
-                        <TableHead className="text-ink font-medium text-right">Pendapatan</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {productSales.map((product) => (
-                        <TableRow key={product.product_id} className="hover:bg-ink/5">
-                          <TableCell className="font-medium text-ink">{product.product_name}</TableCell>
-                          <TableCell className="text-right tabular-nums">{product.total_quantity.toLocaleString('id-ID')}</TableCell>
-                          <TableCell className="text-right tabular-nums">{formatMinor(product.total_revenue_minor)}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+      {/* 2-Column Analytics Charts */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <CashFlowChart points={cashFlow} />
+        <SalesCompositionChart items={salesComposition} />
+      </div>
 
-          <Card className="border-2 border-ink/10 bg-card">
-            <CardHeader>
-              <CardTitle className="font-display font-medium text-ink flex items-center gap-2">
-                <Users className="h-4 w-4" />
-                Pelanggan Terbaik
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {customerSales.length === 0 ? (
-                <p className="text-sm text-ink/40 text-center py-8">Belum ada data pelanggan untuk periode ini.</p>
-              ) : (
-                <div className="rounded-md border border-ink/10 overflow-hidden">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-ink/5">
-                        <TableHead className="text-ink font-medium">Pelanggan</TableHead>
-                        <TableHead className="text-ink font-medium text-right">Transaksi</TableHead>
-                        <TableHead className="text-ink font-medium text-right">Total</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {customerSales.map((customer) => (
-                        <TableRow key={customer.customer_id ?? 'walk-in'} className="hover:bg-ink/5">
-                          <TableCell className="font-medium text-ink">
-                            {customer.customer_name}
-                            {!customer.customer_id && (
-                              <span className="ml-2 text-xs text-ink/50">(Umum)</span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums">{customer.total_purchases.toLocaleString('id-ID')}</TableCell>
-                          <TableCell className="text-right tabular-nums">{formatMinor(customer.total_spent_minor)}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      )}
+      {/* 6 Report Selector Cards */}
+      <ReportsTabSelector activeTab={activeTab} onTabChange={setActiveTab} />
+
+      {/* Active Report Panel */}
+      <ReportsActivePanel
+        activeTab={activeTab}
+        range={range}
+        salesReport={salesReport}
+        inventoryReport={inventoryReport}
+        profitLoss={profitLoss}
+        isP1Tab={isP1Tab}
+        p1TabUnavailableMessage={p1TabUnavailableMessage}
+        businessName={business?.name || 'SKM Mart'}
+        onExportCsv={handleExportCsv}
+      />
+
+      {/* Footer Notice Banner */}
+      <div className="flex items-center gap-2.5 rounded-xl border border-dashed border-line bg-surface/60 px-4 py-3 text-[12px] text-fog">
+        <FileText className="h-4 w-4 shrink-0 text-pine" />
+        <span>
+          Laporan laba rugi & valuasi stok diperbarui otomatis saat ada transaksi kasir, penerimaan PO, atau penyesuaian stok.
+        </span>
+        <span className="ml-auto hidden items-center gap-1.5 sm:flex opacity-60">
+          <ShoppingBag className="h-3.5 w-3.5" /> <Receipt className="h-3.5 w-3.5" />
+        </span>
+      </div>
     </div>
   );
 }
