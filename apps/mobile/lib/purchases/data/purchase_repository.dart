@@ -495,4 +495,78 @@ class PurchaseRepository {
       return (await getPurchaseById(id, businessId, branchId))!;
     }
   }
+
+  /// Receives goods for a PO (sent/partial -> partial/received).
+  /// This is an ONLINE ONLY operation. If offline, throws StateError.
+  /// Uses optimistic concurrency with expected server version.
+  /// Returns the updated Purchase on success, throws on conflict/error.
+  Future<Purchase> receivePurchase(
+    String id,
+    String businessId,
+    String branchId, {
+    required SyncApiClient syncApiClient,
+    required String idempotencyKey,
+    required List<ReceiveLine> lines,
+  }) async {
+    // Verify local PO exists and is in receivable status
+    final existing = await getPurchaseById(id, businessId, branchId);
+    if (existing == null) {
+      throw ArgumentError('Pesanan pembelian tidak ditemukan');
+    }
+    if (existing.status != 'sent' && existing.status != 'partial') {
+      throw StateError('Hanya PO dengan status "sent" atau "partial" yang dapat menerima barang');
+    }
+    
+    // Validate receive lines
+    if (lines.isEmpty) {
+      throw ArgumentError('Minimal satu item harus diterima');
+    }
+    for (final line in lines) {
+      if (line.receiveQty <= 0) {
+        throw ArgumentError('Jumlah terima harus lebih dari 0');
+      }
+      final item = existing.items.where((it) => it.id == line.itemId).firstOrNull;
+      if (item == null) {
+        throw ArgumentError('Item tidak ditemukan di PO');
+      }
+      final remaining = item.orderedQty - item.receivedQty;
+      if (line.receiveQty > remaining) {
+        throw ArgumentError('Jumlah terima (${line.receiveQty}) melebihi sisa pesanan ($remaining) untuk ${item.productName}');
+      }
+    }
+    
+    // Prepare items for API
+    final apiItems = lines.map((l) => {
+      'item_id': l.itemId,
+      'receive_qty': l.receiveQty,
+    }).toList();
+    
+    // Call API to receive purchase
+    final result = await syncApiClient.receivePurchase(
+      id: id,
+      businessId: businessId,
+      items: apiItems,
+      ifMatchVersion: existing.serverVersion > 0 ? existing.serverVersion : null,
+      idempotencyKey: idempotencyKey,
+    );
+
+    if (!result.ok) {
+      if (result.conflict) {
+        throw StateError('Konflik versi: data di server telah berubah. Silakan muat ulang dan coba lagi.');
+      }
+      if (result.error?.contains('STOCK_VERSION_CONFLICT') ?? false) {
+        throw StateError('Konflik stok: stok telah berubah secara bersamaan. Silakan coba lagi.');
+      }
+      throw StateError('Gagal menerima barang: ${result.error ?? 'Unknown error'}');
+    }
+
+    // Apply server state or mark synced
+    if (result.serverState != null) {
+      await applyServerSync(result.serverState!, businessId);
+      return (await getPurchaseById(id, businessId, branchId))!;
+    } else {
+      await markSyncedAfterPush(id, result.serverVersion ?? existing.serverVersion + 1);
+      return (await getPurchaseById(id, businessId, branchId))!;
+    }
+  }
 }

@@ -23,6 +23,16 @@ class PurchaseItem {
   int get receivedValueMinor => receivedQty * unitCostMinor;
 }
 
+class ReceiveLine {
+  final String itemId;
+  final int receiveQty;
+
+  const ReceiveLine({
+    required this.itemId,
+    required this.receiveQty,
+  });
+}
+
 class PurchasePayment {
   final String id;
   final String businessId;

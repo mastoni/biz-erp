@@ -1217,12 +1217,14 @@ Map<String, dynamic> _saleDtoToBatchItem(SaleDto sale) {
   @override
   Future<PurchasePushResult> receivePurchase({
     required String id,
+    required String businessId,
     required List<Map<String, dynamic>> items,
     int? ifMatchVersion,
     required String idempotencyKey,
   }) async {
     final uri = Uri.parse('$baseUrl/v1/purchases/$id/receive');
     final body = {
+      'business_id': businessId,
       'items': items,
       if (ifMatchVersion != null) 'expected_server_version': ifMatchVersion,
     };

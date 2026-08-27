@@ -14,8 +14,11 @@ class FakeSyncApiClient implements SyncApiClient {
   PurchaseDto? detailResponse;
   bool throwError = false;
   PurchasePushResult? sendResult;
+  PurchasePushResult? receiveResult;
   String? capturedIdempotencyKey;
   int? capturedIfMatchVersion;
+  List<Map<String, dynamic>>? capturedReceiveItems;
+  String? capturedBusinessId;
 
   @override
   Future<PurchaseDto> getPurchase({required String id}) async {
@@ -57,6 +60,21 @@ class FakeSyncApiClient implements SyncApiClient {
     capturedIdempotencyKey = idempotencyKey;
     capturedIfMatchVersion = ifMatchVersion;
     return sendResult ?? PurchasePushResult(ok: true, serverVersion: 2);
+  }
+
+  @override
+  Future<PurchasePushResult> receivePurchase({
+    required String id,
+    required String businessId,
+    required List<Map<String, dynamic>> items,
+    int? ifMatchVersion,
+    required String idempotencyKey,
+  }) async {
+    capturedIdempotencyKey = idempotencyKey;
+    capturedIfMatchVersion = ifMatchVersion;
+    capturedBusinessId = businessId;
+    capturedReceiveItems = items;
+    return receiveResult ?? PurchasePushResult(ok: true, serverVersion: 2);
   }
 
   @override

@@ -112,6 +112,7 @@ abstract class SyncApiClient {
 
   Future<PurchasePushResult> receivePurchase({
     required String id,
+    required String businessId,
     required List<Map<String, dynamic>> items,
     int? ifMatchVersion,
     required String idempotencyKey,
