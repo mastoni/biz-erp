@@ -29,6 +29,13 @@ class BusinessSettingsLocal extends Table {
 
   IntColumn get updatedAt => integer()();
 
+  /// Canonical resolved store settings serialized as JSON.
+  /// Single source of truth for all store configuration; populated
+  /// from GET /v1/settings/store. Existing scalar columns
+  /// (taxRateBps, currencyCode, etc.) are derived from this JSON
+  /// for backward compatibility.
+  TextColumn get settingsJson => text().withDefault(const Constant('{}'))();
+
   @override
   Set<Column> get primaryKey => {id};
 

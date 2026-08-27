@@ -41,21 +41,21 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.memory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-    onCreate: (m) async {
-      await m.createAll();
-      await m.database.customStatement(
-        'CREATE INDEX IF NOT EXISTS idx_products_business_barcode '
-        'ON products_local (business_id, barcode)',
-      );
-      await customStatement(
-        'CREATE UNIQUE INDEX IF NOT EXISTS idx_one_active_cart_per_business '
-        'ON cart_local(business_id) WHERE status = \'ACTIVE\'',
-      );
-    },
+        onCreate: (m) async {
+          await m.createAll();
+          await m.database.customStatement(
+            'CREATE INDEX IF NOT EXISTS idx_products_business_barcode '
+            'ON products_local (business_id, barcode)',
+          );
+          await customStatement(
+            'CREATE UNIQUE INDEX IF NOT EXISTS idx_one_active_cart_per_business '
+            'ON cart_local(business_id) WHERE status = \'ACTIVE\'',
+          );
+        },
     onUpgrade: (m, from, to) async {
       if (from < 2) {
         await m.createTable(productsLocal);
@@ -145,6 +145,21 @@ class AppDatabase extends _$AppDatabase {
         // V7: Add branch caching tables
         await m.createTable(branchesLocal);
         await m.createTable(activeBranchLocal);
+      }
+      if (from < 8) {
+        // V8: Add settingsJson column to business_settings_local for
+        // full resolved store settings from GET /v1/settings/store.
+        final columns = await customSelect(
+          "PRAGMA table_info(business_settings_local)",
+        ).get();
+        final hasSettingsJson = columns.any(
+          (row) => row.read<String>('name') == 'settings_json',
+        );
+        if (!hasSettingsJson) {
+          await customStatement(
+            'ALTER TABLE business_settings_local ADD COLUMN settings_json TEXT NOT NULL DEFAULT \'{}\'',
+          );
+        }
       }
     },
     beforeOpen: (details) async {

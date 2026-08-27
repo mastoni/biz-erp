@@ -2,6 +2,7 @@ import 'package:biz_erp_mobile/core/sync/branch_repository.dart';
 import 'package:biz_erp_mobile/core/sync/sync_api_client.dart';
 import 'package:biz_erp_mobile/core/sync/sync_outbox_repository.dart';
 import 'package:biz_erp_mobile/core/sync/sync_models.dart';
+import 'package:biz_erp_mobile/core/sync/store_settings_models.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -105,6 +106,13 @@ class _MockSyncApi implements SyncApiClient {
     required String idempotencyKey,
   }) async =>
       CustomerPushResult(ok: true);
+
+  @override
+  Future<StoreSettingsDto?> getStoreSettings({
+    required String businessId,
+    required String branchId,
+  }) async =>
+      null;
 }
 
 void main() {

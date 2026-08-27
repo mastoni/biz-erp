@@ -23,6 +23,7 @@ import 'package:biz_erp_mobile/core/sync/sync_meta_repository.dart';
 import 'package:biz_erp_mobile/core/sync/sync_outbox_repository.dart';
 import 'package:biz_erp_mobile/core/sync/sync_status_notifier.dart';
 import 'package:biz_erp_mobile/core/sync/branch_repository.dart';
+import 'package:biz_erp_mobile/core/sync/store_settings_repository.dart';
 import 'package:biz_erp_mobile/sales/data/sales_sync_repository.dart';
 
 /// Container yang menyimpan semua instance dependency untuk sebuah sesi tenant/business.
@@ -39,6 +40,7 @@ class TenantDependencyGraph {
   final SyncEngine syncEngine;
   final PrintingService printingService;
   final BranchRepository branchRepo;
+  final StoreSettingsRepository storeSettingsRepo;
 
   TenantDependencyGraph({
     required this.db,
@@ -53,6 +55,7 @@ class TenantDependencyGraph {
     required this.syncEngine,
     required this.printingService,
     required this.branchRepo,
+    required this.storeSettingsRepo,
   });
 
   /// Membersihkan background workers, koneksi API, dan menutup koneksi SQLite terenkripsi.
@@ -121,7 +124,7 @@ class TenantCompositionRoot {
       () => syncStatusNotifier.syncNow(),
     );
 
-    // 4. Branch Context Resolution
+     // 4. Branch Context Resolution
     final branchRepo = BranchRepository(db, apiClient);
     String? branchId = await branchRepo.getSelectedBranchId(businessId);
     if (branchId == null) {
@@ -129,6 +132,21 @@ class TenantCompositionRoot {
       if (activeBranch != null) {
         branchId = activeBranch.id;
         await branchRepo.setActiveBranch(businessId, branchId);
+      }
+    }
+
+    // 5. Store Settings — server is authoritative for resolved config.
+    //    Fetch after branch is resolved; persist locally for offline use.
+    final storeSettingsRepo = StoreSettingsRepository(db, apiClient);
+    if (branchId != null) {
+      try {
+        await storeSettingsRepo.fetchAndCache(
+          businessId: businessId,
+          branchId: branchId,
+        );
+      } catch (_) {
+        // Offline-first: cached settings from a prior sync will be
+        // used by the POS controller via getCached().
       }
     }
 
@@ -143,6 +161,7 @@ class TenantCompositionRoot {
       businessId: businessId,
       branchId: branchId,
       branchRepo: branchRepo,
+      storeSettingsRepo: storeSettingsRepo,
       productRepo: productRepo,
       cartRepo: cartRepo,
       calcEngine: calcEngine,
@@ -173,6 +192,7 @@ class TenantCompositionRoot {
       syncEngine: syncEngine,
       printingService: printingService,
       branchRepo: branchRepo,
+      storeSettingsRepo: storeSettingsRepo,
     );
   }
 }

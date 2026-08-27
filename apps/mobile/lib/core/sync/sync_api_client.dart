@@ -1,4 +1,5 @@
 ﻿import 'sync_models.dart';
+import 'store_settings_models.dart';
 
 abstract class SyncApiClient {
   Future<bool> health();
@@ -23,6 +24,11 @@ abstract class SyncApiClient {
 
   Future<PullBranchesResponse> pullBranches({
     required String businessId,
+  });
+
+  Future<StoreSettingsDto?> getStoreSettings({
+    required String businessId,
+    required String branchId,
   });
 
   Future<ProductPushResult> pushProduct(

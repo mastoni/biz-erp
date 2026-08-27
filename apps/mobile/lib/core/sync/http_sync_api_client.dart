@@ -5,6 +5,7 @@ import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
 import 'sync_api_client.dart';
 import 'sync_models.dart';
+import 'store_settings_models.dart';
 
 import '../auth/auth_models.dart';
 
@@ -154,6 +155,57 @@ class HttpSyncApiClient implements SyncApiClient {
     } catch (e) {
       throw MalformedResponseException(
         'Failed to parse pull branches response',
+        e,
+      );
+    }
+  }
+
+  @override
+  Future<StoreSettingsDto?> getStoreSettings({
+    required String businessId,
+    required String branchId,
+  }) async {
+    final uri = Uri.parse('$baseUrl/v1/settings/store').replace(
+      queryParameters: {
+        'business_id': businessId,
+        'branch_id': branchId,
+      },
+    );
+
+    http.Response? response;
+    for (int attempt = 1; attempt <= 2; attempt++) {
+      response = await _client
+          .get(uri, headers: _headers)
+          .timeout(_timeout);
+
+      if (response.statusCode == 401 && attempt == 1 && _onRefresh != null) {
+        final result = await _onRefresh();
+        if (result == RefreshResult.success) {
+          continue;
+        }
+        break;
+      }
+      break;
+    }
+
+    if (response!.statusCode == 404) {
+      return null;
+    }
+
+    if (response.statusCode != 200) {
+      throw HttpException(
+        'Failed to get store settings: HTTP ${response.statusCode}',
+        statusCode: response.statusCode,
+        requestId: response.headers['x-request-id'],
+      );
+    }
+
+    try {
+      final json = jsonDecode(response.body) as Map<String, dynamic>;
+      return StoreSettingsDto.fromJson(json);
+    } catch (e) {
+      throw MalformedResponseException(
+        'Failed to parse store settings response',
         e,
       );
     }

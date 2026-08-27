@@ -787,6 +787,18 @@ class $BusinessSettingsLocalTable extends BusinessSettingsLocal
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _settingsJsonMeta = const VerificationMeta(
+    'settingsJson',
+  );
+  @override
+  late final GeneratedColumn<String> settingsJson = GeneratedColumn<String>(
+    'settings_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('{}'),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -797,6 +809,7 @@ class $BusinessSettingsLocalTable extends BusinessSettingsLocal
     currencyMinorUnits,
     timezone,
     updatedAt,
+    settingsJson,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -870,6 +883,15 @@ class $BusinessSettingsLocalTable extends BusinessSettingsLocal
     } else if (isInserting) {
       context.missing(_updatedAtMeta);
     }
+    if (data.containsKey('settings_json')) {
+      context.handle(
+        _settingsJsonMeta,
+        settingsJson.isAcceptableOrUnknown(
+          data['settings_json']!,
+          _settingsJsonMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -914,6 +936,10 @@ class $BusinessSettingsLocalTable extends BusinessSettingsLocal
         DriftSqlType.int,
         data['${effectivePrefix}updated_at'],
       )!,
+      settingsJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}settings_json'],
+      )!,
     );
   }
 
@@ -940,6 +966,13 @@ class BusinessSettingsLocalData extends DataClass
   /// IANA timezone identifier. Authoritative for receipt_date (TZ rule).
   final String timezone;
   final int updatedAt;
+
+  /// Canonical resolved store settings serialized as JSON.
+  /// Single source of truth for all store configuration; populated
+  /// from GET /v1/settings/store. Existing scalar columns
+  /// (taxRateBps, currencyCode, etc.) are derived from this JSON
+  /// for backward compatibility.
+  final String settingsJson;
   const BusinessSettingsLocalData({
     required this.id,
     required this.businessId,
@@ -949,6 +982,7 @@ class BusinessSettingsLocalData extends DataClass
     required this.currencyMinorUnits,
     required this.timezone,
     required this.updatedAt,
+    required this.settingsJson,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -961,6 +995,7 @@ class BusinessSettingsLocalData extends DataClass
     map['currency_minor_units'] = Variable<int>(currencyMinorUnits);
     map['timezone'] = Variable<String>(timezone);
     map['updated_at'] = Variable<int>(updatedAt);
+    map['settings_json'] = Variable<String>(settingsJson);
     return map;
   }
 
@@ -974,6 +1009,7 @@ class BusinessSettingsLocalData extends DataClass
       currencyMinorUnits: Value(currencyMinorUnits),
       timezone: Value(timezone),
       updatedAt: Value(updatedAt),
+      settingsJson: Value(settingsJson),
     );
   }
 
@@ -991,6 +1027,7 @@ class BusinessSettingsLocalData extends DataClass
       currencyMinorUnits: serializer.fromJson<int>(json['currencyMinorUnits']),
       timezone: serializer.fromJson<String>(json['timezone']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
+      settingsJson: serializer.fromJson<String>(json['settingsJson']),
     );
   }
   @override
@@ -1005,6 +1042,7 @@ class BusinessSettingsLocalData extends DataClass
       'currencyMinorUnits': serializer.toJson<int>(currencyMinorUnits),
       'timezone': serializer.toJson<String>(timezone),
       'updatedAt': serializer.toJson<int>(updatedAt),
+      'settingsJson': serializer.toJson<String>(settingsJson),
     };
   }
 
@@ -1017,6 +1055,7 @@ class BusinessSettingsLocalData extends DataClass
     int? currencyMinorUnits,
     String? timezone,
     int? updatedAt,
+    String? settingsJson,
   }) => BusinessSettingsLocalData(
     id: id ?? this.id,
     businessId: businessId ?? this.businessId,
@@ -1026,6 +1065,7 @@ class BusinessSettingsLocalData extends DataClass
     currencyMinorUnits: currencyMinorUnits ?? this.currencyMinorUnits,
     timezone: timezone ?? this.timezone,
     updatedAt: updatedAt ?? this.updatedAt,
+    settingsJson: settingsJson ?? this.settingsJson,
   );
   BusinessSettingsLocalData copyWithCompanion(
     BusinessSettingsLocalCompanion data,
@@ -1047,6 +1087,9 @@ class BusinessSettingsLocalData extends DataClass
           : this.currencyMinorUnits,
       timezone: data.timezone.present ? data.timezone.value : this.timezone,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      settingsJson: data.settingsJson.present
+          ? data.settingsJson.value
+          : this.settingsJson,
     );
   }
 
@@ -1060,7 +1103,8 @@ class BusinessSettingsLocalData extends DataClass
           ..write('currencyCode: $currencyCode, ')
           ..write('currencyMinorUnits: $currencyMinorUnits, ')
           ..write('timezone: $timezone, ')
-          ..write('updatedAt: $updatedAt')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('settingsJson: $settingsJson')
           ..write(')'))
         .toString();
   }
@@ -1075,6 +1119,7 @@ class BusinessSettingsLocalData extends DataClass
     currencyMinorUnits,
     timezone,
     updatedAt,
+    settingsJson,
   );
   @override
   bool operator ==(Object other) =>
@@ -1087,7 +1132,8 @@ class BusinessSettingsLocalData extends DataClass
           other.currencyCode == this.currencyCode &&
           other.currencyMinorUnits == this.currencyMinorUnits &&
           other.timezone == this.timezone &&
-          other.updatedAt == this.updatedAt);
+          other.updatedAt == this.updatedAt &&
+          other.settingsJson == this.settingsJson);
 }
 
 class BusinessSettingsLocalCompanion
@@ -1100,6 +1146,7 @@ class BusinessSettingsLocalCompanion
   final Value<int> currencyMinorUnits;
   final Value<String> timezone;
   final Value<int> updatedAt;
+  final Value<String> settingsJson;
   final Value<int> rowid;
   const BusinessSettingsLocalCompanion({
     this.id = const Value.absent(),
@@ -1110,6 +1157,7 @@ class BusinessSettingsLocalCompanion
     this.currencyMinorUnits = const Value.absent(),
     this.timezone = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.settingsJson = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   BusinessSettingsLocalCompanion.insert({
@@ -1121,6 +1169,7 @@ class BusinessSettingsLocalCompanion
     this.currencyMinorUnits = const Value.absent(),
     this.timezone = const Value.absent(),
     required int updatedAt,
+    this.settingsJson = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        businessId = Value(businessId),
@@ -1134,6 +1183,7 @@ class BusinessSettingsLocalCompanion
     Expression<int>? currencyMinorUnits,
     Expression<String>? timezone,
     Expression<int>? updatedAt,
+    Expression<String>? settingsJson,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -1146,6 +1196,7 @@ class BusinessSettingsLocalCompanion
         'currency_minor_units': currencyMinorUnits,
       if (timezone != null) 'timezone': timezone,
       if (updatedAt != null) 'updated_at': updatedAt,
+      if (settingsJson != null) 'settings_json': settingsJson,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1159,6 +1210,7 @@ class BusinessSettingsLocalCompanion
     Value<int>? currencyMinorUnits,
     Value<String>? timezone,
     Value<int>? updatedAt,
+    Value<String>? settingsJson,
     Value<int>? rowid,
   }) {
     return BusinessSettingsLocalCompanion(
@@ -1170,6 +1222,7 @@ class BusinessSettingsLocalCompanion
       currencyMinorUnits: currencyMinorUnits ?? this.currencyMinorUnits,
       timezone: timezone ?? this.timezone,
       updatedAt: updatedAt ?? this.updatedAt,
+      settingsJson: settingsJson ?? this.settingsJson,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1201,6 +1254,9 @@ class BusinessSettingsLocalCompanion
     if (updatedAt.present) {
       map['updated_at'] = Variable<int>(updatedAt.value);
     }
+    if (settingsJson.present) {
+      map['settings_json'] = Variable<String>(settingsJson.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1218,6 +1274,7 @@ class BusinessSettingsLocalCompanion
           ..write('currencyMinorUnits: $currencyMinorUnits, ')
           ..write('timezone: $timezone, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('settingsJson: $settingsJson, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -7775,6 +7832,7 @@ typedef $$BusinessSettingsLocalTableCreateCompanionBuilder =
       Value<int> currencyMinorUnits,
       Value<String> timezone,
       required int updatedAt,
+      Value<String> settingsJson,
       Value<int> rowid,
     });
 typedef $$BusinessSettingsLocalTableUpdateCompanionBuilder =
@@ -7787,6 +7845,7 @@ typedef $$BusinessSettingsLocalTableUpdateCompanionBuilder =
       Value<int> currencyMinorUnits,
       Value<String> timezone,
       Value<int> updatedAt,
+      Value<String> settingsJson,
       Value<int> rowid,
     });
 
@@ -7836,6 +7895,11 @@ class $$BusinessSettingsLocalTableFilterComposer
 
   ColumnFilters<int> get updatedAt => $composableBuilder(
     column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get settingsJson => $composableBuilder(
+    column: $table.settingsJson,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -7888,6 +7952,11 @@ class $$BusinessSettingsLocalTableOrderingComposer
     column: $table.updatedAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get settingsJson => $composableBuilder(
+    column: $table.settingsJson,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$BusinessSettingsLocalTableAnnotationComposer
@@ -7930,6 +7999,11 @@ class $$BusinessSettingsLocalTableAnnotationComposer
 
   GeneratedColumn<int> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get settingsJson => $composableBuilder(
+    column: $table.settingsJson,
+    builder: (column) => column,
+  );
 }
 
 class $$BusinessSettingsLocalTableTableManager
@@ -7986,6 +8060,7 @@ class $$BusinessSettingsLocalTableTableManager
                 Value<int> currencyMinorUnits = const Value.absent(),
                 Value<String> timezone = const Value.absent(),
                 Value<int> updatedAt = const Value.absent(),
+                Value<String> settingsJson = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => BusinessSettingsLocalCompanion(
                 id: id,
@@ -7996,6 +8071,7 @@ class $$BusinessSettingsLocalTableTableManager
                 currencyMinorUnits: currencyMinorUnits,
                 timezone: timezone,
                 updatedAt: updatedAt,
+                settingsJson: settingsJson,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -8008,6 +8084,7 @@ class $$BusinessSettingsLocalTableTableManager
                 Value<int> currencyMinorUnits = const Value.absent(),
                 Value<String> timezone = const Value.absent(),
                 required int updatedAt,
+                Value<String> settingsJson = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => BusinessSettingsLocalCompanion.insert(
                 id: id,
@@ -8018,6 +8095,7 @@ class $$BusinessSettingsLocalTableTableManager
                 currencyMinorUnits: currencyMinorUnits,
                 timezone: timezone,
                 updatedAt: updatedAt,
+                settingsJson: settingsJson,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

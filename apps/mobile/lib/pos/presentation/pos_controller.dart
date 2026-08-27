@@ -1,4 +1,5 @@
 import 'package:biz_erp_mobile/core/sync/branch_repository.dart';
+import 'package:biz_erp_mobile/core/sync/store_settings_repository.dart';
 import 'package:biz_erp_mobile/core/sync/sync_models.dart';
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
@@ -48,25 +49,36 @@ class PosController extends ChangeNotifier {
 
   final String _businessId;
   String _branchId;
+  final StoreSettingsRepository? _settingsRepo;
 
   // Constants
   final String _cashierId = 'CASHIER-001';
   final String _deviceId = 'DEVICE-001';
-  final int _taxRateBps = 1100; // 11% Tax
-  final String _businessName = 'WARUNG DEMO BIZERP';
+  int _taxRateBps = 1100; // 11% Tax (fallback; overridden by synced settings)
+  String _businessName = 'WARUNG DEMO BIZERP'; // fallback
   String _branchName = 'CABANG UTAMA';
 
   PosController({
-    required this._businessId,
+    required String businessId,
     required String branchId,
-    required this._branchRepo,
-    required this._productRepo,
-    required this._cartRepo,
-    required this._calcEngine,
-    required this._checkoutService,
-    required this._printingService,
-    required this._customerRepo,
-  }) : _branchId = branchId;
+    required BranchRepository branchRepo,
+    StoreSettingsRepository? storeSettingsRepo,
+    required ProductRepository productRepo,
+    required CartRepository cartRepo,
+    required SaleCalculationEngine calcEngine,
+    required CheckoutService checkoutService,
+    required PrintingService printingService,
+    required CustomerRepository customerRepo,
+  })  : _businessId = businessId,
+        _branchId = branchId,
+        _branchRepo = branchRepo,
+        _settingsRepo = storeSettingsRepo,
+        _productRepo = productRepo,
+        _cartRepo = cartRepo,
+        _calcEngine = calcEngine,
+        _checkoutService = checkoutService,
+        _printingService = printingService,
+        _customerRepo = customerRepo;
 
   // Getters
   List<Product> get products => _products;
@@ -92,7 +104,22 @@ class PosController extends ChangeNotifier {
     _products = await _productRepo.listActiveProducts(_businessId);
     _customers = await _customerRepo.listActiveCustomers(_businessId);
     await _loadBranchName();
+    await _loadSettings();
     await _refreshCart();
+  }
+
+  Future<void> _loadSettings() async {
+    if (_settingsRepo == null || _branchId.isEmpty) return;
+
+    final cached = await _settingsRepo!.getCached(
+      businessId: _businessId,
+      branchId: _branchId,
+    );
+    if (cached != null) {
+      _taxRateBps = cached.settings.taxRateBps;
+      _businessName = cached.settings.storeName;
+      notifyListeners();
+    }
   }
 
   Future<void> _loadBranchName() async {
@@ -106,10 +133,34 @@ class PosController extends ChangeNotifier {
 
   Future<void> changeBranch(String newBranchId) async {
     if (newBranchId == _branchId) return;
-    
+
+    // Discard old branch settings, fetch new branch settings
+    final oldBranchId = _branchId;
+    if (_settingsRepo != null && oldBranchId.isNotEmpty) {
+      await _settingsRepo!.clearBranchSettings(
+        businessId: _businessId,
+        branchId: oldBranchId,
+      );
+    }
+
     _branchId = newBranchId;
     await _branchRepo.setActiveBranch(_businessId, newBranchId);
     await _loadBranchName();
+
+    // Fetch settings for new branch (server is authoritative;
+    // fall back to any cached settings on network failure)
+    if (_settingsRepo != null && newBranchId.isNotEmpty) {
+      try {
+        await _settingsRepo!.fetchAndCache(
+          businessId: _businessId,
+          branchId: newBranchId,
+        );
+      } catch (e) {
+        // Offline: will use cached settings if available
+      }
+      await _loadSettings();
+    }
+
     await _refreshCart(); // Refresh cart (receipt sequence is branch-scoped)
     notifyListeners();
   }

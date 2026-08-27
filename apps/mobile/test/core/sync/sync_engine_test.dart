@@ -7,6 +7,7 @@ import 'package:biz_erp_mobile/core/sync/sync_api_client.dart';
 import 'package:biz_erp_mobile/core/sync/sync_engine.dart';
 import 'package:biz_erp_mobile/core/sync/sync_meta_repository.dart';
 import 'package:biz_erp_mobile/core/sync/sync_models.dart';
+import 'package:biz_erp_mobile/core/sync/store_settings_models.dart';
 import 'package:biz_erp_mobile/core/sync/sync_outbox_repository.dart';
 import 'package:biz_erp_mobile/products/data/product_repository.dart';
 import 'package:biz_erp_mobile/sales/data/sales_sync_repository.dart';
@@ -99,6 +100,13 @@ class MockSyncApi implements SyncApiClient {
         for (final s in sales)
           SalePushResultItem(s.idempotencyKey, 'created', saleId: s.id),
       ];
+
+  @override
+  Future<StoreSettingsDto?> getStoreSettings({
+    required String businessId,
+    required String branchId,
+  }) async =>
+      null;
 }
 
 void main() {
