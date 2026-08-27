@@ -12,6 +12,16 @@ import type {
 
 export const SUPPLIERS_PAGE_SIZE = 20;
 
+export const SUPPLIER_CATEGORY_OPTIONS = [
+  'Sembako',
+  'Sembako Segar',
+  'Minuman',
+  'Snack',
+  'Bakery',
+  'Perawatan',
+  'Rumah Tangga',
+] as const;
+
 export const SUPPLIERS_PAGE_TITLE = 'Supplier';
 export const SUPPLIERS_PAGE_SUBTITLE = 'Mitra pemasok barang, termin pembayaran, dan riwayat kerja sama.';
 export const SUPPLIERS_EMPTY_TITLE = 'Supplier tidak ditemukan';
@@ -25,6 +35,26 @@ export type SupplierRole = 'OWNER' | 'CASHIER' | null;
 
 export function canAddSupplier(role: SupplierRole): boolean {
   return role === 'OWNER';
+}
+
+export function num(n: number | string | undefined | null): string {
+  if (n === undefined || n === null) return '0';
+  const parsed = typeof n === 'string' ? Number(n) : n;
+  if (isNaN(parsed)) return '0';
+  return parsed.toLocaleString('id-ID');
+}
+
+export function idrShort(minor: number | undefined | null): string {
+  if (minor === undefined || minor === null) return 'Rp 0';
+  const major = minor / 100;
+  const abs = Math.abs(major);
+  const sign = major < 0 ? '-' : '';
+  const f = (v: number) =>
+    v.toLocaleString('id-ID', { maximumFractionDigits: v >= 100 ? 0 : v >= 10 ? 1 : 2 });
+  if (abs >= 1_000_000_000) return `Rp ${sign}${f(abs / 1_000_000_000)} M`;
+  if (abs >= 1_000_000) return `Rp ${sign}${f(abs / 1_000_000)} jt`;
+  if (abs >= 1_000) return `Rp ${sign}${f(abs / 1_000)} rb`;
+  return `Rp ${sign}${abs}`;
 }
 
 export function getSupplierTermTone(term: SupplierTerm | string): SupplierTone {
