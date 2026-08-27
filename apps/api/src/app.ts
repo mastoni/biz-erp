@@ -24,6 +24,8 @@ import { createMediaRoutes } from './routes/media_routes'
 import { createStoreSettingsRoutes } from './routes/store_settings_routes'
 import { createSupplierRoutes } from './routes/supplier_routes'
 import { createSupplierSyncRouter } from './routes/supplier_sync_routes'
+import { createPurchaseRoutes } from './routes/purchase_routes'
+import { createPurchaseSyncRouter } from './routes/purchase_sync_routes'
 import { httpLogger } from './utils/logger'
 import { initSentry } from './utils/sentry'
 import { loadEnv } from './config/env'
@@ -96,6 +98,8 @@ export function createApp(pool: Pool): Express {
   app.use('/v1/settings', createStoreSettingsRoutes(pool))
   app.use('/v1/suppliers', createSupplierRoutes(pool))
   app.use('/v1/sync/suppliers', createSupplierSyncRouter(pool))
+  app.use('/v1/purchases', createPurchaseRoutes(pool))
+  app.use('/v1/sync/purchases', createPurchaseSyncRouter(pool))
 
   app.use('/v1/platform', createPlatformRoutes(pool))
 
