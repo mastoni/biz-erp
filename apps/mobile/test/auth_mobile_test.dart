@@ -219,4 +219,319 @@ void main() {
       expect(notifier.status, AuthStatus.unauthenticated);
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // AUTH-UX: Business Selection UX contract tests
+  // ---------------------------------------------------------------------------
+  group('AUTH-UX Business Selection', () {
+    // Canonical business IDs used throughout these tests — must be RFC 4122 UUIDs
+    // because the server only returns proper UUIDs.
+    const businessAId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+    const businessBId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+
+    MockClient makeSingleBusinessClient() {
+      return MockClient((request) async {
+        if (request.url.path == '/v1/auth/login') {
+          return http.Response(
+            jsonEncode({
+              'access_token': 'tok_single',
+              'refresh_token': 'ref_single',
+              'user': {'id': 'user_1'},
+              'business': {'id': businessAId},
+              'role': 'OWNER',
+              'expires_in': 900,
+            }),
+            200,
+          );
+        }
+        return http.Response('', 404);
+      });
+    }
+
+    MockClient makeMultiBusinessClient() {
+      return MockClient((request) async {
+        if (request.url.path == '/v1/auth/login') {
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          final sentBusinessId = body['business_id'] as String?;
+
+          // First call (no business_id) → 409
+          if (sentBusinessId == null) {
+            return http.Response(
+              jsonEncode({
+                'error': {
+                  'code': 'BUSINESS_SELECTION_REQUIRED',
+                  'message': 'Multiple active businesses found.',
+                  'details': {
+                    'available_businesses': [
+                      {'id': businessAId, 'name': 'Business A', 'role': 'OWNER'},
+                      {'id': businessBId, 'name': 'Business B', 'role': 'CASHIER'},
+                    ],
+                  },
+                },
+              }),
+              409,
+            );
+          }
+
+          // Second call with a valid business_id → 200
+          if (sentBusinessId == businessAId || sentBusinessId == businessBId) {
+            return http.Response(
+              jsonEncode({
+                'access_token': 'tok_selected',
+                'refresh_token': 'ref_selected',
+                'user': {'id': 'user_1'},
+                'business': {'id': sentBusinessId},
+                'role': sentBusinessId == businessAId ? 'OWNER' : 'CASHIER',
+                'expires_in': 900,
+              }),
+              200,
+            );
+          }
+
+          // Unknown business_id → 403
+          return http.Response(
+            jsonEncode({
+              'error': {'code': 'BUSINESS_ACCESS_DENIED', 'message': 'Access denied'},
+            }),
+            403,
+          );
+        }
+        return http.Response('', 404);
+      });
+    }
+
+    // -------------------------------------------------------------------------
+    // AUTH-UX-001: single-business login succeeds without business selection
+    // -------------------------------------------------------------------------
+    test('AUTH-UX-001: single-business login succeeds — no BUSINESS_SELECTION_REQUIRED', () async {
+      FlutterSecureStorage.setMockInitialValues({});
+      final store = AuthSecureStorage();
+      final client = makeSingleBusinessClient();
+      final api = AuthApiClient(baseUrl: 'http://test', client: client);
+      final repo = AuthRepository(storage: store, apiClient: api);
+      final notifier = AuthStateNotifier(repository: repo);
+
+      await notifier.init();
+      await notifier.login('owner@single.com', 'password');
+
+      expect(notifier.status, AuthStatus.authenticated);
+      expect(notifier.session, isNotNull);
+      expect(notifier.session!.accessToken, 'tok_single');
+      expect(notifier.session!.businessId, businessAId);
+    });
+
+    // -------------------------------------------------------------------------
+    // AUTH-UX-002: multi-business login returns BUSINESS_SELECTION_REQUIRED
+    // -------------------------------------------------------------------------
+    test('AUTH-UX-002: 409 BUSINESS_SELECTION_REQUIRED thrown as AuthException', () async {
+      FlutterSecureStorage.setMockInitialValues({});
+      final api = AuthApiClient(baseUrl: 'http://test', client: makeMultiBusinessClient());
+
+      try {
+        await api.login('owner@multi.com', 'password');
+        fail('Expected AuthException to be thrown');
+      } on AuthException catch (e) {
+        expect(e.code, 'BUSINESS_SELECTION_REQUIRED');
+        expect(e.businesses, isNotNull);
+        expect(e.businesses!.isNotEmpty, isTrue);
+      }
+    });
+
+    // -------------------------------------------------------------------------
+    // AUTH-UX-003: businesses list from exception matches server payload exactly
+    // -------------------------------------------------------------------------
+    test('AUTH-UX-003: available_businesses list matches server response exactly', () async {
+      FlutterSecureStorage.setMockInitialValues({});
+      final api = AuthApiClient(baseUrl: 'http://test', client: makeMultiBusinessClient());
+
+      try {
+        await api.login('owner@multi.com', 'password');
+        fail('Expected AuthException');
+      } on AuthException catch (e) {
+        final businesses = e.businesses!;
+        expect(businesses.length, 2);
+        expect(businesses[0].id, businessAId);
+        expect(businesses[0].name, 'Business A');
+        expect(businesses[0].role, 'OWNER');
+        expect(businesses[1].id, businessBId);
+        expect(businesses[1].name, 'Business B');
+        expect(businesses[1].role, 'CASHIER');
+      }
+    });
+
+    // -------------------------------------------------------------------------
+    // AUTH-UX-004: selected business_id from list is re-submitted and succeeds
+    // -------------------------------------------------------------------------
+    test('AUTH-UX-004: second login with valid business_id from list succeeds', () async {
+      FlutterSecureStorage.setMockInitialValues({});
+      final store = AuthSecureStorage();
+      final api = AuthApiClient(baseUrl: 'http://test', client: makeMultiBusinessClient());
+      final repo = AuthRepository(storage: store, apiClient: api);
+      final notifier = AuthStateNotifier(repository: repo);
+
+      await notifier.init();
+
+      // First attempt → 409 → catches and stores businesses
+      List<AuthBusinessSelection> serverBusinesses = [];
+      try {
+        await notifier.login('owner@multi.com', 'password');
+      } on AuthException catch (e) {
+        expect(e.code, 'BUSINESS_SELECTION_REQUIRED');
+        serverBusinesses = e.businesses ?? [];
+        notifier.setAvailableBusinesses(serverBusinesses);
+      }
+
+      expect(serverBusinesses.isNotEmpty, isTrue);
+
+      // Second attempt with selected business_id → 200
+      await notifier.login('owner@multi.com', 'password', businessAId);
+
+      expect(notifier.status, AuthStatus.authenticated);
+      expect(notifier.session!.businessId, businessAId);
+      expect(notifier.session!.accessToken, 'tok_selected');
+    });
+
+    // -------------------------------------------------------------------------
+    // AUTH-UX-005: only IDs from the server list can be selected
+    // -------------------------------------------------------------------------
+    test('AUTH-UX-005: AuthException.businesses list is the only source of selectable IDs', () async {
+      FlutterSecureStorage.setMockInitialValues({});
+      final api = AuthApiClient(baseUrl: 'http://test', client: makeMultiBusinessClient());
+
+      try {
+        await api.login('owner@multi.com', 'password');
+        fail('Expected AuthException');
+      } on AuthException catch (e) {
+        final ids = e.businesses!.map((b) => b.id).toList();
+
+        // Only IDs in this list can be presented to the user.
+        // Any ID not in this list is not from the server and must not be submitted.
+        expect(ids, contains(businessAId));
+        expect(ids, contains(businessBId));
+        expect(ids, isNot(contains('00000000-0000-0000-0000-000000000000')));
+      }
+    });
+
+    // -------------------------------------------------------------------------
+    // AUTH-UX-006: wrong/unlisted business_id is server-rejected with 403
+    // -------------------------------------------------------------------------
+    test('AUTH-UX-006: re-login with unlisted business_id is rejected by server (403)', () async {
+      FlutterSecureStorage.setMockInitialValues({});
+      final api = AuthApiClient(baseUrl: 'http://test', client: makeMultiBusinessClient());
+
+      try {
+        // Attempt directly with a foreign business_id (not in server list)
+        await api.login('owner@multi.com', 'password', 'ffffffff-ffff-4fff-8fff-ffffffffffff');
+        fail('Expected AuthException');
+      } on AuthException catch (e) {
+        expect(e.code, 'BUSINESS_ACCESS_DENIED');
+      }
+    });
+
+    // -------------------------------------------------------------------------
+    // AUTH-UX-007: email and password are passed unchanged on second login call
+    // -------------------------------------------------------------------------
+    test('AUTH-UX-007: email and password preserved — second login call uses same credentials', () async {
+      FlutterSecureStorage.setMockInitialValues({});
+      String? capturedEmail;
+      String? capturedPassword;
+      String? capturedBusinessId;
+
+      final inspectingClient = MockClient((request) async {
+        if (request.url.path == '/v1/auth/login') {
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          capturedEmail = body['email'] as String?;
+          capturedPassword = body['password'] as String?;
+          capturedBusinessId = body['business_id'] as String?;
+
+          if (capturedBusinessId != null) {
+            return http.Response(
+              jsonEncode({
+                'access_token': 'tok_ok',
+                'refresh_token': 'ref_ok',
+                'user': {'id': 'u1'},
+                'business': {'id': capturedBusinessId},
+                'role': 'OWNER',
+                'expires_in': 900,
+              }),
+              200,
+            );
+          }
+          // No business_id → return 409
+          return http.Response(
+            jsonEncode({
+              'error': {
+                'code': 'BUSINESS_SELECTION_REQUIRED',
+                'message': 'Select a business',
+                'details': {
+                  'available_businesses': [
+                    {'id': businessAId, 'name': 'Business A', 'role': 'OWNER'},
+                  ],
+                },
+              },
+            }),
+            409,
+          );
+        }
+        return http.Response('', 404);
+      });
+
+      final api = AuthApiClient(baseUrl: 'http://test', client: inspectingClient);
+
+      const testEmail = 'preserved@test.com';
+      const testPassword = 'StrongPass!99';
+
+      // First call (no business_id)
+      try {
+        await api.login(testEmail, testPassword);
+      } on AuthException catch (_) {}
+
+      expect(capturedEmail, testEmail);
+      expect(capturedPassword, testPassword);
+      expect(capturedBusinessId, isNull);
+
+      // Second call (with business_id)
+      await api.login(testEmail, testPassword, businessAId);
+
+      // Credentials must be unchanged on the second call
+      expect(capturedEmail, testEmail);
+      expect(capturedPassword, testPassword);
+      expect(capturedBusinessId, businessAId);
+    });
+
+    // -------------------------------------------------------------------------
+    // AUTH-UX-008: successful selected-business login stores correct context
+    // -------------------------------------------------------------------------
+    test('AUTH-UX-008: selected-business login establishes correct session context', () async {
+      FlutterSecureStorage.setMockInitialValues({});
+      final store = AuthSecureStorage();
+      final api = AuthApiClient(baseUrl: 'http://test', client: makeMultiBusinessClient());
+      final repo = AuthRepository(storage: store, apiClient: api);
+      final notifier = AuthStateNotifier(repository: repo);
+
+      await notifier.init();
+
+      // Step 1: first login attempt → 409
+      try {
+        await notifier.login('owner@multi.com', 'password');
+      } on AuthException catch (e) {
+        notifier.setAvailableBusinesses(e.businesses ?? []);
+      }
+
+      // Step 2: user selects Business B
+      await notifier.login('owner@multi.com', 'password', businessBId);
+
+      // Verify correct business context is established
+      expect(notifier.status, AuthStatus.authenticated);
+      expect(notifier.session, isNotNull);
+      expect(notifier.session!.businessId, businessBId);
+      expect(notifier.session!.role, 'CASHIER');
+
+      // Verify persisted to secure storage
+      final stored = await store.getSession();
+      expect(stored, isNotNull);
+      expect(stored!.businessId, businessBId);
+      expect(stored.accessToken, 'tok_selected');
+    });
+  });
 }

@@ -10,19 +10,22 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { SKMNetworkLogo } from '@/components/brand/SKMNetworkLogo';
 import { Building2, ArrowLeft, Loader2, ArrowRight } from 'lucide-react';
-
-interface AvailableBusiness {
-  id: string;
-  name: string;
-  role?: string;
-}
+import {
+  type LoginStep,
+  type AvailableBusiness,
+  validateBusinessSelection,
+  parseLoginError,
+} from '@/features/auth/login-flow';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [availableBusinesses, setAvailableBusinesses] = useState<AvailableBusiness[]>([]);
   const [errorMsg, setErrorMsg] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [loginStep, setLoginStep] = useState<LoginStep>('credentials');
+
+  // Derived — avoids dual boolean + array length checks scattered through JSX.
+  const isLoading = loginStep === 'submitting';
 
   const { login } = useAuth();
   const router = useRouter();
@@ -30,57 +33,34 @@ export default function LoginPage() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
-    setIsLoading(true);
+    setLoginStep('submitting');
 
     try {
       await login({ email, password });
       router.push('/dashboard');
     } catch (error: unknown) {
-      const err = error as {
-        response?: {
-          status?: number;
-          data?: {
-            message?: string;
-            code?: string;
-            error?: {
-              code?: string;
-              message?: string;
-              details?: { available_businesses?: AvailableBusiness[] };
-            };
-            details?: { available_businesses?: AvailableBusiness[] };
-          };
-        };
-      };
-
-      const code = err.response?.data?.error?.code || err.response?.data?.code;
-      const businesses =
-        err.response?.data?.error?.details?.available_businesses ||
-        err.response?.data?.details?.available_businesses;
-
-      if (
-        err.response?.status === 409 &&
-        code === 'BUSINESS_SELECTION_REQUIRED' &&
-        businesses &&
-        businesses.length > 0
-      ) {
-        setAvailableBusinesses(businesses);
-      } else if (err.response?.status === 403 && code === 'BUSINESS_ACCESS_DENIED') {
-        setErrorMsg('Akun Anda belum terdaftar pada bisnis/tenant manapun.');
-      } else if (err.response?.data?.error?.message) {
-        setErrorMsg(err.response.data.error.message);
-      } else if (err.response?.data?.message) {
-        setErrorMsg(err.response.data.message);
+      const parsed = parseLoginError(error);
+      if (parsed.step === 'business_selection' && parsed.availableBusinesses) {
+        setAvailableBusinesses(parsed.availableBusinesses);
+        setLoginStep('business_selection');
       } else {
-        setErrorMsg('Terjadi kesalahan pada server. Silakan coba lagi.');
+        setErrorMsg(parsed.errorMsg ?? 'Terjadi kesalahan pada server. Silakan coba lagi.');
+        setLoginStep('credentials');
       }
-    } finally {
-      setIsLoading(false);
     }
   };
 
   const handleSelectBusiness = async (businessId: string) => {
+    // Security guard: only accept IDs returned by the server in the
+    // BUSINESS_SELECTION_REQUIRED response. Prevents client-invented IDs.
+    const guard = validateBusinessSelection(businessId, availableBusinesses);
+    if (!guard.valid) {
+      setErrorMsg(guard.error ?? 'Pilihan bisnis tidak valid.');
+      return;
+    }
+
     setErrorMsg('');
-    setIsLoading(true);
+    setLoginStep('submitting');
 
     try {
       await login({
@@ -91,31 +71,20 @@ export default function LoginPage() {
       });
       router.push('/dashboard');
     } catch (error: unknown) {
-      const err = error as {
-        response?: {
-          data?: {
-            message?: string;
-            error?: { message?: string };
-          };
-        };
-      };
-      const msg =
-        err.response?.data?.error?.message ||
-        err.response?.data?.message ||
-        'Gagal memilih bisnis.';
-      setErrorMsg(msg);
-    } finally {
-      setIsLoading(false);
+      const parsed = parseLoginError(error);
+      setErrorMsg(parsed.errorMsg ?? 'Gagal memilih bisnis.');
+      setLoginStep('business_selection');
     }
   };
 
   const handleBackToLogin = () => {
     setAvailableBusinesses([]);
     setErrorMsg('');
+    setLoginStep('credentials');
   };
 
   // Multi-tenant business selection step
-  if (availableBusinesses.length > 0) {
+  if (loginStep === 'business_selection') {
     return (
       <div className="flex min-h-screen items-center justify-center p-4">
         <div className="w-full max-w-md bg-surface border border-line rounded-2xl shadow-card p-6 sm:p-8 space-y-6">
