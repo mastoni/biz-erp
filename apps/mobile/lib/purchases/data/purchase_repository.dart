@@ -4,6 +4,7 @@ import 'package:biz_erp_mobile/purchases/domain/purchase.dart';
 import 'package:biz_erp_mobile/core/sync/sync_models.dart';
 import 'package:biz_erp_mobile/core/sync/sync_outbox_repository.dart';
 import 'package:biz_erp_mobile/core/sync/sync_api_client.dart';
+import 'package:biz_erp_mobile/core/utils/currency_formatter.dart';
 import 'package:uuid/uuid.dart';
 
 class PurchaseRepository {
@@ -566,6 +567,60 @@ class PurchaseRepository {
       return (await getPurchaseById(id, businessId, branchId))!;
     } else {
       await markSyncedAfterPush(id, result.serverVersion ?? existing.serverVersion + 1);
+      return (await getPurchaseById(id, businessId, branchId))!;
+    }
+  }
+
+  Future<Purchase> payPurchase(
+    String id,
+    String businessId,
+    String branchId, {
+    required SyncApiClient syncApiClient,
+    required String idempotencyKey,
+    required int amountMinor,
+    required String method,
+    String? reference,
+  }) async {
+    final existing = await getPurchaseById(id, businessId, branchId);
+    if (existing == null) {
+      throw ArgumentError('Pesanan pembelian tidak ditemukan');
+    }
+
+    final validMethods = ['cash', 'bank_transfer', 'debit', 'credit'];
+    if (!validMethods.contains(method)) {
+      throw ArgumentError('Metode pembayaran tidak valid: $method');
+    }
+
+    if (amountMinor <= 0) {
+      throw ArgumentError('Jumlah pembayaran harus lebih dari 0');
+    }
+
+    if (amountMinor > existing.outstandingMinor) {
+      throw ArgumentError('Jumlah pembayaran (${CurrencyFormatter.formatIDR(amountMinor)}) melebihi outstanding (${CurrencyFormatter.formatIDR(existing.outstandingMinor)})');
+    }
+
+    final po = await syncApiClient.payPurchase(
+      id: id,
+      businessId: businessId,
+      amountMinor: amountMinor,
+      method: method,
+      reference: reference,
+      ifMatchVersion: existing.serverVersion > 0 ? existing.serverVersion : null,
+      idempotencyKey: idempotencyKey,
+    );
+
+    if (!po.ok) {
+      if (po.conflict) {
+        throw StateError('Konflik versi: data di server telah berubah. Silakan muat ulang dan coba lagi.');
+      }
+      throw StateError('Gagal membayar: ${po.error ?? 'Unknown error'}');
+    }
+
+    if (po.serverState != null) {
+      await applyServerSync(po.serverState!, businessId);
+      return (await getPurchaseById(id, businessId, branchId))!;
+    } else {
+      await markSyncedAfterPush(id, po.serverVersion ?? existing.serverVersion + 1);
       return (await getPurchaseById(id, businessId, branchId))!;
     }
   }

@@ -120,6 +120,7 @@ abstract class SyncApiClient {
 
   Future<PurchasePushResult> payPurchase({
     required String id,
+    required String businessId,
     required int amountMinor,
     required String method,
     String? reference,

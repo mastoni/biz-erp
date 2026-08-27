@@ -1251,6 +1251,7 @@ Map<String, dynamic> _saleDtoToBatchItem(SaleDto sale) {
   @override
   Future<PurchasePushResult> payPurchase({
     required String id,
+    required String businessId,
     required int amountMinor,
     required String method,
     String? reference,
@@ -1259,9 +1260,10 @@ Map<String, dynamic> _saleDtoToBatchItem(SaleDto sale) {
   }) async {
     final uri = Uri.parse('$baseUrl/v1/purchases/$id/pay');
     final body = {
+      'business_id': businessId,
       'amount_minor': amountMinor,
       'method': method,
-      'reference': reference,
+      if (reference != null) 'reference': reference,
       if (ifMatchVersion != null) 'expected_server_version': ifMatchVersion,
     };
 

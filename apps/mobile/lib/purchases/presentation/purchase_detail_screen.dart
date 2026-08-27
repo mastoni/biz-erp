@@ -40,9 +40,14 @@ class _PurchaseDetailScreenState extends State<PurchaseDetailScreen> {
   bool _isPaymentFetchFailed = false;
   bool _isSending = false;
   bool _isReceiving = false;
+  bool _isPaying = false;
   bool _showReceiveForm = false;
+  bool _showPaymentForm = false;
   final Map<String, TextEditingController> _receiveQtyControllers = {};
   final Map<String, int> _initialReceivedQty = {};
+  final TextEditingController _paymentAmountController = TextEditingController();
+  String _selectedPaymentMethod = 'cash';
+  final TextEditingController _paymentReferenceController = TextEditingController();
 
   @override
   void initState() {
@@ -261,6 +266,236 @@ class _PurchaseDetailScreenState extends State<PurchaseDetailScreen> {
       _showSnackBar('Gagal menerima barang: $e', isError: true);
       setState(() => _isReceiving = false);
     }
+  }
+
+  Future<void> _payPurchase() async {
+    if (!widget.isOnline || widget.syncApiClient == null) {
+      _showSnackBar('Pembayaran hanya dapat dilakukan secara online', isError: true);
+      return;
+    }
+
+    final po = _purchase;
+    if (po == null) return;
+
+    final amountStr = _paymentAmountController.text.trim();
+    if (amountStr.isEmpty) {
+      _showSnackBar('Harap masukkan jumlah pembayaran', isError: true);
+      return;
+    }
+
+    final amountMinor = int.tryParse(amountStr);
+    if (amountMinor == null || amountMinor <= 0) {
+      _showSnackBar('Jumlah pembayaran harus lebih dari 0', isError: true);
+      return;
+    }
+
+    if (amountMinor > po.outstandingMinor) {
+      _showSnackBar('Jumlah pembayaran melebihi outstanding (${CurrencyFormatter.formatIDR(po.outstandingMinor)})', isError: true);
+      return;
+    }
+
+    setState(() => _isPaying = true);
+
+    try {
+      final idempotencyKey = const Uuid().v4();
+      final updatedPo = await widget.purchaseRepo.payPurchase(
+        po.id,
+        widget.businessId,
+        widget.branchId,
+        syncApiClient: widget.syncApiClient!,
+        idempotencyKey: idempotencyKey,
+        amountMinor: amountMinor,
+        method: _selectedPaymentMethod,
+        reference: _paymentReferenceController.text.trim().isEmpty ? null : _paymentReferenceController.text.trim(),
+      );
+
+      if (!mounted) return;
+      _showSnackBar('Pembayaran berhasil', isError: false);
+      setState(() {
+        _purchase = updatedPo;
+      });
+      await _loadOnlinePayments();
+    } on StateError catch (e) {
+      if (!mounted) return;
+      _showSnackBar(e.message, isError: true);
+    } catch (e) {
+      if (!mounted) return;
+      _showSnackBar('Gagal membayar: $e', isError: true);
+    } finally {
+      if (!mounted) return;
+      setState(() {
+        _isPaying = false;
+        _showPaymentForm = false;
+        _paymentAmountController.clear();
+        _paymentReferenceController.clear();
+      });
+    }
+  }
+
+  Widget _buildPaymentActionCard(Purchase po) {
+    final isTempo = po.supplierTerm == 'Tempo 14' || po.supplierTerm == 'Tempo 30';
+    final canPay = widget.isOnline &&
+        widget.syncApiClient != null &&
+        isTempo &&
+        po.outstandingMinor > 0 &&
+        (widget.userRole == 'OWNER' || widget.userRole == 'CASHIER');
+
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.grey.shade300),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+children: [
+              Row(
+                children: [
+                  Icon(Icons.payment_outlined, size: 20, color: Colors.green.shade700),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Pembayaran',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.green.shade800),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              if (!_showPaymentForm) ...[
+                if (canPay)
+                  OutlinedButton.icon(
+                    key: const Key('pay_po_button'),
+                    onPressed: _isPaying ? null : () => setState(() => _showPaymentForm = true),
+                    icon: const Icon(Icons.payments, size: 18),
+                    label: const Text('Bayar Tagihan'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF17593E),
+                      side: const BorderSide(color: Color(0xFF17593E)),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  )
+                else if (!widget.isOnline || widget.syncApiClient == null)
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.wifi_off_outlined, size: 18, color: Colors.amber.shade800),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Perlu koneksi internet untuk membayar.',
+                            style: TextStyle(fontSize: 12, color: Colors.amber.shade900),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.lock_outline, size: 18, color: Colors.grey.shade600),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Hanya OWNER atau CASHIER yang dapat membayar.',
+                            style: TextStyle(fontSize: 12, color: Colors.grey.shade800),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+            ] else ...[
+              Text(
+                'Jumlah Pembayaran',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.grey.shade700),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _paymentAmountController,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: 'Nominal',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                  contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                  suffixText: 'IDR',
+                ),
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: _selectedPaymentMethod,
+                items: ['cash', 'bank_transfer', 'debit', 'credit']
+                    .map((m) => DropdownMenuItem(value: m, child: Text(_formatPaymentMethod(m))))
+                    .toList(),
+                onChanged: (v) => setState(() => _selectedPaymentMethod = v ?? 'cash'),
+                decoration: const InputDecoration(
+                  labelText: 'Metode Pembayaran',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _paymentReferenceController,
+                decoration: InputDecoration(
+                  labelText: 'Referensi (opsional)',
+                  border: OutlineInputBorder(),
+                  suffixIcon: const Icon(Icons.info_outline, size: 16),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: _isPaying ? null : () => setState(() => _showPaymentForm = false),
+                      child: const Text('Batal'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: _isPaying ? null : _payPurchase,
+                      child: _isPaying
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            )
+                          : const Text('Bayar'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF17593E),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildReceiveActionCard(Purchase po) {
@@ -545,6 +780,8 @@ class _PurchaseDetailScreenState extends State<PurchaseDetailScreen> {
           const SizedBox(height: 16),
           _buildPaymentHistoryCard(po),
           const SizedBox(height: 16),
+          _buildPaymentActionCard(po),
+          const SizedBox(height: 16),
           _buildActionCard(po),
           const SizedBox(height: 24),
         ],
@@ -697,7 +934,7 @@ class _PurchaseDetailScreenState extends State<PurchaseDetailScreen> {
                         runSpacing: 4,
                         children: [
                           Text(
-                            item.productName ?? 'Produk (${item.productId ?? "-"})',
+                            item.productName,
                             style: const TextStyle(
                               fontWeight: FontWeight.w600,
                               fontSize: 14,
