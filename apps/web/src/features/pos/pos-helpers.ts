@@ -73,6 +73,9 @@ export function calculateTax(taxableBaseMinor: number, taxRate: number = DEFAULT
 
 /**
  * Calculates all cart totals deterministically with minor unit integer arithmetic.
+ *
+ * @deprecated Prefer calculateCartTotalsFromBps for canonical tax resolution.
+ * Kept for unit tests and non-settings contexts.
  */
 export function calculateCartTotals(
   lines: POSCartLineViewModel[],
@@ -91,6 +94,44 @@ export function calculateCartTotals(
   const discount_minor = calculateDiscount(subtotal_minor, clampedDiscountPct);
   const taxable_base = Math.max(0, subtotal_minor - discount_minor);
   const tax_minor = calculateTax(taxable_base, taxRate);
+  const total_minor = taxable_base + tax_minor;
+  const item_count = lines.reduce((acc, l) => acc + l.quantity, 0);
+
+  return {
+    subtotal_minor,
+    discount_percent: clampedDiscountPct,
+    discount_minor,
+    tax_minor,
+    total_minor,
+    item_count,
+  };
+}
+
+/**
+ * Calculates all cart totals using the canonical basis-points tax rate.
+ *
+ * Tax is resolved exclusively from `tax_rate_bps` (never a hardcoded percentage):
+ *   tax_minor = round((subtotal_minor - discount_minor) * tax_rate_bps / 10000)
+ *
+ * All arithmetic stays in integer minor units.
+ */
+export function calculateCartTotalsFromBps(
+  lines: POSCartLineViewModel[],
+  discountPercent: number = 0,
+  taxRateBps: number = 1100
+): {
+  subtotal_minor: number;
+  discount_percent: number;
+  discount_minor: number;
+  tax_minor: number;
+  total_minor: number;
+  item_count: number;
+} {
+  const subtotal_minor = lines.reduce((acc, l) => acc + l.line_subtotal_minor, 0);
+  const clampedDiscountPct = Math.max(0, Math.min(100, discountPercent || 0));
+  const discount_minor = calculateDiscount(subtotal_minor, clampedDiscountPct);
+  const taxable_base = Math.max(0, subtotal_minor - discount_minor);
+  const tax_minor = calculateTaxFromBps(taxable_base, taxRateBps);
   const total_minor = taxable_base + tax_minor;
   const item_count = lines.reduce((acc, l) => acc + l.quantity, 0);
 
@@ -250,12 +291,23 @@ export function buildCheckoutPayload(params: {
 }
 
 /**
+ * Calculates PPN tax minor units from taxable base using basis points (e.g. 1100 bps = 11%).
+ */
+export function calculateTaxFromBps(taxableBaseMinor: number, taxRateBps: number = 1100): number {
+  if (taxableBaseMinor <= 0) return 0;
+  const rateBps = Math.max(0, taxRateBps || 0);
+  return Math.round((taxableBaseMinor * rateBps) / 10000);
+}
+
+/**
  * Builds printable POSReceiptViewModel matching thermal blueprint.
  */
 export function buildPOSReceiptViewModel(params: {
   businessName: string;
   branchName: string;
   address?: string;
+  phone?: string;
+  taxRatePercent?: number;
   cart: POSCartViewModel;
   paymentMethod: PaymentMethod;
   paidMinor: number;
@@ -275,6 +327,8 @@ export function buildPOSReceiptViewModel(params: {
     business_name: params.businessName || 'SKM MART',
     branch_name: params.branchName || 'Cabang Utama',
     address: params.address || 'Jl. Jend. Sudirman Kav. 52-53, Jakarta Selatan',
+    phone: params.phone,
+    tax_rate_percent: params.taxRatePercent,
     receipt_number: params.cart.transaction_id,
     timestamp: dateStr,
     cashier: params.cashierName || 'Kasir',

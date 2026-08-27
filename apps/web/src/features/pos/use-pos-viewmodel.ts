@@ -1,7 +1,7 @@
 /**
  * React ViewModel Hook for Web POS.
  * Coordinates product catalog, active branch stock, customer selection,
- * cart state machine, parked orders queue, and checkout mutation.
+ * cart state machine, parked orders queue, dynamic store settings, and checkout mutation.
  */
 
 'use client';
@@ -27,8 +27,10 @@ import {
   getPOSDailyCounter,
   submitPOSCheckout,
 } from './api';
+import { getStoreSettings } from '@/features/settings/api';
+import { StoreSettings } from '@/features/settings/types';
 import {
-  calculateCartTotals,
+  calculateCartTotalsFromBps,
   canAddToCart,
   calculateChange,
   createTransactionId,
@@ -36,8 +38,8 @@ import {
   mapPOSCustomerViewModel,
   buildCheckoutPayload,
   buildPOSReceiptViewModel,
-  DEFAULT_TAX_RATE,
 } from './pos-helpers';
+import { orchestratePostSaleDevices } from './pos-device';
 
 export interface UsePOSViewModelOptions {
   businessId?: string | null;
@@ -58,10 +60,12 @@ export function usePOSViewModel({
 }: UsePOSViewModelOptions) {
   const [dataState, setDataState] = useState<POSDataState>('loading');
   const [checkoutState, setCheckoutState] = useState<POSCheckoutState>('idle');
+  const [settingsState, setSettingsState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [error, setError] = useState<string | null>(null);
 
   const [rawProducts, setRawProducts] = useState<POSProductViewModel[]>([]);
   const [customers, setCustomers] = useState<POSCustomerViewModel[]>([]);
+  const [settings, setSettings] = useState<StoreSettings | null>(null);
   const [dailyCounter, setDailyCounter] = useState<POSDailyCounter>({
     total_sales: 0,
     total_revenue_minor: 0,
@@ -82,12 +86,69 @@ export function usePOSViewModel({
   const [cashReceived, setCashReceived] = useState<number>(0);
   const [receipt, setReceipt] = useState<POSReceiptViewModel | null>(null);
 
+  // Presentation/device orchestration state — never affects a committed sale
+  const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
+  const [deviceNotice, setDeviceNotice] = useState<string | null>(null);
+  const [lastDeviceResult, setLastDeviceResult] = useState<ReturnType<
+    typeof orchestratePostSaleDevices
+  > | null>(null);
+  const drawerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const deviceNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Track active tenant and branch to detect context switches
   const prevBusinessIdRef = useRef<string | null | undefined>(businessId);
   const prevBranchIdRef = useRef<string | null | undefined>(branchId);
 
   // ---------------------------------------------------------------------------
-  // Load Master Data
+  // Resolved Settings Properties
+  // ---------------------------------------------------------------------------
+  const effectiveTaxRateBps = settings?.tax_rate_bps ?? 1100;
+  const effectiveTaxRatePercent = Number((effectiveTaxRateBps / 100).toFixed(2));
+
+  const enabledPaymentMethods = useMemo(() => {
+    if (!settings?.payment_methods) {
+      return { cash: true, qris: true, debit: true };
+    }
+    return {
+      cash: settings.payment_methods.cash ?? true,
+      qris: settings.payment_methods.qris ?? true,
+      debit: settings.payment_methods.debit ?? true,
+    };
+  }, [settings]);
+
+  const isCheckoutAvailable = useMemo(() => {
+    return enabledPaymentMethods.cash || enabledPaymentMethods.qris || enabledPaymentMethods.debit;
+  }, [enabledPaymentMethods]);
+
+  const storeIdentity = useMemo(() => {
+    return {
+      store_name: settings?.store_name || businessName,
+      address: settings?.address || '',
+      phone: settings?.phone || '',
+      receipt_footer: settings?.receipt_footer || 'Barang yang sudah dibeli tidak dapat ditukar · terima kasih',
+    };
+  }, [settings, businessName]);
+
+  const printerPreferences = useMemo(() => {
+    return {
+      autoPrint: settings?.printer_config?.autoPrint ?? true,
+      paper: settings?.printer_config?.paper ?? '80mm',
+      copies: settings?.printer_config?.copies ?? 1,
+      printLogo: settings?.printer_config?.printLogo ?? true,
+      model: settings?.printer_config?.model ?? 'Epson TM-T82',
+    };
+  }, [settings]);
+
+  const drawerPreferences = useMemo(() => {
+    return {
+      openOnPayment: settings?.drawer_config?.openOnPayment ?? true,
+      openOnShift: settings?.drawer_config?.openOnShift ?? false,
+      delayMs: settings?.drawer_config?.delayMs ?? 300,
+    };
+  }, [settings]);
+
+  // ---------------------------------------------------------------------------
+  // Load Master Data & Store Settings
   // ---------------------------------------------------------------------------
   const loadData = useCallback(async () => {
     if (!businessId) {
@@ -96,13 +157,18 @@ export function usePOSViewModel({
     }
 
     setDataState('loading');
+    setSettingsState('loading');
     setError(null);
 
     try {
-      const [productsData, stocksData, customersData] = await Promise.all([
+      const [productsData, stocksData, customersData, storeSettingsData] = await Promise.all([
         getPOSProducts(businessId),
         branchId ? getPOSStocks(businessId, branchId) : Promise.resolve({ items: [] }),
         getPOSCustomers(businessId),
+        getStoreSettings(businessId, branchId).catch((err) => {
+          console.warn('Failed to load store settings in POS:', err);
+          return null;
+        }),
       ]);
 
       const stockMap = new Map<string, number>();
@@ -121,6 +187,13 @@ export function usePOSViewModel({
 
       setRawProducts(mappedProducts);
       setCustomers(mappedCustomers);
+
+      if (storeSettingsData) {
+        setSettings(storeSettingsData);
+        setSettingsState('ready');
+      } else {
+        setSettingsState('error');
+      }
 
       // Load today's sales summary for daily shift badge
       if (branchId) {
@@ -142,7 +215,8 @@ export function usePOSViewModel({
     const isBranchChanged = prevBranchIdRef.current !== branchId;
 
     if (isTenantChanged || isBranchChanged) {
-      // Clear cart, parked orders, and active transaction
+      // Clear cart, parked orders, active settings, and active transaction.
+      // Resolved store settings are dropped so no stale branch/tenant config remains.
       setCartLines([]);
       setParkedOrders([]);
       setDiscountPercent(0);
@@ -151,6 +225,12 @@ export function usePOSViewModel({
       setIsPaymentModalOpen(false);
       setReceipt(null);
       setCheckoutState('idle');
+      setSettings(null);
+      setDrawerOpen(false);
+      setDeviceNotice(null);
+      setLastDeviceResult(null);
+      if (drawerTimerRef.current) clearTimeout(drawerTimerRef.current);
+      if (deviceNoticeTimerRef.current) clearTimeout(deviceNoticeTimerRef.current);
 
       prevBusinessIdRef.current = businessId;
       prevBranchIdRef.current = branchId;
@@ -158,6 +238,14 @@ export function usePOSViewModel({
 
     loadData();
   }, [businessId, branchId, loadData]);
+
+  // Clear pending device timers on unmount
+  useEffect(() => {
+    return () => {
+      if (drawerTimerRef.current) clearTimeout(drawerTimerRef.current);
+      if (deviceNoticeTimerRef.current) clearTimeout(deviceNoticeTimerRef.current);
+    };
+  }, []);
 
   // ---------------------------------------------------------------------------
   // Categories & Filtering
@@ -190,10 +278,10 @@ export function usePOSViewModel({
   const customerName = selectedCustomer ? selectedCustomer.name : 'Umum';
 
   // ---------------------------------------------------------------------------
-  // Cart Calculations
+  // Cart Calculations with Dynamic Tax Rate
   // ---------------------------------------------------------------------------
   const cart: POSCartViewModel = useMemo(() => {
-    const totals = calculateCartTotals(cartLines, discountPercent, DEFAULT_TAX_RATE);
+    const totals = calculateCartTotalsFromBps(cartLines, discountPercent, effectiveTaxRateBps);
     return {
       transaction_id: transactionId,
       customer_id: selectedCustomerId,
@@ -206,105 +294,116 @@ export function usePOSViewModel({
       total_minor: totals.total_minor,
       item_count: totals.item_count,
     };
-  }, [transactionId, selectedCustomerId, customerName, cartLines, discountPercent]);
+  }, [
+    transactionId,
+    selectedCustomerId,
+    customerName,
+    cartLines,
+    discountPercent,
+    effectiveTaxRateBps,
+  ]);
 
   // ---------------------------------------------------------------------------
-  // Cart Actions
+  // Cart Line Actions
   // ---------------------------------------------------------------------------
   const addToCart = useCallback(
-    (product: POSProductViewModel) => {
-      if (product.quantity_available <= 0) return;
+    (product: POSProductViewModel, qtyToAdd: number = 1) => {
+      if (qtyToAdd <= 0) return;
 
-      setCartLines((current) => {
-        const existingIndex = current.findIndex((l) => l.product_id === product.id);
-        if (existingIndex >= 0) {
-          const line = current[existingIndex];
-          if (line.quantity >= product.quantity_available) {
-            return current; // Max available stock reached
-          }
-          const updated = [...current];
-          const newQty = line.quantity + 1;
-          updated[existingIndex] = {
-            ...line,
-            quantity: newQty,
-            line_subtotal_minor: newQty * line.unit_price_minor,
-          };
-          return updated;
+      setCartLines((prevLines) => {
+        const existing = prevLines.find((l) => l.product_id === product.id);
+        const currentCartQty = existing ? existing.quantity : 0;
+
+        if (!canAddToCart(product, currentCartQty)) {
+          return prevLines;
         }
 
-        const newLine: POSCartLineViewModel = {
-          product_id: product.id,
-          product_name: product.name,
-          sku: product.sku,
-          category: product.category,
-          quantity: 1,
-          unit_price_minor: product.price_minor,
-          line_subtotal_minor: product.price_minor,
-          quantity_available: product.quantity_available,
-        };
-        return [...current, newLine];
+        const newQty = currentCartQty + qtyToAdd;
+        const lineSubtotal = newQty * product.price_minor;
+
+        if (existing) {
+          return prevLines.map((l) =>
+            l.product_id === product.id
+              ? {
+                  ...l,
+                  quantity: newQty,
+                  line_subtotal_minor: lineSubtotal,
+                }
+              : l
+          );
+        } else {
+          const newLine: POSCartLineViewModel = {
+            product_id: product.id,
+            product_name: product.name,
+            sku: product.sku,
+            category: product.category,
+            quantity: newQty,
+            unit_price_minor: product.price_minor,
+            line_subtotal_minor: lineSubtotal,
+            quantity_available: product.quantity_available,
+          };
+          return [...prevLines, newLine];
+        }
       });
     },
     []
   );
 
   const removeFromCart = useCallback((productId: string) => {
-    setCartLines((current) => current.filter((l) => l.product_id !== productId));
+    setCartLines((prev) => prev.filter((l) => l.product_id !== productId));
   }, []);
 
   const incrementQuantity = useCallback((productId: string) => {
-    setCartLines((current) => {
-      const idx = current.findIndex((l) => l.product_id === productId);
-      if (idx < 0) return current;
-      const line = current[idx];
-      if (line.quantity >= line.quantity_available) return current;
-      const updated = [...current];
-      const newQty = line.quantity + 1;
-      updated[idx] = {
-        ...line,
-        quantity: newQty,
-        line_subtotal_minor: newQty * line.unit_price_minor,
-      };
-      return updated;
-    });
+    setCartLines((prev) =>
+      prev.map((l) => {
+        if (l.product_id !== productId) return l;
+        if (l.quantity + 1 > l.quantity_available) return l;
+        const newQty = l.quantity + 1;
+        return {
+          ...l,
+          quantity: newQty,
+          line_subtotal_minor: newQty * l.unit_price_minor,
+        };
+      })
+    );
   }, []);
 
   const decrementQuantity = useCallback((productId: string) => {
-    setCartLines((current) => {
-      const idx = current.findIndex((l) => l.product_id === productId);
-      if (idx < 0) return current;
-      const line = current[idx];
+    setCartLines((prev) => {
+      const line = prev.find((l) => l.product_id === productId);
+      if (!line) return prev;
       if (line.quantity <= 1) {
-        return current.filter((l) => l.product_id !== productId);
+        return prev.filter((l) => l.product_id !== productId);
       }
-      const updated = [...current];
       const newQty = line.quantity - 1;
-      updated[idx] = {
-        ...line,
-        quantity: newQty,
-        line_subtotal_minor: newQty * line.unit_price_minor,
-      };
-      return updated;
+      return prev.map((l) =>
+        l.product_id === productId
+          ? {
+              ...l,
+              quantity: newQty,
+              line_subtotal_minor: newQty * l.unit_price_minor,
+            }
+          : l
+      );
     });
   }, []);
 
-  const setQuantity = useCallback((productId: string, qty: number) => {
-    setCartLines((current) => {
-      const idx = current.findIndex((l) => l.product_id === productId);
-      if (idx < 0) return current;
-      const line = current[idx];
-      if (qty <= 0) {
-        return current.filter((l) => l.product_id !== productId);
-      }
-      const clampedQty = Math.min(qty, line.quantity_available);
-      const updated = [...current];
-      updated[idx] = {
-        ...line,
-        quantity: clampedQty,
-        line_subtotal_minor: clampedQty * line.unit_price_minor,
-      };
-      return updated;
-    });
+  const setQuantity = useCallback((productId: string, quantity: number) => {
+    if (quantity <= 0) {
+      setCartLines((prev) => prev.filter((l) => l.product_id !== productId));
+      return;
+    }
+    setCartLines((prev) =>
+      prev.map((l) => {
+        if (l.product_id !== productId) return l;
+        const targetQty = Math.min(quantity, l.quantity_available);
+        return {
+          ...l,
+          quantity: targetQty,
+          line_subtotal_minor: targetQty * l.unit_price_minor,
+        };
+      })
+    );
   }, []);
 
   const clearCart = useCallback(() => {
@@ -314,67 +413,95 @@ export function usePOSViewModel({
   }, []);
 
   // ---------------------------------------------------------------------------
-  // Parked Orders (Client memory queue)
+  // Parked Orders Actions
   // ---------------------------------------------------------------------------
   const saveParkedOrder = useCallback(() => {
-    if (cartLines.length === 0) return;
+    if (cart.lines.length === 0) return;
 
-    const timeStr = new Date().toLocaleTimeString('id-ID', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-
-    const parkedItem: POSParkedOrder = {
+    const parked: POSParkedOrder = {
       transaction_id: cart.transaction_id,
       customer_id: cart.customer_id,
       customer_name: cart.customer_name,
       item_count: cart.item_count,
-      saved_at: timeStr,
+      saved_at: new Date().toLocaleTimeString('id-ID', {
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
       cart: { ...cart },
     };
 
-    setParkedOrders((prev) => [...prev, parkedItem]);
+    setParkedOrders((prev) => [parked, ...prev]);
+
+    // Reset current active transaction to a fresh cart
     clearCart();
     setTransactionId(createTransactionId());
-  }, [cart, cartLines.length, clearCart]);
+  }, [cart, clearCart]);
 
-  const restoreParkedOrder = useCallback((order: POSParkedOrder) => {
-    setCartLines(order.cart.lines);
-    setSelectedCustomerId(order.cart.customer_id);
-    setDiscountPercent(order.cart.discount_percent);
-    setTransactionId(order.transaction_id);
-    setParkedOrders((prev) => prev.filter((p) => p.transaction_id !== order.transaction_id));
-  }, []);
+  const restoreParkedOrder = useCallback(
+    (order: POSParkedOrder) => {
+      // Restore selected order into active cart
+      setTransactionId(order.cart.transaction_id);
+      setSelectedCustomerId(order.cart.customer_id);
+      setCartLines(order.cart.lines);
+      setDiscountPercent(order.cart.discount_percent);
 
-  const deleteParkedOrder = useCallback((trxId: string) => {
-    setParkedOrders((prev) => prev.filter((p) => p.transaction_id !== trxId));
+      // Remove from parked queue
+      setParkedOrders((prev) => prev.filter((o) => o.transaction_id !== order.transaction_id));
+    },
+    []
+  );
+
+  const deleteParkedOrder = useCallback((transactionIdToDelete: string) => {
+    setParkedOrders((prev) => prev.filter((o) => o.transaction_id !== transactionIdToDelete));
   }, []);
 
   // ---------------------------------------------------------------------------
-  // Payment & Checkout State
+  // Payment & Checkout State Machine
   // ---------------------------------------------------------------------------
   const paymentState: POSPaymentState = useMemo(() => {
-    const isCash = paymentMethod === 'CASH';
-    const effectivePaid = isCash ? cashReceived : cart.total_minor;
-    const change = calculateChange(effectivePaid, cart.total_minor);
-    const isSufficient = effectivePaid >= cart.total_minor;
+    const totalMinor = cart.total_minor;
+    const paidMinor = paymentMethod === 'CASH' ? cashReceived : totalMinor;
+    const change = calculateChange(paidMinor, totalMinor);
 
     return {
       method: paymentMethod,
-      paid_minor: effectivePaid,
-      change_minor: isCash && change > 0 ? change : 0,
-      is_sufficient: isSufficient,
+      paid_minor: paidMinor,
+      change_minor: Math.max(0, change),
+      is_sufficient: paymentMethod === 'CASH' ? paidMinor >= totalMinor : true,
       step: receipt ? 'done' : 'pay',
     };
-  }, [paymentMethod, cashReceived, cart.total_minor, receipt]);
+  }, [cart.total_minor, paymentMethod, cashReceived, receipt]);
 
   const openPaymentModal = useCallback(() => {
-    setPaymentMethod('CASH');
+    if (cart.lines.length === 0) return;
+
+    if (settingsState === 'error') {
+      setError('Pengaturan toko belum tersedia — pembayaran tidak dapat diproses.');
+      return;
+    }
+
+    if (!isCheckoutAvailable) {
+      setError('Semua metode pembayaran kasir non-aktif di pengaturan toko.');
+      return;
+    }
+
+    // Auto-select first available method if current is disabled
+    if (paymentMethod === 'CASH' && !enabledPaymentMethods.cash) {
+      if (enabledPaymentMethods.qris) setPaymentMethod('QRIS');
+      else if (enabledPaymentMethods.debit) setPaymentMethod('DEBIT');
+    } else if (paymentMethod === 'QRIS' && !enabledPaymentMethods.qris) {
+      if (enabledPaymentMethods.cash) setPaymentMethod('CASH');
+      else if (enabledPaymentMethods.debit) setPaymentMethod('DEBIT');
+    } else if (paymentMethod === 'DEBIT' && !enabledPaymentMethods.debit) {
+      if (enabledPaymentMethods.cash) setPaymentMethod('CASH');
+      else if (enabledPaymentMethods.qris) setPaymentMethod('QRIS');
+    }
+
     setCashReceived(cart.total_minor);
     setReceipt(null);
-    setCheckoutState('idle');
     setIsPaymentModalOpen(true);
-  }, [cart.total_minor]);
+    setError(null);
+  }, [cart.lines.length, cart.total_minor, isCheckoutAvailable, enabledPaymentMethods, paymentMethod]);
 
   const closePaymentModal = useCallback(() => {
     if (receipt) {
@@ -395,9 +522,57 @@ export function usePOSViewModel({
     setReceipt(null);
     setTransactionId(createTransactionId());
     setCashReceived(0);
-    setPaymentMethod('CASH');
+    setPaymentMethod(enabledPaymentMethods.cash ? 'CASH' : enabledPaymentMethods.qris ? 'QRIS' : 'DEBIT');
     setCheckoutState('idle');
-  }, [clearCart]);
+    setDrawerOpen(false);
+    setDeviceNotice(null);
+    setLastDeviceResult(null);
+    if (drawerTimerRef.current) clearTimeout(drawerTimerRef.current);
+    if (deviceNoticeTimerRef.current) clearTimeout(deviceNoticeTimerRef.current);
+  }, [clearCart, enabledPaymentMethods]);
+
+  // ---------------------------------------------------------------------------
+  // Presentation/Device Orchestration (printer + cash drawer)
+  //
+  // These are driver-free. A failure in either MUST NOT mutate the already
+  // committed sale: each trigger runs inside orchestratePostSaleDevices which
+  // isolates per-device errors.
+  // ---------------------------------------------------------------------------
+  const triggerCashDrawer = useCallback(() => {
+    setDrawerOpen(true);
+    if (drawerTimerRef.current) clearTimeout(drawerTimerRef.current);
+    drawerTimerRef.current = setTimeout(() => setDrawerOpen(false), drawerPreferences.delayMs);
+  }, [drawerPreferences.delayMs]);
+
+  const triggerPrint = useCallback(() => {
+    // Browser-native print is presentation only (no WebUSB/WebSerial driver).
+    if (typeof window !== 'undefined' && typeof window.print === 'function') {
+      window.print();
+    }
+  }, []);
+
+  const runDeviceOrchestration = useCallback(() => {
+    const outcome = orchestratePostSaleDevices({
+      drawer: drawerPreferences,
+      printer: printerPreferences,
+      triggerDrawer: triggerCashDrawer,
+      triggerPrint,
+    });
+    setLastDeviceResult(outcome);
+
+    const parts: string[] = [];
+    if (outcome.drawerTriggered) parts.push('Laci kasir terbuka');
+    if (outcome.printTriggered) parts.push('Struk otomatis dicetak');
+    // Device failures are non-blocking: the sale is already committed.
+    if (outcome.drawerError) parts.push(`Laci: ${outcome.drawerError}`);
+    if (outcome.printError) parts.push(`Printer: ${outcome.printError}`);
+    setDeviceNotice(parts.length ? parts.join(' · ') : null);
+
+    if (deviceNoticeTimerRef.current) clearTimeout(deviceNoticeTimerRef.current);
+    if (parts.length) {
+      deviceNoticeTimerRef.current = setTimeout(() => setDeviceNotice(null), 5000);
+    }
+  }, [drawerPreferences, printerPreferences, triggerCashDrawer, triggerPrint]);
 
   const submitCheckout = useCallback(async () => {
     if (!businessId || !branchId || cart.lines.length === 0) return;
@@ -405,6 +580,14 @@ export function usePOSViewModel({
 
     if (!paymentState.is_sufficient) {
       setError('Jumlah pembayaran kurang dari total tagihan.');
+      return;
+    }
+
+    // Prevent a stale/disabled payment method from bypassing resolved settings
+    const methodKey =
+      paymentState.method === 'CASH' ? 'cash' : paymentState.method === 'QRIS' ? 'qris' : 'debit';
+    if (!enabledPaymentMethods[methodKey]) {
+      setError('Metode pembayaran tidak aktif di pengaturan toko.');
       return;
     }
 
@@ -431,19 +614,27 @@ export function usePOSViewModel({
         return;
       }
 
-      // Build printable receipt
+      // Build printable receipt with dynamic store settings
       const receiptVM = buildPOSReceiptViewModel({
-        businessName,
+        businessName: storeIdentity.store_name,
         branchName,
+        address: storeIdentity.address,
+        phone: storeIdentity.phone,
+        taxRatePercent: effectiveTaxRatePercent,
         cart,
         paymentMethod: paymentState.method,
         paidMinor: paymentState.paid_minor,
         changeMinor: paymentState.change_minor,
         cashierName,
+        footer: storeIdentity.receipt_footer,
       });
 
       setReceipt(receiptVM);
       setCheckoutState('success');
+
+      // Device orchestration is presentation-only and failure-isolated;
+      // the sale above is already committed independently of any printer/drawer outcome.
+      runDeviceOrchestration();
 
       // Optimistically decrement local available stock for purchased items
       setRawProducts((prev) =>
@@ -485,18 +676,33 @@ export function usePOSViewModel({
   }, [
     businessId,
     branchId,
-    businessName,
+    storeIdentity,
+    effectiveTaxRatePercent,
     branchName,
     cashierName,
     cashierId,
     cart,
     paymentState,
     checkoutState,
+    enabledPaymentMethods,
+    runDeviceOrchestration,
   ]);
 
   return {
     dataState,
     checkoutState,
+    settingsState,
+    settings,
+    effectiveTaxRateBps,
+    effectiveTaxRatePercent,
+    enabledPaymentMethods,
+    isCheckoutAvailable,
+    storeIdentity,
+    printerPreferences,
+    drawerPreferences,
+    drawerOpen,
+    deviceNotice,
+    lastDeviceResult,
     error,
     searchQuery,
     selectedCategory,

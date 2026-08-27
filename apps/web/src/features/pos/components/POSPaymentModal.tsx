@@ -48,6 +48,7 @@ export interface POSPaymentModalProps {
   receipt: POSReceiptViewModel | null;
   onNewTransaction: () => void;
   error?: string | null;
+  enabledPaymentMethods?: { cash: boolean; qris: boolean; debit: boolean };
 }
 
 export function POSPaymentModal({
@@ -62,6 +63,7 @@ export function POSPaymentModal({
   receipt,
   onNewTransaction,
   error,
+  enabledPaymentMethods = { cash: true, qris: true, debit: true },
 }: POSPaymentModalProps) {
   if (!isOpen) return null;
 
@@ -118,6 +120,7 @@ export function POSPaymentModal({
                   {
                     m: 'CASH' as PaymentMethod,
                     label: 'Tunai',
+                    enabled: enabledPaymentMethods.cash,
                     icon: (
                       <svg className="h-4.5 w-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <rect x="2" y="6" width="20" height="12" rx="2" />
@@ -128,6 +131,7 @@ export function POSPaymentModal({
                   {
                     m: 'QRIS' as PaymentMethod,
                     label: 'QRIS',
+                    enabled: enabledPaymentMethods.qris,
                     icon: (
                       <svg className="h-4.5 w-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <rect x="3" y="3" width="7" height="7" />
@@ -140,6 +144,7 @@ export function POSPaymentModal({
                   {
                     m: 'DEBIT' as PaymentMethod,
                     label: 'Debit',
+                    enabled: enabledPaymentMethods.debit,
                     icon: (
                       <svg className="h-4.5 w-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <rect x="2" y="5" width="20" height="14" rx="2" />
@@ -147,24 +152,26 @@ export function POSPaymentModal({
                       </svg>
                     ),
                   },
-                ].map(({ m, label, icon }) => {
-                  const isSelected = paymentState.method === m;
-                  return (
-                    <button
-                      key={m}
-                      type="button"
-                      onClick={() => onMethodChange(m)}
-                      className={`flex flex-col items-center gap-1.5 rounded-lg border py-3 text-[12.5px] font-bold transition-all cursor-pointer ${
-                        isSelected
-                          ? 'border-pine bg-pine-soft text-pine shadow-xs'
-                          : 'border-line bg-surface text-fog hover:border-pine/40'
-                      }`}
-                    >
-                      {icon}
-                      {label}
-                    </button>
-                  );
-                })}
+                ]
+                  .filter((item) => item.enabled)
+                  .map(({ m, label, icon }) => {
+                    const isSelected = paymentState.method === m;
+                    return (
+                      <button
+                        key={m}
+                        type="button"
+                        onClick={() => onMethodChange(m)}
+                        className={`flex flex-col items-center gap-1.5 rounded-lg border py-3 text-[12.5px] font-bold transition-all cursor-pointer ${
+                          isSelected
+                            ? 'border-pine bg-pine-soft text-pine shadow-xs'
+                            : 'border-line bg-surface text-fog hover:border-pine/40'
+                        }`}
+                      >
+                        {icon}
+                        {label}
+                      </button>
+                    );
+                  })}
               </div>
 
               {/* CASH Payment Form */}

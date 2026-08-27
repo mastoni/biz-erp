@@ -94,6 +94,8 @@ export interface POSReceiptViewModel {
   paid_minor: number;
   change_minor: number;
   footer: string;
+  tax_rate_percent?: number;
+  phone?: string;
 }
 
 export interface POSDailyCounter {

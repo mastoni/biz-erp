@@ -20,6 +20,7 @@ export interface POSCartSidebarProps {
   onRemoveLine: (productId: string) => void;
   onDiscountChange: (percent: number) => void;
   onOpenPayment: () => void;
+  taxRatePercent?: number;
 }
 
 export function POSCartSidebar({
@@ -36,6 +37,7 @@ export function POSCartSidebar({
   onRemoveLine,
   onDiscountChange,
   onOpenPayment,
+  taxRatePercent = 11,
 }: POSCartSidebarProps) {
   const isCartEmpty = cart.lines.length === 0;
 
@@ -134,7 +136,7 @@ export function POSCartSidebar({
               </div>
             )}
             <div className="flex justify-between text-fog">
-              <dt>PPN 11%</dt>
+              <dt>PPN {taxRatePercent}%</dt>
               <dd className="num font-semibold text-ink">{idr(cart.tax_minor)}</dd>
             </div>
             <div className="mt-1 flex items-baseline justify-between border-t border-dashed border-linedark pt-2.5">

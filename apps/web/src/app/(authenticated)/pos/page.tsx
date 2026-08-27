@@ -100,6 +100,7 @@ export default function POSPage() {
             onRemoveLine={pos.removeFromCart}
             onDiscountChange={pos.setDiscountPercent}
             onOpenPayment={pos.openPaymentModal}
+            taxRatePercent={pos.effectiveTaxRatePercent}
           />
         </div>
       </div>
@@ -117,7 +118,26 @@ export default function POSPage() {
         receipt={pos.receipt}
         onNewTransaction={pos.resetTransaction}
         error={pos.error}
+        enabledPaymentMethods={pos.enabledPaymentMethods}
       />
+
+      {/* Presentation-only device orchestration feedback (never blocks the sale) */}
+      {pos.deviceNotice && (
+        <div
+          role="status"
+          className="fixed bottom-5 left-1/2 z-50 -translate-x-1/2 rounded-lg bg-pine-deep px-4 py-2.5 text-[13px] font-bold text-[#f2efe2] shadow-lg"
+        >
+          {pos.deviceNotice}
+        </div>
+      )}
+      {pos.drawerOpen && (
+        <div
+          role="status"
+          className="fixed right-5 top-5 z-50 flex items-center gap-2 rounded-lg border border-honey/50 bg-honey-soft px-4 py-2.5 text-[12.5px] font-bold text-[#8a5f10] shadow-lg"
+        >
+          <span className="h-2 w-2 rounded-full bg-honey" /> Laci Kasir Terbuka
+        </div>
+      )}
     </div>
   );
 }

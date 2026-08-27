@@ -38,7 +38,11 @@ export function POSReceiptCard({
       <div className="mx-auto mt-5 w-[280px] rounded-md border border-line bg-white p-4 shadow-sm font-mono text-[11px] leading-relaxed text-ink">
         <div className="text-center">
           <p className="text-[13px] font-bold tracking-wide">{receipt.business_name.toUpperCase()}</p>
+          {receipt.branch_name && (
+            <p className="text-fog text-[10px]">{receipt.branch_name}</p>
+          )}
           <p className="text-fog text-[10px]">{receipt.address}</p>
+          {receipt.phone && <p className="text-fog text-[10px]">{receipt.phone}</p>}
           <div className="my-2 border-t border-dashed border-linedark" />
           <p className="flex justify-between">
             <span>{receipt.receipt_number}</span>
@@ -70,7 +74,7 @@ export function POSReceiptCard({
             </p>
           )}
           <p className="flex justify-between">
-            <span>PPN 11%</span>
+            <span>PPN {receipt.tax_rate_percent ?? 11}%</span>
             <span>{idr(receipt.tax_minor).replace('Rp ', '')}</span>
           </p>
           <p className="flex justify-between text-[13px] font-bold">

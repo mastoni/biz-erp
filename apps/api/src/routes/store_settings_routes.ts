@@ -1,10 +1,21 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router, Request, Response, NextFunction, RequestHandler } from 'express';
 import { Pool } from 'pg';
 import { requireSyncAuth, requireRole, SyncAuthenticatedRequest } from '../middleware/auth';
+import { createJwtService } from '../services/jwt_service';
 import { createStoreSettingsService } from '../services/store_settings_service';
 
 export function createStoreSettingsRoutes(pool: Pool): Router {
   const router = Router();
+
+  const jwtSecret = process.env.JWT_SECRET;
+  const jwtIssuer = process.env.JWT_ISSUER;
+  const jwtAudience = process.env.JWT_AUDIENCE;
+
+  if (!jwtSecret || !jwtIssuer || !jwtAudience) {
+    throw new Error('JWT_SECRET, JWT_ISSUER, and JWT_AUDIENCE must be set in the environment');
+  }
+
+  const jwtService = createJwtService(jwtSecret, jwtIssuer, jwtAudience);
   const storeSettingsService = createStoreSettingsService(pool);
 
   /**
@@ -15,7 +26,7 @@ export function createStoreSettingsRoutes(pool: Pool): Router {
    */
   router.get(
     '/store',
-    requireSyncAuth,
+    requireSyncAuth(jwtService) as RequestHandler,
     requireRole('OWNER', 'CASHIER'),
     async (req: Request, res: Response, next: NextFunction) => {
       try {
@@ -38,7 +49,7 @@ export function createStoreSettingsRoutes(pool: Pool): Router {
    */
   router.put(
     '/store',
-    requireSyncAuth,
+    requireSyncAuth(jwtService) as RequestHandler,
     requireRole('OWNER'),
     async (req: Request, res: Response, next: NextFunction) => {
       try {
