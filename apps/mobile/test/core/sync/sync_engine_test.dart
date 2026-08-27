@@ -13,6 +13,7 @@ import 'package:biz_erp_mobile/products/data/product_repository.dart';
 import 'package:biz_erp_mobile/sales/data/sales_sync_repository.dart';
 import 'package:biz_erp_mobile/products/domain/product.dart';
 import 'package:biz_erp_mobile/customers/data/customer_repository.dart';
+import 'package:biz_erp_mobile/suppliers/data/supplier_repository.dart';
 import 'package:biz_erp_mobile/customers/domain/customer.dart';
 
 const biz = '11111111-1111-1111-1111-111111111111';
@@ -64,7 +65,15 @@ class MockSyncApi implements SyncApiClient {
     false,
     0,
   );
+  PullSuppliersResponse pullSuppliersResp = const PullSuppliersResponse(
+    [],
+    false,
+    0,
+  );
   PullSalesResponse pullSalesResp = const PullSalesResponse([], false);
+
+  SupplierPushResult Function(SupplierDto, int?, String?)? onPushSupplier;
+  SupplierPushResult Function(SupplierDto, String)? onCreateSupplier;
 
   @override
   Future<bool> health() async => healthy;
@@ -105,8 +114,34 @@ class MockSyncApi implements SyncApiClient {
   Future<StoreSettingsDto?> getStoreSettings({
     required String businessId,
     required String branchId,
+  }) async => null;
+
+  @override
+  Future<PullSuppliersResponse> pullSuppliers({
+    required String businessId,
+    required int sinceVersion,
+    int limit = 500,
+  }) async => pullSuppliersResp;
+
+  @override
+  Future<SupplierPushResult> pushSupplier(
+    SupplierDto supplier, {
+    int? ifMatchVersion,
+    required String idempotencyKey,
   }) async =>
-      null;
+      onPushSupplier?.call(supplier, ifMatchVersion, idempotencyKey) ??
+      SupplierPushResult(ok: true, serverVersion: supplier.serverVersion + 1);
+
+  @override
+  Future<SupplierPushResult> createSupplier(SupplierDto supplier, {required String idempotencyKey}) async {
+    if (onCreateSupplier != null) return onCreateSupplier!(supplier, idempotencyKey);
+    return SupplierPushResult(ok: true, serverVersion: 1);
+  }
+
+  @override
+  Future<SupplierPushResult> deleteSupplier(SupplierDto supplier, {required String idempotencyKey}) async =>
+      onPushSupplier?.call(supplier, null, idempotencyKey) ??
+      SupplierPushResult(ok: true, serverVersion: supplier.serverVersion + 1);
 }
 
 void main() {
@@ -118,6 +153,7 @@ void main() {
   late CustomerRepository customers;
   late MockSyncApi api;
   late SyncEngine engine;
+  late SupplierRepository suppliers;
 
   setUp(() {
     db = AppDatabase(NativeDatabase.memory());
@@ -126,6 +162,7 @@ void main() {
     products = ProductRepository(db);
     salesSync = SalesSyncRepository(db);
     customers = CustomerRepository(db);
+    suppliers = SupplierRepository(db);
     api = MockSyncApi();
     engine = SyncEngine(
       outbox: outbox,
@@ -134,6 +171,7 @@ void main() {
       products: products,
       salesSync: salesSync,
       customers: customers,
+      suppliers: suppliers,
       businessId: biz,
     );
   });
@@ -722,6 +760,7 @@ void main() {
       products: products,
       salesSync: salesSync,
       customers: customers,
+      suppliers: suppliers,
       businessId: biz,
     );
 

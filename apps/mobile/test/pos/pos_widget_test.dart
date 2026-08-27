@@ -108,6 +108,28 @@ class _MockSyncApi implements SyncApiClient {
       CustomerPushResult(ok: true);
 
   @override
+  Future<PullSuppliersResponse> pullSuppliers({
+    required String businessId,
+    required int sinceVersion,
+    int limit = 500,
+  }) async => const PullSuppliersResponse([], false, 0);
+
+  @override
+  Future<SupplierPushResult> pushSupplier(
+    SupplierDto supplier, {
+    int? ifMatchVersion,
+    required String idempotencyKey,
+  }) async => SupplierPushResult(ok: true);
+
+  @override
+  Future<SupplierPushResult> createSupplier(SupplierDto supplier, {required String idempotencyKey}) async =>
+      SupplierPushResult(ok: true);
+
+  @override
+  Future<SupplierPushResult> deleteSupplier(SupplierDto supplier, {required String idempotencyKey}) async =>
+      SupplierPushResult(ok: true);
+
+  @override
   Future<StoreSettingsDto?> getStoreSettings({
     required String businessId,
     required String branchId,

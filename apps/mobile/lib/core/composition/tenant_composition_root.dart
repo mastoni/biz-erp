@@ -7,6 +7,8 @@ import 'package:biz_erp_mobile/core/database/db_key_service.dart';
 import 'package:biz_erp_mobile/core/database/db_opener.dart';
 import 'package:biz_erp_mobile/cart/data/cart_repository.dart';
 import 'package:biz_erp_mobile/customers/data/customer_repository.dart';
+import 'package:biz_erp_mobile/suppliers/data/supplier_repository.dart';
+
 import 'package:biz_erp_mobile/products/data/product_repository.dart';
 import 'package:biz_erp_mobile/sales/data/checkout_service.dart';
 import 'package:biz_erp_mobile/sales/domain/calculation/sale_calculation_engine.dart';
@@ -31,6 +33,7 @@ class TenantDependencyGraph {
   final AppDatabase db;
   final ProductRepository productRepo;
   final CustomerRepository customerRepo;
+  final SupplierRepository supplierRepo;
   final CartRepository cartRepo;
   final SyncOutboxRepository outboxRepo;
   final SyncStatusNotifier syncStatusNotifier;
@@ -46,6 +49,7 @@ class TenantDependencyGraph {
     required this.db,
     required this.productRepo,
     required this.customerRepo,
+    required this.supplierRepo,
     required this.cartRepo,
     required this.outboxRepo,
     required this.syncStatusNotifier,
@@ -84,6 +88,7 @@ class TenantCompositionRoot {
     final productRepo = ProductRepository(db);
     final cartRepo = CartRepository(db);
     final customerRepo = CustomerRepository(db);
+    final supplierRepo = SupplierRepository(db);
     final calcEngine = SaleCalculationEngine();
     final syncMetaRepo = SyncMetaRepository(db);
     final syncOutboxRepo = SyncOutboxRepository(db);
@@ -104,6 +109,7 @@ class TenantCompositionRoot {
       products: productRepo,
       salesSync: salesSyncRepo,
       customers: customerRepo,
+      suppliers: supplierRepo,
       businessId: businessId,
     );
     final syncStatusNotifier = SyncStatusNotifier(
@@ -193,6 +199,7 @@ class TenantCompositionRoot {
       printingService: printingService,
       branchRepo: branchRepo,
       storeSettingsRepo: storeSettingsRepo,
+      supplierRepo: supplierRepo,
     );
   }
 }

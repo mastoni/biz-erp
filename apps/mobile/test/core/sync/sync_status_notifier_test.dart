@@ -73,6 +73,10 @@ class FakeSyncOutboxRepository implements SyncOutboxRepository {
   @override
   Future<String> enqueueCustomerUpsert(CustomerDto customer, {String? idempotencyKey}) async => 'id';
   @override
+  Future<String> enqueueSupplierCreate(SupplierDto supplier, {String? idempotencyKey}) async => 'id';
+  @override
+  Future<String> enqueueSupplierUpsert(SupplierDto supplier, {String? idempotencyKey}) async => 'id';
+  @override
   Future<List<SyncOutboxItem>> fetchDue(int now, {int limit = 100}) async => [];
   @override
   Future<void> markConflict(String id, String serverStateJson, String error) async {}
@@ -97,7 +101,7 @@ class FakeSyncEngine extends ChangeNotifier implements SyncEngine {
     syncNowCallCount++;
     await Future.delayed(const Duration(milliseconds: 10));
     notifyListeners();
-    return SyncSummary(reachable: true, pushed: 0, pulledProducts: 0, pulledCustomers: 0, pulledSales: 0, counts: SyncCounts(0,0,0));
+    return SyncSummary(reachable: true, pushed: 0, pulledProducts: 0, pulledCustomers: 0, pulledSuppliers: 0, pulledSales: 0, counts: SyncCounts(0,0,0));
   }
 }
 

@@ -176,6 +176,30 @@ class _FakeSettingsApi implements SyncApiClient {
     required String idempotencyKey,
   }) async =>
       const CustomerPushResult(ok: true);
+
+  @override
+  Future<PullSuppliersResponse> pullSuppliers({
+    required String businessId,
+    required int sinceVersion,
+    int limit = 500,
+  }) async =>
+      const PullSuppliersResponse([], false, 0);
+
+  @override
+  Future<SupplierPushResult> pushSupplier(
+    SupplierDto supplier, {
+    int? ifMatchVersion,
+    required String idempotencyKey,
+  }) async =>
+      const SupplierPushResult(ok: true);
+
+  @override
+  Future<SupplierPushResult> createSupplier(SupplierDto supplier, {required String idempotencyKey}) async =>
+      const SupplierPushResult(ok: true);
+
+  @override
+  Future<SupplierPushResult> deleteSupplier(SupplierDto supplier, {required String idempotencyKey}) async =>
+      const SupplierPushResult(ok: true);
 }
 
 void main() {

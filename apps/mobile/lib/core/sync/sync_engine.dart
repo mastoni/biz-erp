@@ -7,6 +7,7 @@ import 'sync_outbox_repository.dart';
 import '../../products/data/product_repository.dart';
 import '../../sales/data/sales_sync_repository.dart';
 import '../../customers/data/customer_repository.dart';
+import '../../suppliers/data/supplier_repository.dart';
 import 'http_sync_api_client.dart' show HttpException, NetworkException;
 import 'package:sentry_flutter/sentry_flutter.dart';
 
@@ -15,6 +16,7 @@ class SyncSummary {
   final int pushed;
   final int pulledProducts;
   final int pulledCustomers;
+  final int pulledSuppliers;
   final int pulledSales;
   final SyncCounts counts;
   const SyncSummary({
@@ -22,6 +24,7 @@ class SyncSummary {
     required this.pushed,
     required this.pulledProducts,
     required this.pulledCustomers,
+    required this.pulledSuppliers,
     required this.pulledSales,
     required this.counts,
   });
@@ -35,6 +38,7 @@ class SyncEngine extends ChangeNotifier {
     required this._products,
     required this._salesSync,
     required this._customers,
+    required this._suppliers,
     required this._businessId,
   });
 
@@ -44,11 +48,12 @@ class SyncEngine extends ChangeNotifier {
   final ProductRepository _products;
   final SalesSyncRepository _salesSync;
   final CustomerRepository _customers;
+  final SupplierRepository _suppliers;
   final String _businessId;
 
   Future<SyncSummary> syncNow() async {
     bool reachable = false;
-    int pushed = 0, pulledP = 0, pulledC = 0, pulledS = 0;
+    int pushed = 0, pulledP = 0, pulledC = 0, pulledS = 0, pulledSup = 0;
     try {
       reachable = await _api.health();
     } catch (_) {
@@ -61,7 +66,8 @@ class SyncEngine extends ChangeNotifier {
         final pull = await _pull();
         pulledP = pull.$1;
         pulledC = pull.$2;
-        pulledS = pull.$3;
+        pulledSup = pull.$3;
+        pulledS = pull.$4;
       } on HttpException catch (e, st) {
         if (e.statusCode == 401) {
           // Graceful abort on auth error. Session expiry is handled by AuthStateNotifier.
@@ -89,6 +95,7 @@ class SyncEngine extends ChangeNotifier {
       pushed: pushed,
       pulledProducts: pulledP,
       pulledCustomers: pulledC,
+      pulledSuppliers: pulledSup,
       pulledSales: pulledS,
       counts: counts,
     );
@@ -103,6 +110,7 @@ class SyncEngine extends ChangeNotifier {
       final productItems = due.where((d) => d.entityType == 'product').toList();
       final saleItems = due.where((d) => d.entityType == 'sale').toList();
       final customerItems = due.where((d) => d.entityType == 'customer').toList();
+      final supplierItems = due.where((d) => d.entityType == 'supplier').toList();
 
       for (final item in productItems) {
         await _pushProduct(item);
@@ -114,6 +122,10 @@ class SyncEngine extends ChangeNotifier {
       }
       for (final item in customerItems) {
         await _pushCustomer(item);
+        pushed++;
+      }
+      for (final item in supplierItems) {
+        await _pushSupplier(item);
         pushed++;
       }
     }
@@ -194,7 +206,7 @@ class SyncEngine extends ChangeNotifier {
             final dateStr = parts[parts.length - 2];
             final branchId = parts.sublist(0, parts.length - 2).join('-');
             print('[DEBUG] bumping sequence for business=$_businessId, branch=$branchId, date=$dateStr');
-            await _salesSync.bumpReceiptSequence(_businessId, branchId, dateStr);
+            await _salesSync.bumpReceiptSequence(_businessId, branchId, dateStr, int.parse(sequence));
             print('[DEBUG] bump done');
           }
         } else {
@@ -266,7 +278,51 @@ class SyncEngine extends ChangeNotifier {
     }
   }
 
-  Future<(int, int, int)> _pull() async {
+  Future<void> _pushSupplier(SyncOutboxItem item) async {
+    final dto = SupplierDto.fromJson(
+      jsonDecode(item.payloadJson) as Map<String, dynamic>,
+    );
+    final now = DateTime.now().millisecondsSinceEpoch;
+    try {
+      SupplierPushResult res;
+      if (item.operation == 'create') {
+        res = await _api.createSupplier(dto, idempotencyKey: item.idempotencyKey!);
+      } else if (item.operation == 'delete') {
+        res = await _api.deleteSupplier(dto, idempotencyKey: item.idempotencyKey!);
+      } else {
+        res = await _api.pushSupplier(dto, ifMatchVersion: dto.serverVersion, idempotencyKey: item.idempotencyKey!);
+      }
+      if (res.ok) {
+        await _outbox.markSynced(item.id);
+        await _suppliers.markSyncedAfterPush(
+          dto.id,
+          res.serverVersion ?? dto.serverVersion,
+        );
+      } else if (res.error == 'VALIDATION_ERROR' || res.error == 'IDEMPOTENCY_KEY_REUSE' || res.error == 'INSUFFICIENT_PERMISSIONS' || res.error == 'SUPPLIER_ID_CONFLICT') {
+        await _outbox.markFailed(item.id, res.error!);
+      } else if (res.conflict) {
+        await _outbox.markConflict(
+          item.id,
+          jsonEncode(res.serverState?.toJson() ?? {}),
+          res.error ?? 'SUPPLIER_VERSION_CONFLICT',
+        );
+      } else {
+        await _outbox.markRetry(item.id, now, res.error ?? 'unknown');
+      }
+    } catch (e, st) {
+      if (e is HttpException && e.statusCode != null && e.statusCode! >= 500) {
+        Sentry.captureException(e, stackTrace: st, withScope: (scope) {
+          scope.setTag('operation', 'pushSupplier');
+          if (e.requestId != null) scope.setTag('request_id', e.requestId!);
+        });
+      } else if (e is! HttpException && e is! NetworkException) {
+        Sentry.captureException(e, stackTrace: st, withScope: (scope) => scope.setTag('operation', 'pushSupplier'));
+      }
+      await _outbox.markRetry(item.id, now, e.toString());
+    }
+  }
+
+  Future<(int, int, int, int)> _pull() async {
     // Pull products (skip local dirty — policy B)
     int pulledP = 0;
     final sinceV = await _products.maxServerVersion(_businessId);
@@ -289,21 +345,32 @@ class SyncEngine extends ChangeNotifier {
       if (await _customers.applyServerSync(dto, _businessId)) pulledC++;
     }
 
+    // Pull suppliers (skip local dirty — policy B)
+    int pulledSup = 0;
+    final sinceSV = await _suppliers.maxServerVersion(_businessId);
+    final sres = await _api.pullSuppliers(
+      businessId: _businessId,
+      sinceVersion: sinceSV,
+    );
+    for (final dto in sres.suppliers) {
+      if (await _suppliers.applyServerSync(dto, _businessId)) pulledSup++;
+    }
+
     // Pull sales (append-only, never overwrite)
     int pulledS = 0;
     final sinceMs = await _meta.getInt('sales_pull_cursor');
-    final sres = await _api.pullSales(
+    final salesRes = await _api.pullSales(
       businessId: _businessId,
       sinceMs: sinceMs,
     );
     int maxCursor = sinceMs;
-    for (final sale in sres.sales) {
+    for (final sale in salesRes.sales) {
       if (await _salesSync.insertIfAbsent(sale, _businessId)) pulledS++;
       final ts = sale.serverCreatedAt ?? sale.clientCreatedAt;
       if (ts > maxCursor) maxCursor = ts;
     }
     await _meta.setInt('sales_pull_cursor', maxCursor);
 
-    return (pulledP, pulledC, pulledS);
+    return (pulledP, pulledC, pulledSup, pulledS);
   }
 }

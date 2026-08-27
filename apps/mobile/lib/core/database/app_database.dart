@@ -11,6 +11,7 @@ import 'tables/products_local.dart';
 import 'tables/receipt_sequences_local.dart';
 import 'tables/sale_items_local.dart';
 import 'tables/sales_local.dart';
+import 'tables/suppliers_local.dart';
 import 'tables/sync_meta.dart';
 import 'tables/sync_outbox.dart';
 
@@ -27,6 +28,7 @@ part 'app_database.g.dart';
     CustomersLocal,
     SalesLocal,
     SaleItemsLocal,
+    SuppliersLocal,
     PaymentsLocal,
     ReceiptSequencesLocal,
     LocalIdempotencyKeys,
@@ -41,7 +43,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.memory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -159,6 +161,15 @@ class AppDatabase extends _$AppDatabase {
           await customStatement(
             'ALTER TABLE business_settings_local ADD COLUMN settings_json TEXT NOT NULL DEFAULT \'{}\'',
           );
+        }
+      }
+      if (from < 9) {
+        // V9: Add suppliers_local table for Mobile Supplier sync (Phase 9A.4)
+        final tables = await customSelect(
+          "SELECT name FROM sqlite_master WHERE type='table' AND name='suppliers_local'",
+        ).get();
+        if (tables.isEmpty) {
+          await m.createTable(suppliersLocal);
         }
       }
     },

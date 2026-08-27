@@ -331,3 +331,81 @@ class CustomerPushResult {
     this.error,
   });
 }
+
+class SupplierDto {
+  final String id;
+  final String name;
+  final String? code;
+  final String? contact;
+  final String? phone;
+  final String? email;
+  final String category;
+  final String term;
+  final bool isActive;
+  final int serverVersion;
+  final int? deletedAt;
+
+  const SupplierDto({
+    required this.id,
+    required this.name,
+    this.code,
+    this.contact,
+    this.phone,
+    this.email,
+    required this.category,
+    required this.term,
+    required this.isActive,
+    required this.serverVersion,
+    this.deletedAt,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'code': code,
+    'contact': contact,
+    'phone': phone,
+    'email': email,
+    'category': category,
+    'term': term,
+    'is_active': isActive ? 1 : 0,
+    'server_version': serverVersion,
+    'deleted_at': deletedAt,
+  };
+
+  factory SupplierDto.fromJson(Map<String, dynamic> j) => SupplierDto(
+    id: j['id'] as String,
+    name: j['name'] as String,
+    code: j['code'] as String?,
+    contact: j['contact'] as String?,
+    phone: j['phone'] as String?,
+    email: j['email'] as String?,
+    category: j['category'] as String? ?? '',
+    term: j['term'] as String? ?? 'tunai',
+    isActive: (j['is_active'] as int?) == 1,
+    serverVersion: (j['server_version'] as num).toInt(),
+    deletedAt: (j['deleted_at'] as num?)?.toInt(),
+  );
+}
+
+class PullSuppliersResponse {
+  final List<SupplierDto> suppliers;
+  final bool hasMore;
+  final int currentVersion;
+  const PullSuppliersResponse(this.suppliers, this.hasMore, this.currentVersion);
+}
+
+class SupplierPushResult {
+  final bool ok;
+  final int? serverVersion;
+  final bool conflict;
+  final SupplierDto? serverState;
+  final String? error;
+  const SupplierPushResult({
+    this.ok = false,
+    this.serverVersion,
+    this.conflict = false,
+    this.serverState,
+    this.error,
+  });
+}

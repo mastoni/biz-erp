@@ -10,6 +10,8 @@ import 'package:biz_erp_mobile/core/sync/sync_outbox_repository.dart';
 import 'package:biz_erp_mobile/products/presentation/product_list_screen.dart';
 import 'package:biz_erp_mobile/customers/presentation/customer_list_screen.dart';
 import 'package:biz_erp_mobile/customers/data/customer_repository.dart';
+import 'package:biz_erp_mobile/suppliers/data/supplier_repository.dart';
+import 'package:biz_erp_mobile/suppliers/presentation/supplier_list_screen.dart';
 import 'widgets/conflict_list_sheet.dart';
 import 'package:biz_erp_mobile/core/auth/auth_state_notifier.dart';
 
@@ -21,14 +23,16 @@ class PosScreen extends StatefulWidget {
   final CustomerRepository? customerRepo;
   final SyncOutboxRepository? outboxRepo;
   final AuthStateNotifier? authStateNotifier;
+  final SupplierRepository? supplierRepo;
 
   const PosScreen({
     super.key,
     required this.controller,
-    this.scannerService,
+    this.scannerService, // optional agar test lama tetap jalan
     this.syncStatusNotifier,
     this.productRepo,
     this.customerRepo,
+    this.supplierRepo,
     this.outboxRepo,
     this.authStateNotifier,
   });
@@ -201,6 +205,32 @@ class _PosScreenState extends State<PosScreen> {
                   builder: (_) => CustomerListScreen(
                     businessId: widget.authStateNotifier!.businessId!,
                     customerRepo: widget.customerRepo!,
+                    outboxRepo: widget.outboxRepo!,
+                    syncStatusNotifier: widget.syncStatusNotifier!,
+                    userRole: widget.authStateNotifier!.session?.role ?? 'CASHIER',
+                  ),
+                ),
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.local_shipping),
+            title: const Text('Kelola Supplier'),
+            subtitle: const Text('Tambah, edit, nonaktifkan supplier'),
+            onTap: () {
+              Navigator.pop(context);
+              if (widget.supplierRepo == null || widget.outboxRepo == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Manajemen supplier belum diaktifkan')),
+                );
+                return;
+              }
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => SupplierListScreen(
+                    businessId: widget.authStateNotifier!.businessId!,
+                    supplierRepo: widget.supplierRepo!,
                     outboxRepo: widget.outboxRepo!,
                     syncStatusNotifier: widget.syncStatusNotifier!,
                     userRole: widget.authStateNotifier!.session?.role ?? 'CASHIER',

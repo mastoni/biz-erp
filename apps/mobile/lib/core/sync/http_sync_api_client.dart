@@ -270,6 +270,64 @@ class HttpSyncApiClient implements SyncApiClient {
   }
 
   @override
+  Future<PullSuppliersResponse> pullSuppliers({
+    required String businessId,
+    required int sinceVersion,
+    int limit = 500,
+  }) async {
+    final uri = Uri.parse('$baseUrl/v1/sync/suppliers').replace(
+      queryParameters: {
+        'business_id': businessId,
+        'after_version': sinceVersion.toString(),
+        'limit': limit.clamp(1, 500).toString(),
+      },
+    );
+
+    http.Response? response;
+    for (int attempt = 1; attempt <= 2; attempt++) {
+      response = await _client
+          .get(uri, headers: _headers)
+          .timeout(_timeout);
+
+      if (response.statusCode == 401 && attempt == 1 && _onRefresh != null) {
+        final result = await _onRefresh();
+        if (result == RefreshResult.success) {
+          continue;
+        } else {
+          break;
+        }
+      }
+      break;
+    }
+
+    if (response!.statusCode != 200) {
+      throw HttpException(
+        'Failed to pull suppliers: HTTP ${response.statusCode}',
+        statusCode: response.statusCode,
+        requestId: response.headers['x-request-id'],
+      );
+    }
+
+    try {
+      final json = jsonDecode(response.body) as Map<String, dynamic>;
+      final items = json['items'] as List? ?? [];
+      final hasMore = json['has_more'] as bool? ?? false;
+      final currentVersion = json['current_version'] as int? ?? 0;
+
+      final suppliers = items
+          .map((item) => SupplierDto.fromJson(item as Map<String, dynamic>))
+          .toList();
+
+      return PullSuppliersResponse(suppliers, hasMore, currentVersion);
+    } catch (e) {
+      throw MalformedResponseException(
+        'Failed to parse pull suppliers response',
+        e,
+      );
+    }
+  }
+
+  @override
   Future<PullSalesResponse> pullSales({
     required String businessId,
     required int sinceMs,
@@ -777,6 +835,193 @@ Map<String, dynamic> _saleDtoToBatchItem(SaleDto sale) {
       return CustomerPushResult(ok: false, error: 'HTTP ${response.statusCode}');
     } catch (e) {
       return CustomerPushResult(ok: false, error: e.toString());
+    }
+  }
+
+  @override
+  Future<SupplierPushResult> pushSupplier(
+    SupplierDto supplier, {
+    int? ifMatchVersion,
+    required String idempotencyKey,
+  }) async {
+    final uri = Uri.parse('$baseUrl/v1/sync/suppliers/${supplier.id}');
+    final body = {
+      'business_id': _businessId ?? '',
+      'expected_server_version': ifMatchVersion ?? supplier.serverVersion,
+      'name': supplier.name,
+      'code': supplier.code,
+      'contact': supplier.contact,
+      'phone': supplier.phone,
+      'email': supplier.email,
+      'category': supplier.category,
+      'term': supplier.term,
+      'is_active': supplier.isActive ? 1 : 0,
+    };
+
+    try {
+      http.Response? response;
+      for (int attempt = 1; attempt <= 2; attempt++) {
+        response = await _client
+            .put(uri, headers: {..._headers, 'Idempotency-Key': idempotencyKey}, body: jsonEncode(body))
+            .timeout(_timeout);
+
+        if (response.statusCode == 401 && attempt == 1 && _onRefresh != null) {
+          final result = await _onRefresh();
+          if (result == RefreshResult.success) {
+            continue;
+          } else {
+            break;
+          }
+        }
+        break;
+      }
+
+      if (response!.statusCode == 200) {
+        final json = jsonDecode(response.body) as Map<String, dynamic>;
+        return SupplierPushResult(
+          ok: true,
+          serverVersion: json['server_version'] as int?,
+        );
+      } else if (response.statusCode == 409) {
+        try {
+          final json = jsonDecode(response.body) as Map<String, dynamic>;
+          final errorObj = json['error'] as Map<String, dynamic>?;
+          final code = errorObj?['code'] as String? ?? 'VERSION_CONFLICT';
+          final details = errorObj?['details'] as Map<String, dynamic>?;
+          final currentSupplier = details?['current_supplier'] as Map<String, dynamic>?;
+
+          final serverState = currentSupplier != null
+              ? SupplierDto.fromJson(currentSupplier)
+              : null;
+
+          return SupplierPushResult(
+            ok: false,
+            conflict: true,
+            serverState: serverState,
+            error: code,
+          );
+        } catch (e) {
+          return SupplierPushResult(
+            ok: false,
+            conflict: true,
+            error: 'VERSION_CONFLICT (malformed response)',
+          );
+        }
+      } else if (response.statusCode == 400) {
+        final json = jsonDecode(response.body) as Map<String, dynamic>;
+        return SupplierPushResult(
+          ok: false,
+          error: json['error'] as String? ?? 'Validation error',
+        );
+      } else if (response.statusCode == 403) {
+        return SupplierPushResult(ok: false, error: 'INSUFFICIENT_PERMISSIONS');
+      } else if (response.statusCode == 404) {
+        return SupplierPushResult(ok: false, error: 'NOT_FOUND');
+      } else if (response.statusCode >= 500) {
+        throw HttpException(
+          'Server error: HTTP ${response.statusCode}',
+          statusCode: response.statusCode,
+          requestId: response.headers['x-request-id'],
+        );
+      } else {
+        throw HttpException(
+          'Unexpected error: HTTP ${response.statusCode}',
+          statusCode: response.statusCode,
+          requestId: response.headers['x-request-id'],
+        );
+      }
+    } catch (e) {
+      if (e is HttpException || e is MalformedResponseException) {
+        rethrow;
+      }
+      throw NetworkException('Network error during push supplier', e);
+    }
+  }
+
+  @override
+  Future<SupplierPushResult> createSupplier(SupplierDto supplier, {required String idempotencyKey}) async {
+    final uri = Uri.parse('$baseUrl/v1/sync/suppliers');
+    final body = {
+      'business_id': _businessId ?? '',
+      'id': supplier.id,
+      'name': supplier.name,
+      'code': supplier.code,
+      'contact': supplier.contact,
+      'phone': supplier.phone,
+      'email': supplier.email,
+      'category': supplier.category,
+      'term': supplier.term,
+      'is_active': supplier.isActive ? 1 : 0,
+    };
+    try {
+      http.Response? response;
+      for (int attempt = 1; attempt <= 2; attempt++) {
+        response = await _client.post(uri, headers: {..._headers, 'Idempotency-Key': idempotencyKey}, body: jsonEncode(body)).timeout(_timeout);
+
+        if (response.statusCode == 401 && attempt == 1 && _onRefresh != null) {
+          final result = await _onRefresh();
+          if (result == RefreshResult.success) {
+            continue;
+          } else {
+            break;
+          }
+        }
+        break;
+      }
+
+      if (response!.statusCode == 201) {
+        final json = jsonDecode(response.body) as Map<String, dynamic>;
+        return SupplierPushResult(ok: true, serverVersion: json['server_version'] as int?);
+      } else if (response.statusCode == 409) {
+        final json = jsonDecode(response.body) as Map<String, dynamic>;
+        final code = (json['error'] as Map<String, dynamic>?)?['code'] as String?;
+        if (code == 'IDEMPOTENCY_KEY_REUSE' || code == 'SUPPLIER_ID_CONFLICT') return SupplierPushResult(ok: false, error: code);
+        return SupplierPushResult(ok: false, conflict: true, error: code ?? 'VERSION_CONFLICT');
+      } else if (response.statusCode == 400) {
+        return SupplierPushResult(ok: false, error: 'VALIDATION_ERROR');
+      } else if (response.statusCode == 403) {
+        return SupplierPushResult(ok: false, error: 'INSUFFICIENT_PERMISSIONS');
+      }
+      return SupplierPushResult(ok: false, error: 'HTTP ${response.statusCode}');
+    } catch (e) {
+      return SupplierPushResult(ok: false, error: e.toString());
+    }
+  }
+
+  @override
+  Future<SupplierPushResult> deleteSupplier(SupplierDto supplier, {required String idempotencyKey}) async {
+    final uri = Uri.parse('$baseUrl/v1/sync/suppliers/${supplier.id}');
+    try {
+      http.Response? response;
+      for (int attempt = 1; attempt <= 2; attempt++) {
+        response = await _client.delete(uri, headers: {..._headers, 'Idempotency-Key': idempotencyKey}).timeout(_timeout);
+
+        if (response.statusCode == 401 && attempt == 1 && _onRefresh != null) {
+          final result = await _onRefresh();
+          if (result == RefreshResult.success) {
+            continue;
+          } else {
+            break;
+          }
+        }
+        break;
+      }
+
+      if (response!.statusCode == 204) {
+        return SupplierPushResult(ok: true, serverVersion: supplier.serverVersion + 1);
+      } else if (response.statusCode == 404) {
+        return SupplierPushResult(ok: true, serverVersion: supplier.serverVersion + 1);
+      } else if (response.statusCode == 409) {
+        final json = jsonDecode(response.body) as Map<String, dynamic>;
+        final code = (json['error'] as Map<String, dynamic>?)?['code'] as String?;
+        if (code == 'IDEMPOTENCY_KEY_REUSE') return SupplierPushResult(ok: false, error: code);
+        return SupplierPushResult(ok: false, conflict: true, error: code ?? 'VERSION_CONFLICT');
+      } else if (response.statusCode == 403) {
+        return SupplierPushResult(ok: false, error: 'INSUFFICIENT_PERMISSIONS');
+      }
+      return SupplierPushResult(ok: false, error: 'HTTP ${response.statusCode}');
+    } catch (e) {
+      return SupplierPushResult(ok: false, error: e.toString());
     }
   }
 

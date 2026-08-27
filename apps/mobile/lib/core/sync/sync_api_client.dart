@@ -16,6 +16,12 @@ abstract class SyncApiClient {
     int limit = 500,
   });
 
+  Future<PullSuppliersResponse> pullSuppliers({
+    required String businessId,
+    required int sinceVersion,
+    int limit = 500,
+  });
+
   Future<PullSalesResponse> pullSales({
     required String businessId,
     required int sinceMs,
@@ -57,6 +63,22 @@ abstract class SyncApiClient {
 
   Future<CustomerPushResult> deleteCustomer(
     CustomerDto customer, {
+    required String idempotencyKey,
+  });
+
+  Future<SupplierPushResult> pushSupplier(
+    SupplierDto supplier, {
+    int? ifMatchVersion,
+    required String idempotencyKey,
+  });
+
+  Future<SupplierPushResult> createSupplier(
+    SupplierDto supplier, {
+    required String idempotencyKey,
+  });
+
+  Future<SupplierPushResult> deleteSupplier(
+    SupplierDto supplier, {
     required String idempotencyKey,
   });
 }
