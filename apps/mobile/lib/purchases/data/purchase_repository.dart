@@ -3,6 +3,7 @@ import 'package:biz_erp_mobile/core/database/app_database.dart';
 import 'package:biz_erp_mobile/purchases/domain/purchase.dart';
 import 'package:biz_erp_mobile/core/sync/sync_models.dart';
 import 'package:biz_erp_mobile/core/sync/sync_outbox_repository.dart';
+import 'package:biz_erp_mobile/core/sync/sync_api_client.dart';
 import 'package:uuid/uuid.dart';
 
 class PurchaseRepository {
@@ -444,5 +445,54 @@ class PurchaseRepository {
             ..where((t) => t.businessId.equals(businessId)))
           .go();
     });
+  }
+
+  /// Sends a draft PO to the supplier (draft -> sent).
+  /// This is an ONLINE ONLY operation. If offline, throws StateError.
+  /// Uses optimistic concurrency with expected server version.
+  /// Returns the updated Purchase on success, throws on conflict/error.
+  Future<Purchase> sendPurchase(
+    String id,
+    String businessId,
+    String branchId, {
+    required SyncApiClient syncApiClient,
+    required String idempotencyKey,
+  }) async {
+    // Verify local PO exists and is in draft status
+    final existing = await getPurchaseById(id, businessId, branchId);
+    if (existing == null) {
+      throw ArgumentError('Pesanan pembelian tidak ditemukan');
+    }
+    if (existing.status != 'draft') {
+      throw StateError('Hanya PO draft yang dapat dikirim ke supplier');
+    }
+    if (!existing.isDirty) {
+      // If already synced, use server version
+    }
+    
+    // Call API to send purchase
+    final result = await syncApiClient.sendPurchase(
+      id: id,
+      ifMatchVersion: existing.serverVersion > 0 ? existing.serverVersion : null,
+      idempotencyKey: idempotencyKey,
+    );
+
+    if (!result.ok) {
+      if (result.conflict) {
+        throw StateError('Konflik versi: data di server telah berubah. Silakan muat ulang dan coba lagi.');
+      }
+      throw StateError('Gagal mengirim PO: ${result.error ?? 'Unknown error'}');
+    }
+
+    // If server returned new state, apply it
+    if (result.serverState != null) {
+      await applyServerSync(result.serverState!, businessId);
+      // Re-fetch to get updated local data
+      return (await getPurchaseById(id, businessId, branchId))!;
+    } else {
+      // Mark as synced with new version
+      await markSyncedAfterPush(id, result.serverVersion ?? existing.serverVersion + 1);
+      return (await getPurchaseById(id, businessId, branchId))!;
+    }
   }
 }

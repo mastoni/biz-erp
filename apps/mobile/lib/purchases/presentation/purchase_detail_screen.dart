@@ -4,6 +4,7 @@ import 'package:biz_erp_mobile/core/sync/sync_api_client.dart';
 import 'package:biz_erp_mobile/core/sync/sync_models.dart';
 import 'package:biz_erp_mobile/purchases/data/purchase_repository.dart';
 import 'package:biz_erp_mobile/purchases/domain/purchase.dart';
+import 'package:uuid/uuid.dart';
 import 'purchase_status_badge.dart';
 
 class PurchaseDetailScreen extends StatefulWidget {
@@ -37,6 +38,7 @@ class _PurchaseDetailScreenState extends State<PurchaseDetailScreen> {
   List<PurchasePaymentDto> _onlinePayments = [];
   bool _isLoadingPayments = false;
   bool _isPaymentFetchFailed = false;
+  bool _isSending = false;
 
   @override
   void initState() {
@@ -106,6 +108,60 @@ class _PurchaseDetailScreenState extends State<PurchaseDetailScreen> {
         _isPaymentFetchFailed = true;
       });
     }
+  }
+
+  Future<void> _sendPurchase() async {
+    final po = _purchase!;
+    if (!widget.isOnline || widget.syncApiClient == null) {
+      _showSnackBar('Tidak dapat mengirim PO: mode offline', isError: true);
+      return;
+    }
+    if (widget.userRole != 'OWNER') {
+      _showSnackBar('Hanya OWNER yang dapat mengirim PO ke supplier', isError: true);
+      return;
+    }
+    if (po.status != 'draft') {
+      _showSnackBar('Hanya PO draft yang dapat dikirim ke supplier', isError: true);
+      return;
+    }
+
+    setState(() => _isSending = true);
+
+    try {
+      final idempotencyKey = const Uuid().v4();
+      final updatedPo = await widget.purchaseRepo.sendPurchase(
+        po.id,
+        widget.businessId,
+        widget.branchId,
+        syncApiClient: widget.syncApiClient!,
+        idempotencyKey: idempotencyKey,
+      );
+
+      if (!mounted) return;
+      _showSnackBar('PO berhasil dikirim ke supplier', isError: false);
+      setState(() {
+        _purchase = updatedPo;
+        _isSending = false;
+      });
+    } on StateError catch (e) {
+      if (!mounted) return;
+      _showSnackBar(e.message, isError: true);
+      setState(() => _isSending = false);
+    } catch (e) {
+      if (!mounted) return;
+      _showSnackBar('Gagal mengirim PO: $e', isError: true);
+      setState(() => _isSending = false);
+    }
+  }
+
+  void _showSnackBar(String message, {required bool isError}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? Colors.red.shade700 : const Color(0xFF17593E),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   @override
@@ -188,7 +244,7 @@ class _PurchaseDetailScreenState extends State<PurchaseDetailScreen> {
           const SizedBox(height: 16),
           _buildPaymentHistoryCard(po),
           const SizedBox(height: 16),
-          _buildActionPlaceholderCard(po),
+          _buildActionCard(po),
           const SizedBox(height: 24),
         ],
       ),
@@ -526,25 +582,137 @@ class _PurchaseDetailScreenState extends State<PurchaseDetailScreen> {
     );
   }
 
-  Widget _buildActionPlaceholderCard(Purchase po) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF0EFE7),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.grey.shade300),
+  Widget _buildActionCard(Purchase po) {
+    final canSend = widget.isOnline &&
+        widget.syncApiClient != null &&
+        widget.userRole == 'OWNER' &&
+        po.status == 'draft';
+
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.grey.shade300),
       ),
-      child: Row(
-        children: [
-          Icon(Icons.info_outline, size: 20, color: Colors.grey.shade700),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              'Aksi operasional (Terima Barang, Pembayaran, dsb.) akan aktif pada tahap berikutnya.',
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade800),
-            ),
-          ),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (po.status == 'draft') ...[
+              const Text(
+                'PO ini masih berstatus Draft.',
+                style: TextStyle(fontSize: 13, color: Colors.black87),
+              ),
+              const SizedBox(height: 12),
+              if (canSend)
+                FilledButton.icon(
+                  key: const Key('send_po_button'),
+                  onPressed: _isSending ? null : _sendPurchase,
+                  icon: _isSending
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Icon(Icons.send_outlined, size: 18),
+                  label: Text(_isSending ? 'Mengirim...' : 'Kirim ke Supplier'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF17593E),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                )
+              else if (widget.isOnline && widget.syncApiClient != null && widget.userRole != 'OWNER')
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.lock_outline, size: 18, color: Colors.grey.shade600),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Hanya OWNER yang dapat mengirim PO ke supplier.',
+                          style: TextStyle(fontSize: 12, color: Colors.grey.shade800),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else if (!widget.isOnline || widget.syncApiClient == null)
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.wifi_off_outlined, size: 18, color: Colors.amber.shade800),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Perlu koneksi internet untuk mengirim PO.',
+                          style: TextStyle(fontSize: 12, color: Colors.amber.shade900),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                const SizedBox.shrink(),
+            ] else if (po.status == 'sent' || po.status == 'partial' || po.status == 'received') ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF0EFE7),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, size: 20, color: Colors.grey.shade700),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'PO sudah dikirim ke supplier. Aksi penerimaan dan pembayaran tersedia pada status terkait.',
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade800),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ] else if (po.status == 'cancelled') ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.cancel_outlined, size: 20, color: Colors.red.shade700),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'PO telah dibatalkan. Tidak ada aksi lebih lanjut.',
+                        style: TextStyle(fontSize: 12, color: Colors.red.shade900),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }

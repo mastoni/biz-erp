@@ -13,6 +13,9 @@ import 'package:biz_erp_mobile/purchases/presentation/purchase_status_badge.dart
 class FakeSyncApiClient implements SyncApiClient {
   PurchaseDto? detailResponse;
   bool throwError = false;
+  PurchasePushResult? sendResult;
+  String? capturedIdempotencyKey;
+  int? capturedIfMatchVersion;
 
   @override
   Future<PurchaseDto> getPurchase({required String id}) async {
@@ -43,6 +46,17 @@ class FakeSyncApiClient implements SyncApiClient {
         ),
       ],
     );
+  }
+
+  @override
+  Future<PurchasePushResult> sendPurchase({
+    required String id,
+    int? ifMatchVersion,
+    required String idempotencyKey,
+  }) async {
+    capturedIdempotencyKey = idempotencyKey;
+    capturedIfMatchVersion = ifMatchVersion;
+    return sendResult ?? PurchasePushResult(ok: true, serverVersion: 2);
   }
 
   @override
@@ -732,9 +746,10 @@ void main() {
     });
 
     // -----------------------------------------------------------------------
-    // MOBILE-PURCHASE-UI-021: No mutation actions implemented
+    // MOBILE-PURCHASE-UI-021: No mutation actions (except Send for OWNER on draft)
     // -----------------------------------------------------------------------
-    testWidgets('MOBILE-PURCHASE-UI-021: No mutation actions (send/receive/pay/cancel) implemented', (tester) async {
+    testWidgets('MOBILE-PURCHASE-UI-021: Send available for OWNER on draft; receive/pay/cancel not implemented', (tester) async {
+      final fakeApi = FakeSyncApiClient();
       await seed(
         PurchaseDto(
           id: 'po-nomut',
@@ -752,16 +767,58 @@ void main() {
         'biz-1',
       );
 
-      await tester.pumpWidget(buildDetailApp(purchaseId: 'po-nomut', businessId: 'biz-1', branchId: 'br-1', userRole: 'OWNER'));
+      await tester.pumpWidget(buildDetailApp(
+        purchaseId: 'po-nomut',
+        businessId: 'biz-1',
+        branchId: 'br-1',
+        userRole: 'OWNER',
+        syncApiClient: fakeApi,
+      ));
       await tester.pumpAndSettle();
 
-      // No operational mutation controls are present in 9B.7.1
+      // Send action IS available for OWNER on draft (Phase 9B.7.3A)
+      expect(find.text('Kirim ke Supplier'), findsOneWidget);
+      // But receive/pay/cancel are NOT implemented yet
+      expect(find.text('Terima Barang (+ Stok)'), findsNothing);
+      expect(find.text('Batalkan PO'), findsNothing);
+      expect(find.text('Bayar Sekarang'), findsNothing);
+    });
+
+    // -----------------------------------------------------------------------
+    // MOBILE-PURCHASE-UI-021b: CASHIER cannot see Send on draft
+    // -----------------------------------------------------------------------
+    testWidgets('MOBILE-PURCHASE-UI-021b: CASHIER cannot see Send action on draft', (tester) async {
+      await seed(
+        PurchaseDto(
+          id: 'po-nomut2',
+          businessId: 'biz-1',
+          branchId: 'br-1',
+          supplierId: 'sup-1',
+          code: 'PO/NOMUT2',
+          date: '2026-08-20',
+          dueDate: '2026-08-20',
+          supplierTerm: 'Tunai',
+          status: 'draft',
+          totalMinor: 100000,
+          serverVersion: 1,
+        ),
+        'biz-1',
+      );
+
+      await tester.pumpWidget(buildDetailApp(
+        purchaseId: 'po-nomut2',
+        businessId: 'biz-1',
+        branchId: 'br-1',
+        userRole: 'CASHIER',
+        syncApiClient: FakeSyncApiClient(),
+      ));
+      await tester.pumpAndSettle();
+
+      // CASHIER cannot see Send action
       expect(find.text('Kirim ke Supplier'), findsNothing);
       expect(find.text('Terima Barang (+ Stok)'), findsNothing);
       expect(find.text('Batalkan PO'), findsNothing);
       expect(find.text('Bayar Sekarang'), findsNothing);
-      // Future actions are explained, not enabled
-      expect(find.textContaining('Aksi operasional'), findsOneWidget);
     });
 
     // -----------------------------------------------------------------------
