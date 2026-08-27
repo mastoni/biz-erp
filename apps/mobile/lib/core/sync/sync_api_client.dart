@@ -1,4 +1,4 @@
-﻿import 'sync_models.dart';
+import 'sync_models.dart';
 import 'store_settings_models.dart';
 
 abstract class SyncApiClient {
@@ -80,5 +80,59 @@ abstract class SyncApiClient {
   Future<SupplierPushResult> deleteSupplier(
     SupplierDto supplier, {
     required String idempotencyKey,
+  });
+
+  Future<PullPurchasesResponse> pullPurchases({
+    required String businessId,
+    required String branchId,
+    required int sinceVersion,
+    int limit = 500,
+  });
+
+  Future<PurchasePushResult> createPurchaseDraft(
+    PurchaseDto purchase, {
+    required String idempotencyKey,
+  });
+
+  Future<PurchasePushResult> updatePurchaseDraft(
+    PurchaseDto purchase, {
+    int? ifMatchVersion,
+    required String idempotencyKey,
+  });
+
+  Future<PurchaseDto> getPurchase({
+    required String id,
+  });
+
+  Future<PurchasePushResult> sendPurchase({
+    required String id,
+    int? ifMatchVersion,
+    required String idempotencyKey,
+  });
+
+  Future<PurchasePushResult> receivePurchase({
+    required String id,
+    required List<Map<String, dynamic>> items,
+    int? ifMatchVersion,
+    required String idempotencyKey,
+  });
+
+  Future<PurchasePushResult> payPurchase({
+    required String id,
+    required int amountMinor,
+    required String method,
+    String? reference,
+    int? ifMatchVersion,
+    required String idempotencyKey,
+  });
+
+  Future<PurchasePushResult> cancelPurchase({
+    required String id,
+    int? ifMatchVersion,
+    required String idempotencyKey,
+  });
+
+  Future<PurchasePushResult> deleteDraftPurchase({
+    required String id,
   });
 }

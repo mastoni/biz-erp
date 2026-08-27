@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
@@ -233,6 +233,38 @@ class SyncOutboxRepository {
         entityType: 'supplier',
         operation: 'create',
         payloadJson: jsonEncode(supplier.toJson()),
+        idempotencyKey: Value(idempotencyKey ?? _uuid.v4()),
+        nextAttemptAt: 0,
+        createdAt: DateTime.now().millisecondsSinceEpoch,
+      ),
+    );
+    return id;
+  }
+
+  Future<String> enqueuePurchaseCreate(PurchaseDto purchase, {String? idempotencyKey}) async {
+    final id = _uuid.v4();
+    await _db.into(_db.syncOutbox).insert(
+      SyncOutboxCompanion.insert(
+        id: id,
+        entityType: 'purchase',
+        operation: 'create',
+        payloadJson: jsonEncode(purchase.toJson()),
+        idempotencyKey: Value(idempotencyKey ?? _uuid.v4()),
+        nextAttemptAt: 0,
+        createdAt: DateTime.now().millisecondsSinceEpoch,
+      ),
+    );
+    return id;
+  }
+
+  Future<String> enqueuePurchaseUpsert(PurchaseDto purchase, {String? idempotencyKey}) async {
+    final id = _uuid.v4();
+    await _db.into(_db.syncOutbox).insert(
+      SyncOutboxCompanion.insert(
+        id: id,
+        entityType: 'purchase',
+        operation: 'upsert',
+        payloadJson: jsonEncode(purchase.toJson()),
         idempotencyKey: Value(idempotencyKey ?? _uuid.v4()),
         nextAttemptAt: 0,
         createdAt: DateTime.now().millisecondsSinceEpoch,

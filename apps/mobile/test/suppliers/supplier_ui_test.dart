@@ -12,6 +12,7 @@ import 'package:biz_erp_mobile/core/auth/auth_state_notifier.dart';
 import 'package:biz_erp_mobile/core/auth/auth_models.dart';
 import 'package:biz_erp_mobile/core/auth/auth_repository.dart';
 import 'package:biz_erp_mobile/suppliers/data/supplier_repository.dart';
+import 'package:biz_erp_mobile/purchases/data/purchase_repository.dart';
 import 'package:biz_erp_mobile/suppliers/domain/supplier.dart';
 import 'package:biz_erp_mobile/suppliers/presentation/supplier_list_screen.dart';
 import 'package:biz_erp_mobile/suppliers/presentation/supplier_edit_screen.dart';
@@ -70,11 +71,19 @@ class _FakeOutbox implements SyncOutboxRepository {
   @override
   Future<String> enqueueSupplierUpsert(SupplierDto supplier, {String? idempotencyKey}) async => '';
   @override
+  Future<String> enqueuePurchaseCreate(PurchaseDto purchase, {String? idempotencyKey}) async => '';
+  @override
+  Future<String> enqueuePurchaseUpsert(PurchaseDto purchase, {String? idempotencyKey}) async => '';
+  @override
   Future<List<SyncOutboxItem>> fetchDue(int now, {int limit = 100}) async => [];
 }
 
 class _FakeSyncEngine extends ChangeNotifier implements SyncEngine {
   int syncNowCallCount = 0;
+  @override
+  PurchaseRepository? get purchases => null;
+  @override
+  String? get branchId => null;
   @override
   Future<SyncSummary> syncNow() async {
     syncNowCallCount++;

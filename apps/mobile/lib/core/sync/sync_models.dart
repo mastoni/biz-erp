@@ -409,3 +409,234 @@ class SupplierPushResult {
     this.error,
   });
 }
+
+// ---------------------------------------------------------------------------
+// Purchase DTOs (Phase 9B.6)
+// ---------------------------------------------------------------------------
+
+class PurchaseItemDto {
+  final String id;
+  final String? purchaseId;
+  final String? productId;
+  final String productName;
+  final int orderedQty;
+  final int receivedQty;
+  final int unitCostMinor;
+  final int subtotalMinor;
+
+  const PurchaseItemDto({
+    required this.id,
+    this.purchaseId,
+    this.productId,
+    required this.productName,
+    required this.orderedQty,
+    this.receivedQty = 0,
+    required this.unitCostMinor,
+    required this.subtotalMinor,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    if (purchaseId != null) 'purchase_id': purchaseId,
+    'product_id': productId,
+    'product_name': productName,
+    'ordered_qty': orderedQty,
+    'received_qty': receivedQty,
+    'unit_cost_minor': unitCostMinor,
+    'subtotal_minor': subtotalMinor,
+  };
+
+  factory PurchaseItemDto.fromJson(Map<String, dynamic> j) => PurchaseItemDto(
+    id: j['id'] as String,
+    purchaseId: j['purchase_id'] as String?,
+    productId: j['product_id'] as String?,
+    productName: j['product_name'] as String? ?? 'Item',
+    orderedQty: (j['ordered_qty'] as num?)?.toInt() ?? 0,
+    receivedQty: (j['received_qty'] as num?)?.toInt() ?? 0,
+    unitCostMinor: (j['unit_cost_minor'] as num?)?.toInt() ?? 0,
+    subtotalMinor: (j['subtotal_minor'] as num?)?.toInt() ?? 0,
+  );
+}
+
+class PurchasePaymentDto {
+  final String id;
+  final String businessId;
+  final String purchaseId;
+  final int amountMinor;
+  final String method;
+  final String? reference;
+  final String idempotencyKey;
+  final String createdAt;
+
+  const PurchasePaymentDto({
+    required this.id,
+    required this.businessId,
+    required this.purchaseId,
+    required this.amountMinor,
+    required this.method,
+    this.reference,
+    required this.idempotencyKey,
+    required this.createdAt,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'business_id': businessId,
+    'purchase_id': purchaseId,
+    'amount_minor': amountMinor,
+    'method': method,
+    'reference': reference,
+    'idempotency_key': idempotencyKey,
+    'created_at': createdAt,
+  };
+
+  factory PurchasePaymentDto.fromJson(Map<String, dynamic> j) => PurchasePaymentDto(
+    id: j['id'] as String,
+    businessId: j['business_id'] as String? ?? '',
+    purchaseId: j['purchase_id'] as String? ?? '',
+    amountMinor: (j['amount_minor'] as num?)?.toInt() ?? 0,
+    method: j['method'] as String? ?? 'cash',
+    reference: j['reference'] as String?,
+    idempotencyKey: j['idempotency_key'] as String? ?? '',
+    createdAt: j['created_at']?.toString() ?? '',
+  );
+}
+
+class PurchaseDto {
+  final String id;
+  final String businessId;
+  final String branchId;
+  final String supplierId;
+  final String? supplierName;
+  final String? supplierCode;
+  final String code;
+  final String date;
+  final String dueDate;
+  final String supplierTerm;
+  final String status;
+  final int totalMinor;
+  final int receivedMinor;
+  final int paidMinor;
+  final int outstandingMinor;
+  final String? note;
+  final int serverVersion;
+  final int? createdAt;
+  final int? updatedAt;
+  final int? deletedAt;
+  final List<PurchaseItemDto> items;
+  final List<PurchasePaymentDto> payments;
+
+  const PurchaseDto({
+    required this.id,
+    required this.businessId,
+    required this.branchId,
+    required this.supplierId,
+    this.supplierName,
+    this.supplierCode,
+    required this.code,
+    required this.date,
+    required this.dueDate,
+    required this.supplierTerm,
+    required this.status,
+    required this.totalMinor,
+    this.receivedMinor = 0,
+    this.paidMinor = 0,
+    this.outstandingMinor = 0,
+    this.note,
+    required this.serverVersion,
+    this.createdAt,
+    this.updatedAt,
+    this.deletedAt,
+    this.items = const [],
+    this.payments = const [],
+  });
+
+  static int? _parseTimestamp(dynamic val) {
+    if (val == null) return null;
+    if (val is num) return val.toInt();
+    if (val is String) {
+      final parsed = DateTime.tryParse(val);
+      if (parsed != null) return parsed.millisecondsSinceEpoch;
+    }
+    return null;
+  }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'business_id': businessId,
+    'branch_id': branchId,
+    'supplier_id': supplierId,
+    'supplier_name': supplierName,
+    'supplier_code': supplierCode,
+    'code': code,
+    'date': date,
+    'due_date': dueDate,
+    'supplier_term': supplierTerm,
+    'status': status,
+    'total_minor': totalMinor,
+    'received_minor': receivedMinor,
+    'paid_minor': paidMinor,
+    'outstanding_minor': outstandingMinor,
+    'note': note,
+    'server_version': serverVersion,
+    'created_at': createdAt,
+    'updated_at': updatedAt,
+    'deleted_at': deletedAt,
+    'items': items.map((e) => e.toJson()).toList(),
+    'payments': payments.map((e) => e.toJson()).toList(),
+  };
+
+  factory PurchaseDto.fromJson(Map<String, dynamic> j) => PurchaseDto(
+    id: j['id'] as String,
+    businessId: j['business_id'] as String? ?? '',
+    branchId: j['branch_id'] as String? ?? '',
+    supplierId: j['supplier_id'] as String? ?? '',
+    supplierName: j['supplier_name'] as String?,
+    supplierCode: j['supplier_code'] as String?,
+    code: j['code'] as String? ?? '',
+    date: j['date'] as String? ?? '',
+    dueDate: j['due_date'] as String? ?? '',
+    supplierTerm: j['supplier_term'] as String? ?? 'Tunai',
+    status: j['status'] as String? ?? 'draft',
+    totalMinor: (j['total_minor'] as num?)?.toInt() ?? 0,
+    receivedMinor: (j['received_minor'] as num?)?.toInt() ?? 0,
+    paidMinor: (j['paid_minor'] as num?)?.toInt() ?? 0,
+    outstandingMinor: (j['outstanding_minor'] as num?)?.toInt() ?? 0,
+    note: j['note'] as String?,
+    serverVersion: (j['server_version'] as num?)?.toInt() ?? 1,
+    createdAt: _parseTimestamp(j['created_at']),
+    updatedAt: _parseTimestamp(j['updated_at']),
+    deletedAt: _parseTimestamp(j['deleted_at']),
+    items: (j['items'] as List?)
+            ?.map((e) => PurchaseItemDto.fromJson(e as Map<String, dynamic>))
+            .toList() ??
+        const [],
+    payments: (j['payments'] as List?)
+            ?.map((e) => PurchasePaymentDto.fromJson(e as Map<String, dynamic>))
+            .toList() ??
+        const [],
+  );
+}
+
+class PullPurchasesResponse {
+  final List<PurchaseDto> purchases;
+  final bool hasMore;
+  final int currentVersion;
+  const PullPurchasesResponse(this.purchases, this.hasMore, this.currentVersion);
+}
+
+class PurchasePushResult {
+  final bool ok;
+  final int? serverVersion;
+  final bool conflict;
+  final PurchaseDto? serverState;
+  final String? error;
+  const PurchasePushResult({
+    this.ok = false,
+    this.serverVersion,
+    this.conflict = false,
+    this.serverState,
+    this.error,
+  });
+}
+

@@ -5948,6 +5948,1749 @@ class SuppliersLocalCompanion extends UpdateCompanion<SuppliersLocalData> {
   }
 }
 
+class $PurchasesLocalTable extends PurchasesLocal
+    with TableInfo<$PurchasesLocalTable, PurchasesLocalData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PurchasesLocalTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _businessIdMeta = const VerificationMeta(
+    'businessId',
+  );
+  @override
+  late final GeneratedColumn<String> businessId = GeneratedColumn<String>(
+    'business_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _branchIdMeta = const VerificationMeta(
+    'branchId',
+  );
+  @override
+  late final GeneratedColumn<String> branchId = GeneratedColumn<String>(
+    'branch_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _supplierIdMeta = const VerificationMeta(
+    'supplierId',
+  );
+  @override
+  late final GeneratedColumn<String> supplierId = GeneratedColumn<String>(
+    'supplier_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _supplierNameMeta = const VerificationMeta(
+    'supplierName',
+  );
+  @override
+  late final GeneratedColumn<String> supplierName = GeneratedColumn<String>(
+    'supplier_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _supplierCodeMeta = const VerificationMeta(
+    'supplierCode',
+  );
+  @override
+  late final GeneratedColumn<String> supplierCode = GeneratedColumn<String>(
+    'supplier_code',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _codeMeta = const VerificationMeta('code');
+  @override
+  late final GeneratedColumn<String> code = GeneratedColumn<String>(
+    'code',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _dateMeta = const VerificationMeta('date');
+  @override
+  late final GeneratedColumn<String> date = GeneratedColumn<String>(
+    'date',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _dueDateMeta = const VerificationMeta(
+    'dueDate',
+  );
+  @override
+  late final GeneratedColumn<String> dueDate = GeneratedColumn<String>(
+    'due_date',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _supplierTermMeta = const VerificationMeta(
+    'supplierTerm',
+  );
+  @override
+  late final GeneratedColumn<String> supplierTerm = GeneratedColumn<String>(
+    'supplier_term',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('Tunai'),
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('draft'),
+  );
+  static const VerificationMeta _totalMinorMeta = const VerificationMeta(
+    'totalMinor',
+  );
+  @override
+  late final GeneratedColumn<int> totalMinor = GeneratedColumn<int>(
+    'total_minor',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _receivedMinorMeta = const VerificationMeta(
+    'receivedMinor',
+  );
+  @override
+  late final GeneratedColumn<int> receivedMinor = GeneratedColumn<int>(
+    'received_minor',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _paidMinorMeta = const VerificationMeta(
+    'paidMinor',
+  );
+  @override
+  late final GeneratedColumn<int> paidMinor = GeneratedColumn<int>(
+    'paid_minor',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _outstandingMinorMeta = const VerificationMeta(
+    'outstandingMinor',
+  );
+  @override
+  late final GeneratedColumn<int> outstandingMinor = GeneratedColumn<int>(
+    'outstanding_minor',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _noteMeta = const VerificationMeta('note');
+  @override
+  late final GeneratedColumn<String> note = GeneratedColumn<String>(
+    'note',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _serverVersionMeta = const VerificationMeta(
+    'serverVersion',
+  );
+  @override
+  late final GeneratedColumn<int> serverVersion = GeneratedColumn<int>(
+    'server_version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _localStatusMeta = const VerificationMeta(
+    'localStatus',
+  );
+  @override
+  late final GeneratedColumn<String> localStatus = GeneratedColumn<String>(
+    'local_status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('synced'),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<int> deletedAt = GeneratedColumn<int>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastSyncedAtMeta = const VerificationMeta(
+    'lastSyncedAt',
+  );
+  @override
+  late final GeneratedColumn<int> lastSyncedAt = GeneratedColumn<int>(
+    'last_synced_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    businessId,
+    branchId,
+    supplierId,
+    supplierName,
+    supplierCode,
+    code,
+    date,
+    dueDate,
+    supplierTerm,
+    status,
+    totalMinor,
+    receivedMinor,
+    paidMinor,
+    outstandingMinor,
+    note,
+    serverVersion,
+    localStatus,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    lastSyncedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'purchases_local';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<PurchasesLocalData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('business_id')) {
+      context.handle(
+        _businessIdMeta,
+        businessId.isAcceptableOrUnknown(data['business_id']!, _businessIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_businessIdMeta);
+    }
+    if (data.containsKey('branch_id')) {
+      context.handle(
+        _branchIdMeta,
+        branchId.isAcceptableOrUnknown(data['branch_id']!, _branchIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_branchIdMeta);
+    }
+    if (data.containsKey('supplier_id')) {
+      context.handle(
+        _supplierIdMeta,
+        supplierId.isAcceptableOrUnknown(data['supplier_id']!, _supplierIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_supplierIdMeta);
+    }
+    if (data.containsKey('supplier_name')) {
+      context.handle(
+        _supplierNameMeta,
+        supplierName.isAcceptableOrUnknown(
+          data['supplier_name']!,
+          _supplierNameMeta,
+        ),
+      );
+    }
+    if (data.containsKey('supplier_code')) {
+      context.handle(
+        _supplierCodeMeta,
+        supplierCode.isAcceptableOrUnknown(
+          data['supplier_code']!,
+          _supplierCodeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('code')) {
+      context.handle(
+        _codeMeta,
+        code.isAcceptableOrUnknown(data['code']!, _codeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_codeMeta);
+    }
+    if (data.containsKey('date')) {
+      context.handle(
+        _dateMeta,
+        date.isAcceptableOrUnknown(data['date']!, _dateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_dateMeta);
+    }
+    if (data.containsKey('due_date')) {
+      context.handle(
+        _dueDateMeta,
+        dueDate.isAcceptableOrUnknown(data['due_date']!, _dueDateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_dueDateMeta);
+    }
+    if (data.containsKey('supplier_term')) {
+      context.handle(
+        _supplierTermMeta,
+        supplierTerm.isAcceptableOrUnknown(
+          data['supplier_term']!,
+          _supplierTermMeta,
+        ),
+      );
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
+    if (data.containsKey('total_minor')) {
+      context.handle(
+        _totalMinorMeta,
+        totalMinor.isAcceptableOrUnknown(data['total_minor']!, _totalMinorMeta),
+      );
+    }
+    if (data.containsKey('received_minor')) {
+      context.handle(
+        _receivedMinorMeta,
+        receivedMinor.isAcceptableOrUnknown(
+          data['received_minor']!,
+          _receivedMinorMeta,
+        ),
+      );
+    }
+    if (data.containsKey('paid_minor')) {
+      context.handle(
+        _paidMinorMeta,
+        paidMinor.isAcceptableOrUnknown(data['paid_minor']!, _paidMinorMeta),
+      );
+    }
+    if (data.containsKey('outstanding_minor')) {
+      context.handle(
+        _outstandingMinorMeta,
+        outstandingMinor.isAcceptableOrUnknown(
+          data['outstanding_minor']!,
+          _outstandingMinorMeta,
+        ),
+      );
+    }
+    if (data.containsKey('note')) {
+      context.handle(
+        _noteMeta,
+        note.isAcceptableOrUnknown(data['note']!, _noteMeta),
+      );
+    }
+    if (data.containsKey('server_version')) {
+      context.handle(
+        _serverVersionMeta,
+        serverVersion.isAcceptableOrUnknown(
+          data['server_version']!,
+          _serverVersionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('local_status')) {
+      context.handle(
+        _localStatusMeta,
+        localStatus.isAcceptableOrUnknown(
+          data['local_status']!,
+          _localStatusMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    if (data.containsKey('last_synced_at')) {
+      context.handle(
+        _lastSyncedAtMeta,
+        lastSyncedAt.isAcceptableOrUnknown(
+          data['last_synced_at']!,
+          _lastSyncedAtMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  PurchasesLocalData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PurchasesLocalData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      businessId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}business_id'],
+      )!,
+      branchId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}branch_id'],
+      )!,
+      supplierId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}supplier_id'],
+      )!,
+      supplierName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}supplier_name'],
+      ),
+      supplierCode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}supplier_code'],
+      ),
+      code: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}code'],
+      )!,
+      date: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}date'],
+      )!,
+      dueDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}due_date'],
+      )!,
+      supplierTerm: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}supplier_term'],
+      )!,
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      totalMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}total_minor'],
+      )!,
+      receivedMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}received_minor'],
+      )!,
+      paidMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}paid_minor'],
+      )!,
+      outstandingMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}outstanding_minor'],
+      )!,
+      note: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}note'],
+      ),
+      serverVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}server_version'],
+      )!,
+      localStatus: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}local_status'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}deleted_at'],
+      ),
+      lastSyncedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_synced_at'],
+      ),
+    );
+  }
+
+  @override
+  $PurchasesLocalTable createAlias(String alias) {
+    return $PurchasesLocalTable(attachedDatabase, alias);
+  }
+}
+
+class PurchasesLocalData extends DataClass
+    implements Insertable<PurchasesLocalData> {
+  final String id;
+  final String businessId;
+  final String branchId;
+  final String supplierId;
+  final String? supplierName;
+  final String? supplierCode;
+  final String code;
+  final String date;
+  final String dueDate;
+  final String supplierTerm;
+  final String status;
+  final int totalMinor;
+  final int receivedMinor;
+  final int paidMinor;
+  final int outstandingMinor;
+  final String? note;
+  final int serverVersion;
+  final String localStatus;
+  final int createdAt;
+  final int updatedAt;
+  final int? deletedAt;
+  final int? lastSyncedAt;
+  const PurchasesLocalData({
+    required this.id,
+    required this.businessId,
+    required this.branchId,
+    required this.supplierId,
+    this.supplierName,
+    this.supplierCode,
+    required this.code,
+    required this.date,
+    required this.dueDate,
+    required this.supplierTerm,
+    required this.status,
+    required this.totalMinor,
+    required this.receivedMinor,
+    required this.paidMinor,
+    required this.outstandingMinor,
+    this.note,
+    required this.serverVersion,
+    required this.localStatus,
+    required this.createdAt,
+    required this.updatedAt,
+    this.deletedAt,
+    this.lastSyncedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['business_id'] = Variable<String>(businessId);
+    map['branch_id'] = Variable<String>(branchId);
+    map['supplier_id'] = Variable<String>(supplierId);
+    if (!nullToAbsent || supplierName != null) {
+      map['supplier_name'] = Variable<String>(supplierName);
+    }
+    if (!nullToAbsent || supplierCode != null) {
+      map['supplier_code'] = Variable<String>(supplierCode);
+    }
+    map['code'] = Variable<String>(code);
+    map['date'] = Variable<String>(date);
+    map['due_date'] = Variable<String>(dueDate);
+    map['supplier_term'] = Variable<String>(supplierTerm);
+    map['status'] = Variable<String>(status);
+    map['total_minor'] = Variable<int>(totalMinor);
+    map['received_minor'] = Variable<int>(receivedMinor);
+    map['paid_minor'] = Variable<int>(paidMinor);
+    map['outstanding_minor'] = Variable<int>(outstandingMinor);
+    if (!nullToAbsent || note != null) {
+      map['note'] = Variable<String>(note);
+    }
+    map['server_version'] = Variable<int>(serverVersion);
+    map['local_status'] = Variable<String>(localStatus);
+    map['created_at'] = Variable<int>(createdAt);
+    map['updated_at'] = Variable<int>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<int>(deletedAt);
+    }
+    if (!nullToAbsent || lastSyncedAt != null) {
+      map['last_synced_at'] = Variable<int>(lastSyncedAt);
+    }
+    return map;
+  }
+
+  PurchasesLocalCompanion toCompanion(bool nullToAbsent) {
+    return PurchasesLocalCompanion(
+      id: Value(id),
+      businessId: Value(businessId),
+      branchId: Value(branchId),
+      supplierId: Value(supplierId),
+      supplierName: supplierName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(supplierName),
+      supplierCode: supplierCode == null && nullToAbsent
+          ? const Value.absent()
+          : Value(supplierCode),
+      code: Value(code),
+      date: Value(date),
+      dueDate: Value(dueDate),
+      supplierTerm: Value(supplierTerm),
+      status: Value(status),
+      totalMinor: Value(totalMinor),
+      receivedMinor: Value(receivedMinor),
+      paidMinor: Value(paidMinor),
+      outstandingMinor: Value(outstandingMinor),
+      note: note == null && nullToAbsent ? const Value.absent() : Value(note),
+      serverVersion: Value(serverVersion),
+      localStatus: Value(localStatus),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+      lastSyncedAt: lastSyncedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastSyncedAt),
+    );
+  }
+
+  factory PurchasesLocalData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PurchasesLocalData(
+      id: serializer.fromJson<String>(json['id']),
+      businessId: serializer.fromJson<String>(json['businessId']),
+      branchId: serializer.fromJson<String>(json['branchId']),
+      supplierId: serializer.fromJson<String>(json['supplierId']),
+      supplierName: serializer.fromJson<String?>(json['supplierName']),
+      supplierCode: serializer.fromJson<String?>(json['supplierCode']),
+      code: serializer.fromJson<String>(json['code']),
+      date: serializer.fromJson<String>(json['date']),
+      dueDate: serializer.fromJson<String>(json['dueDate']),
+      supplierTerm: serializer.fromJson<String>(json['supplierTerm']),
+      status: serializer.fromJson<String>(json['status']),
+      totalMinor: serializer.fromJson<int>(json['totalMinor']),
+      receivedMinor: serializer.fromJson<int>(json['receivedMinor']),
+      paidMinor: serializer.fromJson<int>(json['paidMinor']),
+      outstandingMinor: serializer.fromJson<int>(json['outstandingMinor']),
+      note: serializer.fromJson<String?>(json['note']),
+      serverVersion: serializer.fromJson<int>(json['serverVersion']),
+      localStatus: serializer.fromJson<String>(json['localStatus']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+      deletedAt: serializer.fromJson<int?>(json['deletedAt']),
+      lastSyncedAt: serializer.fromJson<int?>(json['lastSyncedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'businessId': serializer.toJson<String>(businessId),
+      'branchId': serializer.toJson<String>(branchId),
+      'supplierId': serializer.toJson<String>(supplierId),
+      'supplierName': serializer.toJson<String?>(supplierName),
+      'supplierCode': serializer.toJson<String?>(supplierCode),
+      'code': serializer.toJson<String>(code),
+      'date': serializer.toJson<String>(date),
+      'dueDate': serializer.toJson<String>(dueDate),
+      'supplierTerm': serializer.toJson<String>(supplierTerm),
+      'status': serializer.toJson<String>(status),
+      'totalMinor': serializer.toJson<int>(totalMinor),
+      'receivedMinor': serializer.toJson<int>(receivedMinor),
+      'paidMinor': serializer.toJson<int>(paidMinor),
+      'outstandingMinor': serializer.toJson<int>(outstandingMinor),
+      'note': serializer.toJson<String?>(note),
+      'serverVersion': serializer.toJson<int>(serverVersion),
+      'localStatus': serializer.toJson<String>(localStatus),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+      'deletedAt': serializer.toJson<int?>(deletedAt),
+      'lastSyncedAt': serializer.toJson<int?>(lastSyncedAt),
+    };
+  }
+
+  PurchasesLocalData copyWith({
+    String? id,
+    String? businessId,
+    String? branchId,
+    String? supplierId,
+    Value<String?> supplierName = const Value.absent(),
+    Value<String?> supplierCode = const Value.absent(),
+    String? code,
+    String? date,
+    String? dueDate,
+    String? supplierTerm,
+    String? status,
+    int? totalMinor,
+    int? receivedMinor,
+    int? paidMinor,
+    int? outstandingMinor,
+    Value<String?> note = const Value.absent(),
+    int? serverVersion,
+    String? localStatus,
+    int? createdAt,
+    int? updatedAt,
+    Value<int?> deletedAt = const Value.absent(),
+    Value<int?> lastSyncedAt = const Value.absent(),
+  }) => PurchasesLocalData(
+    id: id ?? this.id,
+    businessId: businessId ?? this.businessId,
+    branchId: branchId ?? this.branchId,
+    supplierId: supplierId ?? this.supplierId,
+    supplierName: supplierName.present ? supplierName.value : this.supplierName,
+    supplierCode: supplierCode.present ? supplierCode.value : this.supplierCode,
+    code: code ?? this.code,
+    date: date ?? this.date,
+    dueDate: dueDate ?? this.dueDate,
+    supplierTerm: supplierTerm ?? this.supplierTerm,
+    status: status ?? this.status,
+    totalMinor: totalMinor ?? this.totalMinor,
+    receivedMinor: receivedMinor ?? this.receivedMinor,
+    paidMinor: paidMinor ?? this.paidMinor,
+    outstandingMinor: outstandingMinor ?? this.outstandingMinor,
+    note: note.present ? note.value : this.note,
+    serverVersion: serverVersion ?? this.serverVersion,
+    localStatus: localStatus ?? this.localStatus,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+    lastSyncedAt: lastSyncedAt.present ? lastSyncedAt.value : this.lastSyncedAt,
+  );
+  PurchasesLocalData copyWithCompanion(PurchasesLocalCompanion data) {
+    return PurchasesLocalData(
+      id: data.id.present ? data.id.value : this.id,
+      businessId: data.businessId.present
+          ? data.businessId.value
+          : this.businessId,
+      branchId: data.branchId.present ? data.branchId.value : this.branchId,
+      supplierId: data.supplierId.present
+          ? data.supplierId.value
+          : this.supplierId,
+      supplierName: data.supplierName.present
+          ? data.supplierName.value
+          : this.supplierName,
+      supplierCode: data.supplierCode.present
+          ? data.supplierCode.value
+          : this.supplierCode,
+      code: data.code.present ? data.code.value : this.code,
+      date: data.date.present ? data.date.value : this.date,
+      dueDate: data.dueDate.present ? data.dueDate.value : this.dueDate,
+      supplierTerm: data.supplierTerm.present
+          ? data.supplierTerm.value
+          : this.supplierTerm,
+      status: data.status.present ? data.status.value : this.status,
+      totalMinor: data.totalMinor.present
+          ? data.totalMinor.value
+          : this.totalMinor,
+      receivedMinor: data.receivedMinor.present
+          ? data.receivedMinor.value
+          : this.receivedMinor,
+      paidMinor: data.paidMinor.present ? data.paidMinor.value : this.paidMinor,
+      outstandingMinor: data.outstandingMinor.present
+          ? data.outstandingMinor.value
+          : this.outstandingMinor,
+      note: data.note.present ? data.note.value : this.note,
+      serverVersion: data.serverVersion.present
+          ? data.serverVersion.value
+          : this.serverVersion,
+      localStatus: data.localStatus.present
+          ? data.localStatus.value
+          : this.localStatus,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+      lastSyncedAt: data.lastSyncedAt.present
+          ? data.lastSyncedAt.value
+          : this.lastSyncedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PurchasesLocalData(')
+          ..write('id: $id, ')
+          ..write('businessId: $businessId, ')
+          ..write('branchId: $branchId, ')
+          ..write('supplierId: $supplierId, ')
+          ..write('supplierName: $supplierName, ')
+          ..write('supplierCode: $supplierCode, ')
+          ..write('code: $code, ')
+          ..write('date: $date, ')
+          ..write('dueDate: $dueDate, ')
+          ..write('supplierTerm: $supplierTerm, ')
+          ..write('status: $status, ')
+          ..write('totalMinor: $totalMinor, ')
+          ..write('receivedMinor: $receivedMinor, ')
+          ..write('paidMinor: $paidMinor, ')
+          ..write('outstandingMinor: $outstandingMinor, ')
+          ..write('note: $note, ')
+          ..write('serverVersion: $serverVersion, ')
+          ..write('localStatus: $localStatus, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('lastSyncedAt: $lastSyncedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hashAll([
+    id,
+    businessId,
+    branchId,
+    supplierId,
+    supplierName,
+    supplierCode,
+    code,
+    date,
+    dueDate,
+    supplierTerm,
+    status,
+    totalMinor,
+    receivedMinor,
+    paidMinor,
+    outstandingMinor,
+    note,
+    serverVersion,
+    localStatus,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    lastSyncedAt,
+  ]);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PurchasesLocalData &&
+          other.id == this.id &&
+          other.businessId == this.businessId &&
+          other.branchId == this.branchId &&
+          other.supplierId == this.supplierId &&
+          other.supplierName == this.supplierName &&
+          other.supplierCode == this.supplierCode &&
+          other.code == this.code &&
+          other.date == this.date &&
+          other.dueDate == this.dueDate &&
+          other.supplierTerm == this.supplierTerm &&
+          other.status == this.status &&
+          other.totalMinor == this.totalMinor &&
+          other.receivedMinor == this.receivedMinor &&
+          other.paidMinor == this.paidMinor &&
+          other.outstandingMinor == this.outstandingMinor &&
+          other.note == this.note &&
+          other.serverVersion == this.serverVersion &&
+          other.localStatus == this.localStatus &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt &&
+          other.lastSyncedAt == this.lastSyncedAt);
+}
+
+class PurchasesLocalCompanion extends UpdateCompanion<PurchasesLocalData> {
+  final Value<String> id;
+  final Value<String> businessId;
+  final Value<String> branchId;
+  final Value<String> supplierId;
+  final Value<String?> supplierName;
+  final Value<String?> supplierCode;
+  final Value<String> code;
+  final Value<String> date;
+  final Value<String> dueDate;
+  final Value<String> supplierTerm;
+  final Value<String> status;
+  final Value<int> totalMinor;
+  final Value<int> receivedMinor;
+  final Value<int> paidMinor;
+  final Value<int> outstandingMinor;
+  final Value<String?> note;
+  final Value<int> serverVersion;
+  final Value<String> localStatus;
+  final Value<int> createdAt;
+  final Value<int> updatedAt;
+  final Value<int?> deletedAt;
+  final Value<int?> lastSyncedAt;
+  final Value<int> rowid;
+  const PurchasesLocalCompanion({
+    this.id = const Value.absent(),
+    this.businessId = const Value.absent(),
+    this.branchId = const Value.absent(),
+    this.supplierId = const Value.absent(),
+    this.supplierName = const Value.absent(),
+    this.supplierCode = const Value.absent(),
+    this.code = const Value.absent(),
+    this.date = const Value.absent(),
+    this.dueDate = const Value.absent(),
+    this.supplierTerm = const Value.absent(),
+    this.status = const Value.absent(),
+    this.totalMinor = const Value.absent(),
+    this.receivedMinor = const Value.absent(),
+    this.paidMinor = const Value.absent(),
+    this.outstandingMinor = const Value.absent(),
+    this.note = const Value.absent(),
+    this.serverVersion = const Value.absent(),
+    this.localStatus = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.lastSyncedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  PurchasesLocalCompanion.insert({
+    required String id,
+    required String businessId,
+    required String branchId,
+    required String supplierId,
+    this.supplierName = const Value.absent(),
+    this.supplierCode = const Value.absent(),
+    required String code,
+    required String date,
+    required String dueDate,
+    this.supplierTerm = const Value.absent(),
+    this.status = const Value.absent(),
+    this.totalMinor = const Value.absent(),
+    this.receivedMinor = const Value.absent(),
+    this.paidMinor = const Value.absent(),
+    this.outstandingMinor = const Value.absent(),
+    this.note = const Value.absent(),
+    this.serverVersion = const Value.absent(),
+    this.localStatus = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.lastSyncedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       businessId = Value(businessId),
+       branchId = Value(branchId),
+       supplierId = Value(supplierId),
+       code = Value(code),
+       date = Value(date),
+       dueDate = Value(dueDate);
+  static Insertable<PurchasesLocalData> custom({
+    Expression<String>? id,
+    Expression<String>? businessId,
+    Expression<String>? branchId,
+    Expression<String>? supplierId,
+    Expression<String>? supplierName,
+    Expression<String>? supplierCode,
+    Expression<String>? code,
+    Expression<String>? date,
+    Expression<String>? dueDate,
+    Expression<String>? supplierTerm,
+    Expression<String>? status,
+    Expression<int>? totalMinor,
+    Expression<int>? receivedMinor,
+    Expression<int>? paidMinor,
+    Expression<int>? outstandingMinor,
+    Expression<String>? note,
+    Expression<int>? serverVersion,
+    Expression<String>? localStatus,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+    Expression<int>? deletedAt,
+    Expression<int>? lastSyncedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (businessId != null) 'business_id': businessId,
+      if (branchId != null) 'branch_id': branchId,
+      if (supplierId != null) 'supplier_id': supplierId,
+      if (supplierName != null) 'supplier_name': supplierName,
+      if (supplierCode != null) 'supplier_code': supplierCode,
+      if (code != null) 'code': code,
+      if (date != null) 'date': date,
+      if (dueDate != null) 'due_date': dueDate,
+      if (supplierTerm != null) 'supplier_term': supplierTerm,
+      if (status != null) 'status': status,
+      if (totalMinor != null) 'total_minor': totalMinor,
+      if (receivedMinor != null) 'received_minor': receivedMinor,
+      if (paidMinor != null) 'paid_minor': paidMinor,
+      if (outstandingMinor != null) 'outstanding_minor': outstandingMinor,
+      if (note != null) 'note': note,
+      if (serverVersion != null) 'server_version': serverVersion,
+      if (localStatus != null) 'local_status': localStatus,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (lastSyncedAt != null) 'last_synced_at': lastSyncedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  PurchasesLocalCompanion copyWith({
+    Value<String>? id,
+    Value<String>? businessId,
+    Value<String>? branchId,
+    Value<String>? supplierId,
+    Value<String?>? supplierName,
+    Value<String?>? supplierCode,
+    Value<String>? code,
+    Value<String>? date,
+    Value<String>? dueDate,
+    Value<String>? supplierTerm,
+    Value<String>? status,
+    Value<int>? totalMinor,
+    Value<int>? receivedMinor,
+    Value<int>? paidMinor,
+    Value<int>? outstandingMinor,
+    Value<String?>? note,
+    Value<int>? serverVersion,
+    Value<String>? localStatus,
+    Value<int>? createdAt,
+    Value<int>? updatedAt,
+    Value<int?>? deletedAt,
+    Value<int?>? lastSyncedAt,
+    Value<int>? rowid,
+  }) {
+    return PurchasesLocalCompanion(
+      id: id ?? this.id,
+      businessId: businessId ?? this.businessId,
+      branchId: branchId ?? this.branchId,
+      supplierId: supplierId ?? this.supplierId,
+      supplierName: supplierName ?? this.supplierName,
+      supplierCode: supplierCode ?? this.supplierCode,
+      code: code ?? this.code,
+      date: date ?? this.date,
+      dueDate: dueDate ?? this.dueDate,
+      supplierTerm: supplierTerm ?? this.supplierTerm,
+      status: status ?? this.status,
+      totalMinor: totalMinor ?? this.totalMinor,
+      receivedMinor: receivedMinor ?? this.receivedMinor,
+      paidMinor: paidMinor ?? this.paidMinor,
+      outstandingMinor: outstandingMinor ?? this.outstandingMinor,
+      note: note ?? this.note,
+      serverVersion: serverVersion ?? this.serverVersion,
+      localStatus: localStatus ?? this.localStatus,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      lastSyncedAt: lastSyncedAt ?? this.lastSyncedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (businessId.present) {
+      map['business_id'] = Variable<String>(businessId.value);
+    }
+    if (branchId.present) {
+      map['branch_id'] = Variable<String>(branchId.value);
+    }
+    if (supplierId.present) {
+      map['supplier_id'] = Variable<String>(supplierId.value);
+    }
+    if (supplierName.present) {
+      map['supplier_name'] = Variable<String>(supplierName.value);
+    }
+    if (supplierCode.present) {
+      map['supplier_code'] = Variable<String>(supplierCode.value);
+    }
+    if (code.present) {
+      map['code'] = Variable<String>(code.value);
+    }
+    if (date.present) {
+      map['date'] = Variable<String>(date.value);
+    }
+    if (dueDate.present) {
+      map['due_date'] = Variable<String>(dueDate.value);
+    }
+    if (supplierTerm.present) {
+      map['supplier_term'] = Variable<String>(supplierTerm.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (totalMinor.present) {
+      map['total_minor'] = Variable<int>(totalMinor.value);
+    }
+    if (receivedMinor.present) {
+      map['received_minor'] = Variable<int>(receivedMinor.value);
+    }
+    if (paidMinor.present) {
+      map['paid_minor'] = Variable<int>(paidMinor.value);
+    }
+    if (outstandingMinor.present) {
+      map['outstanding_minor'] = Variable<int>(outstandingMinor.value);
+    }
+    if (note.present) {
+      map['note'] = Variable<String>(note.value);
+    }
+    if (serverVersion.present) {
+      map['server_version'] = Variable<int>(serverVersion.value);
+    }
+    if (localStatus.present) {
+      map['local_status'] = Variable<String>(localStatus.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<int>(deletedAt.value);
+    }
+    if (lastSyncedAt.present) {
+      map['last_synced_at'] = Variable<int>(lastSyncedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PurchasesLocalCompanion(')
+          ..write('id: $id, ')
+          ..write('businessId: $businessId, ')
+          ..write('branchId: $branchId, ')
+          ..write('supplierId: $supplierId, ')
+          ..write('supplierName: $supplierName, ')
+          ..write('supplierCode: $supplierCode, ')
+          ..write('code: $code, ')
+          ..write('date: $date, ')
+          ..write('dueDate: $dueDate, ')
+          ..write('supplierTerm: $supplierTerm, ')
+          ..write('status: $status, ')
+          ..write('totalMinor: $totalMinor, ')
+          ..write('receivedMinor: $receivedMinor, ')
+          ..write('paidMinor: $paidMinor, ')
+          ..write('outstandingMinor: $outstandingMinor, ')
+          ..write('note: $note, ')
+          ..write('serverVersion: $serverVersion, ')
+          ..write('localStatus: $localStatus, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('lastSyncedAt: $lastSyncedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $PurchaseItemsLocalTable extends PurchaseItemsLocal
+    with TableInfo<$PurchaseItemsLocalTable, PurchaseItemsLocalData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PurchaseItemsLocalTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _purchaseIdMeta = const VerificationMeta(
+    'purchaseId',
+  );
+  @override
+  late final GeneratedColumn<String> purchaseId = GeneratedColumn<String>(
+    'purchase_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _productIdMeta = const VerificationMeta(
+    'productId',
+  );
+  @override
+  late final GeneratedColumn<String> productId = GeneratedColumn<String>(
+    'product_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _productNameMeta = const VerificationMeta(
+    'productName',
+  );
+  @override
+  late final GeneratedColumn<String> productName = GeneratedColumn<String>(
+    'product_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _orderedQtyMeta = const VerificationMeta(
+    'orderedQty',
+  );
+  @override
+  late final GeneratedColumn<int> orderedQty = GeneratedColumn<int>(
+    'ordered_qty',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _receivedQtyMeta = const VerificationMeta(
+    'receivedQty',
+  );
+  @override
+  late final GeneratedColumn<int> receivedQty = GeneratedColumn<int>(
+    'received_qty',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _unitCostMinorMeta = const VerificationMeta(
+    'unitCostMinor',
+  );
+  @override
+  late final GeneratedColumn<int> unitCostMinor = GeneratedColumn<int>(
+    'unit_cost_minor',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _subtotalMinorMeta = const VerificationMeta(
+    'subtotalMinor',
+  );
+  @override
+  late final GeneratedColumn<int> subtotalMinor = GeneratedColumn<int>(
+    'subtotal_minor',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    purchaseId,
+    productId,
+    productName,
+    orderedQty,
+    receivedQty,
+    unitCostMinor,
+    subtotalMinor,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'purchase_items_local';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<PurchaseItemsLocalData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('purchase_id')) {
+      context.handle(
+        _purchaseIdMeta,
+        purchaseId.isAcceptableOrUnknown(data['purchase_id']!, _purchaseIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_purchaseIdMeta);
+    }
+    if (data.containsKey('product_id')) {
+      context.handle(
+        _productIdMeta,
+        productId.isAcceptableOrUnknown(data['product_id']!, _productIdMeta),
+      );
+    }
+    if (data.containsKey('product_name')) {
+      context.handle(
+        _productNameMeta,
+        productName.isAcceptableOrUnknown(
+          data['product_name']!,
+          _productNameMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_productNameMeta);
+    }
+    if (data.containsKey('ordered_qty')) {
+      context.handle(
+        _orderedQtyMeta,
+        orderedQty.isAcceptableOrUnknown(data['ordered_qty']!, _orderedQtyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_orderedQtyMeta);
+    }
+    if (data.containsKey('received_qty')) {
+      context.handle(
+        _receivedQtyMeta,
+        receivedQty.isAcceptableOrUnknown(
+          data['received_qty']!,
+          _receivedQtyMeta,
+        ),
+      );
+    }
+    if (data.containsKey('unit_cost_minor')) {
+      context.handle(
+        _unitCostMinorMeta,
+        unitCostMinor.isAcceptableOrUnknown(
+          data['unit_cost_minor']!,
+          _unitCostMinorMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_unitCostMinorMeta);
+    }
+    if (data.containsKey('subtotal_minor')) {
+      context.handle(
+        _subtotalMinorMeta,
+        subtotalMinor.isAcceptableOrUnknown(
+          data['subtotal_minor']!,
+          _subtotalMinorMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_subtotalMinorMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  PurchaseItemsLocalData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PurchaseItemsLocalData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      purchaseId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}purchase_id'],
+      )!,
+      productId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}product_id'],
+      ),
+      productName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}product_name'],
+      )!,
+      orderedQty: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}ordered_qty'],
+      )!,
+      receivedQty: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}received_qty'],
+      )!,
+      unitCostMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}unit_cost_minor'],
+      )!,
+      subtotalMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}subtotal_minor'],
+      )!,
+    );
+  }
+
+  @override
+  $PurchaseItemsLocalTable createAlias(String alias) {
+    return $PurchaseItemsLocalTable(attachedDatabase, alias);
+  }
+}
+
+class PurchaseItemsLocalData extends DataClass
+    implements Insertable<PurchaseItemsLocalData> {
+  final String id;
+  final String purchaseId;
+  final String? productId;
+  final String productName;
+  final int orderedQty;
+  final int receivedQty;
+  final int unitCostMinor;
+  final int subtotalMinor;
+  const PurchaseItemsLocalData({
+    required this.id,
+    required this.purchaseId,
+    this.productId,
+    required this.productName,
+    required this.orderedQty,
+    required this.receivedQty,
+    required this.unitCostMinor,
+    required this.subtotalMinor,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['purchase_id'] = Variable<String>(purchaseId);
+    if (!nullToAbsent || productId != null) {
+      map['product_id'] = Variable<String>(productId);
+    }
+    map['product_name'] = Variable<String>(productName);
+    map['ordered_qty'] = Variable<int>(orderedQty);
+    map['received_qty'] = Variable<int>(receivedQty);
+    map['unit_cost_minor'] = Variable<int>(unitCostMinor);
+    map['subtotal_minor'] = Variable<int>(subtotalMinor);
+    return map;
+  }
+
+  PurchaseItemsLocalCompanion toCompanion(bool nullToAbsent) {
+    return PurchaseItemsLocalCompanion(
+      id: Value(id),
+      purchaseId: Value(purchaseId),
+      productId: productId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(productId),
+      productName: Value(productName),
+      orderedQty: Value(orderedQty),
+      receivedQty: Value(receivedQty),
+      unitCostMinor: Value(unitCostMinor),
+      subtotalMinor: Value(subtotalMinor),
+    );
+  }
+
+  factory PurchaseItemsLocalData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PurchaseItemsLocalData(
+      id: serializer.fromJson<String>(json['id']),
+      purchaseId: serializer.fromJson<String>(json['purchaseId']),
+      productId: serializer.fromJson<String?>(json['productId']),
+      productName: serializer.fromJson<String>(json['productName']),
+      orderedQty: serializer.fromJson<int>(json['orderedQty']),
+      receivedQty: serializer.fromJson<int>(json['receivedQty']),
+      unitCostMinor: serializer.fromJson<int>(json['unitCostMinor']),
+      subtotalMinor: serializer.fromJson<int>(json['subtotalMinor']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'purchaseId': serializer.toJson<String>(purchaseId),
+      'productId': serializer.toJson<String?>(productId),
+      'productName': serializer.toJson<String>(productName),
+      'orderedQty': serializer.toJson<int>(orderedQty),
+      'receivedQty': serializer.toJson<int>(receivedQty),
+      'unitCostMinor': serializer.toJson<int>(unitCostMinor),
+      'subtotalMinor': serializer.toJson<int>(subtotalMinor),
+    };
+  }
+
+  PurchaseItemsLocalData copyWith({
+    String? id,
+    String? purchaseId,
+    Value<String?> productId = const Value.absent(),
+    String? productName,
+    int? orderedQty,
+    int? receivedQty,
+    int? unitCostMinor,
+    int? subtotalMinor,
+  }) => PurchaseItemsLocalData(
+    id: id ?? this.id,
+    purchaseId: purchaseId ?? this.purchaseId,
+    productId: productId.present ? productId.value : this.productId,
+    productName: productName ?? this.productName,
+    orderedQty: orderedQty ?? this.orderedQty,
+    receivedQty: receivedQty ?? this.receivedQty,
+    unitCostMinor: unitCostMinor ?? this.unitCostMinor,
+    subtotalMinor: subtotalMinor ?? this.subtotalMinor,
+  );
+  PurchaseItemsLocalData copyWithCompanion(PurchaseItemsLocalCompanion data) {
+    return PurchaseItemsLocalData(
+      id: data.id.present ? data.id.value : this.id,
+      purchaseId: data.purchaseId.present
+          ? data.purchaseId.value
+          : this.purchaseId,
+      productId: data.productId.present ? data.productId.value : this.productId,
+      productName: data.productName.present
+          ? data.productName.value
+          : this.productName,
+      orderedQty: data.orderedQty.present
+          ? data.orderedQty.value
+          : this.orderedQty,
+      receivedQty: data.receivedQty.present
+          ? data.receivedQty.value
+          : this.receivedQty,
+      unitCostMinor: data.unitCostMinor.present
+          ? data.unitCostMinor.value
+          : this.unitCostMinor,
+      subtotalMinor: data.subtotalMinor.present
+          ? data.subtotalMinor.value
+          : this.subtotalMinor,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PurchaseItemsLocalData(')
+          ..write('id: $id, ')
+          ..write('purchaseId: $purchaseId, ')
+          ..write('productId: $productId, ')
+          ..write('productName: $productName, ')
+          ..write('orderedQty: $orderedQty, ')
+          ..write('receivedQty: $receivedQty, ')
+          ..write('unitCostMinor: $unitCostMinor, ')
+          ..write('subtotalMinor: $subtotalMinor')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    purchaseId,
+    productId,
+    productName,
+    orderedQty,
+    receivedQty,
+    unitCostMinor,
+    subtotalMinor,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PurchaseItemsLocalData &&
+          other.id == this.id &&
+          other.purchaseId == this.purchaseId &&
+          other.productId == this.productId &&
+          other.productName == this.productName &&
+          other.orderedQty == this.orderedQty &&
+          other.receivedQty == this.receivedQty &&
+          other.unitCostMinor == this.unitCostMinor &&
+          other.subtotalMinor == this.subtotalMinor);
+}
+
+class PurchaseItemsLocalCompanion
+    extends UpdateCompanion<PurchaseItemsLocalData> {
+  final Value<String> id;
+  final Value<String> purchaseId;
+  final Value<String?> productId;
+  final Value<String> productName;
+  final Value<int> orderedQty;
+  final Value<int> receivedQty;
+  final Value<int> unitCostMinor;
+  final Value<int> subtotalMinor;
+  final Value<int> rowid;
+  const PurchaseItemsLocalCompanion({
+    this.id = const Value.absent(),
+    this.purchaseId = const Value.absent(),
+    this.productId = const Value.absent(),
+    this.productName = const Value.absent(),
+    this.orderedQty = const Value.absent(),
+    this.receivedQty = const Value.absent(),
+    this.unitCostMinor = const Value.absent(),
+    this.subtotalMinor = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  PurchaseItemsLocalCompanion.insert({
+    required String id,
+    required String purchaseId,
+    this.productId = const Value.absent(),
+    required String productName,
+    required int orderedQty,
+    this.receivedQty = const Value.absent(),
+    required int unitCostMinor,
+    required int subtotalMinor,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       purchaseId = Value(purchaseId),
+       productName = Value(productName),
+       orderedQty = Value(orderedQty),
+       unitCostMinor = Value(unitCostMinor),
+       subtotalMinor = Value(subtotalMinor);
+  static Insertable<PurchaseItemsLocalData> custom({
+    Expression<String>? id,
+    Expression<String>? purchaseId,
+    Expression<String>? productId,
+    Expression<String>? productName,
+    Expression<int>? orderedQty,
+    Expression<int>? receivedQty,
+    Expression<int>? unitCostMinor,
+    Expression<int>? subtotalMinor,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (purchaseId != null) 'purchase_id': purchaseId,
+      if (productId != null) 'product_id': productId,
+      if (productName != null) 'product_name': productName,
+      if (orderedQty != null) 'ordered_qty': orderedQty,
+      if (receivedQty != null) 'received_qty': receivedQty,
+      if (unitCostMinor != null) 'unit_cost_minor': unitCostMinor,
+      if (subtotalMinor != null) 'subtotal_minor': subtotalMinor,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  PurchaseItemsLocalCompanion copyWith({
+    Value<String>? id,
+    Value<String>? purchaseId,
+    Value<String?>? productId,
+    Value<String>? productName,
+    Value<int>? orderedQty,
+    Value<int>? receivedQty,
+    Value<int>? unitCostMinor,
+    Value<int>? subtotalMinor,
+    Value<int>? rowid,
+  }) {
+    return PurchaseItemsLocalCompanion(
+      id: id ?? this.id,
+      purchaseId: purchaseId ?? this.purchaseId,
+      productId: productId ?? this.productId,
+      productName: productName ?? this.productName,
+      orderedQty: orderedQty ?? this.orderedQty,
+      receivedQty: receivedQty ?? this.receivedQty,
+      unitCostMinor: unitCostMinor ?? this.unitCostMinor,
+      subtotalMinor: subtotalMinor ?? this.subtotalMinor,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (purchaseId.present) {
+      map['purchase_id'] = Variable<String>(purchaseId.value);
+    }
+    if (productId.present) {
+      map['product_id'] = Variable<String>(productId.value);
+    }
+    if (productName.present) {
+      map['product_name'] = Variable<String>(productName.value);
+    }
+    if (orderedQty.present) {
+      map['ordered_qty'] = Variable<int>(orderedQty.value);
+    }
+    if (receivedQty.present) {
+      map['received_qty'] = Variable<int>(receivedQty.value);
+    }
+    if (unitCostMinor.present) {
+      map['unit_cost_minor'] = Variable<int>(unitCostMinor.value);
+    }
+    if (subtotalMinor.present) {
+      map['subtotal_minor'] = Variable<int>(subtotalMinor.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PurchaseItemsLocalCompanion(')
+          ..write('id: $id, ')
+          ..write('purchaseId: $purchaseId, ')
+          ..write('productId: $productId, ')
+          ..write('productName: $productName, ')
+          ..write('orderedQty: $orderedQty, ')
+          ..write('receivedQty: $receivedQty, ')
+          ..write('unitCostMinor: $unitCostMinor, ')
+          ..write('subtotalMinor: $subtotalMinor, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $PaymentsLocalTable extends PaymentsLocal
     with TableInfo<$PaymentsLocalTable, PaymentsLocalData> {
   @override
@@ -8257,6 +10000,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $SalesLocalTable salesLocal = $SalesLocalTable(this);
   late final $SaleItemsLocalTable saleItemsLocal = $SaleItemsLocalTable(this);
   late final $SuppliersLocalTable suppliersLocal = $SuppliersLocalTable(this);
+  late final $PurchasesLocalTable purchasesLocal = $PurchasesLocalTable(this);
+  late final $PurchaseItemsLocalTable purchaseItemsLocal =
+      $PurchaseItemsLocalTable(this);
   late final $PaymentsLocalTable paymentsLocal = $PaymentsLocalTable(this);
   late final $ReceiptSequencesLocalTable receiptSequencesLocal =
       $ReceiptSequencesLocalTable(this);
@@ -8279,6 +10025,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     salesLocal,
     saleItemsLocal,
     suppliersLocal,
+    purchasesLocal,
+    purchaseItemsLocal,
     paymentsLocal,
     receiptSequencesLocal,
     localIdempotencyKeys,
@@ -11993,6 +13741,839 @@ typedef $$SuppliersLocalTableProcessedTableManager =
       SuppliersLocalData,
       PrefetchHooks Function()
     >;
+typedef $$PurchasesLocalTableCreateCompanionBuilder =
+    PurchasesLocalCompanion Function({
+      required String id,
+      required String businessId,
+      required String branchId,
+      required String supplierId,
+      Value<String?> supplierName,
+      Value<String?> supplierCode,
+      required String code,
+      required String date,
+      required String dueDate,
+      Value<String> supplierTerm,
+      Value<String> status,
+      Value<int> totalMinor,
+      Value<int> receivedMinor,
+      Value<int> paidMinor,
+      Value<int> outstandingMinor,
+      Value<String?> note,
+      Value<int> serverVersion,
+      Value<String> localStatus,
+      Value<int> createdAt,
+      Value<int> updatedAt,
+      Value<int?> deletedAt,
+      Value<int?> lastSyncedAt,
+      Value<int> rowid,
+    });
+typedef $$PurchasesLocalTableUpdateCompanionBuilder =
+    PurchasesLocalCompanion Function({
+      Value<String> id,
+      Value<String> businessId,
+      Value<String> branchId,
+      Value<String> supplierId,
+      Value<String?> supplierName,
+      Value<String?> supplierCode,
+      Value<String> code,
+      Value<String> date,
+      Value<String> dueDate,
+      Value<String> supplierTerm,
+      Value<String> status,
+      Value<int> totalMinor,
+      Value<int> receivedMinor,
+      Value<int> paidMinor,
+      Value<int> outstandingMinor,
+      Value<String?> note,
+      Value<int> serverVersion,
+      Value<String> localStatus,
+      Value<int> createdAt,
+      Value<int> updatedAt,
+      Value<int?> deletedAt,
+      Value<int?> lastSyncedAt,
+      Value<int> rowid,
+    });
+
+class $$PurchasesLocalTableFilterComposer
+    extends Composer<_$AppDatabase, $PurchasesLocalTable> {
+  $$PurchasesLocalTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get businessId => $composableBuilder(
+    column: $table.businessId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get branchId => $composableBuilder(
+    column: $table.branchId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get supplierId => $composableBuilder(
+    column: $table.supplierId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get supplierName => $composableBuilder(
+    column: $table.supplierName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get supplierCode => $composableBuilder(
+    column: $table.supplierCode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get code => $composableBuilder(
+    column: $table.code,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get date => $composableBuilder(
+    column: $table.date,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get dueDate => $composableBuilder(
+    column: $table.dueDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get supplierTerm => $composableBuilder(
+    column: $table.supplierTerm,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get totalMinor => $composableBuilder(
+    column: $table.totalMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get receivedMinor => $composableBuilder(
+    column: $table.receivedMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get paidMinor => $composableBuilder(
+    column: $table.paidMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get outstandingMinor => $composableBuilder(
+    column: $table.outstandingMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get serverVersion => $composableBuilder(
+    column: $table.serverVersion,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get localStatus => $composableBuilder(
+    column: $table.localStatus,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lastSyncedAt => $composableBuilder(
+    column: $table.lastSyncedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$PurchasesLocalTableOrderingComposer
+    extends Composer<_$AppDatabase, $PurchasesLocalTable> {
+  $$PurchasesLocalTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get businessId => $composableBuilder(
+    column: $table.businessId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get branchId => $composableBuilder(
+    column: $table.branchId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get supplierId => $composableBuilder(
+    column: $table.supplierId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get supplierName => $composableBuilder(
+    column: $table.supplierName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get supplierCode => $composableBuilder(
+    column: $table.supplierCode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get code => $composableBuilder(
+    column: $table.code,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get date => $composableBuilder(
+    column: $table.date,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get dueDate => $composableBuilder(
+    column: $table.dueDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get supplierTerm => $composableBuilder(
+    column: $table.supplierTerm,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get totalMinor => $composableBuilder(
+    column: $table.totalMinor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get receivedMinor => $composableBuilder(
+    column: $table.receivedMinor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get paidMinor => $composableBuilder(
+    column: $table.paidMinor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get outstandingMinor => $composableBuilder(
+    column: $table.outstandingMinor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get serverVersion => $composableBuilder(
+    column: $table.serverVersion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get localStatus => $composableBuilder(
+    column: $table.localStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lastSyncedAt => $composableBuilder(
+    column: $table.lastSyncedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$PurchasesLocalTableAnnotationComposer
+    extends Composer<_$AppDatabase, $PurchasesLocalTable> {
+  $$PurchasesLocalTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get businessId => $composableBuilder(
+    column: $table.businessId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get branchId =>
+      $composableBuilder(column: $table.branchId, builder: (column) => column);
+
+  GeneratedColumn<String> get supplierId => $composableBuilder(
+    column: $table.supplierId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get supplierName => $composableBuilder(
+    column: $table.supplierName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get supplierCode => $composableBuilder(
+    column: $table.supplierCode,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get code =>
+      $composableBuilder(column: $table.code, builder: (column) => column);
+
+  GeneratedColumn<String> get date =>
+      $composableBuilder(column: $table.date, builder: (column) => column);
+
+  GeneratedColumn<String> get dueDate =>
+      $composableBuilder(column: $table.dueDate, builder: (column) => column);
+
+  GeneratedColumn<String> get supplierTerm => $composableBuilder(
+    column: $table.supplierTerm,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<int> get totalMinor => $composableBuilder(
+    column: $table.totalMinor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get receivedMinor => $composableBuilder(
+    column: $table.receivedMinor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get paidMinor =>
+      $composableBuilder(column: $table.paidMinor, builder: (column) => column);
+
+  GeneratedColumn<int> get outstandingMinor => $composableBuilder(
+    column: $table.outstandingMinor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get note =>
+      $composableBuilder(column: $table.note, builder: (column) => column);
+
+  GeneratedColumn<int> get serverVersion => $composableBuilder(
+    column: $table.serverVersion,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get localStatus => $composableBuilder(
+    column: $table.localStatus,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get lastSyncedAt => $composableBuilder(
+    column: $table.lastSyncedAt,
+    builder: (column) => column,
+  );
+}
+
+class $$PurchasesLocalTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $PurchasesLocalTable,
+          PurchasesLocalData,
+          $$PurchasesLocalTableFilterComposer,
+          $$PurchasesLocalTableOrderingComposer,
+          $$PurchasesLocalTableAnnotationComposer,
+          $$PurchasesLocalTableCreateCompanionBuilder,
+          $$PurchasesLocalTableUpdateCompanionBuilder,
+          (
+            PurchasesLocalData,
+            BaseReferences<
+              _$AppDatabase,
+              $PurchasesLocalTable,
+              PurchasesLocalData
+            >,
+          ),
+          PurchasesLocalData,
+          PrefetchHooks Function()
+        > {
+  $$PurchasesLocalTableTableManager(
+    _$AppDatabase db,
+    $PurchasesLocalTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PurchasesLocalTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$PurchasesLocalTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$PurchasesLocalTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> businessId = const Value.absent(),
+                Value<String> branchId = const Value.absent(),
+                Value<String> supplierId = const Value.absent(),
+                Value<String?> supplierName = const Value.absent(),
+                Value<String?> supplierCode = const Value.absent(),
+                Value<String> code = const Value.absent(),
+                Value<String> date = const Value.absent(),
+                Value<String> dueDate = const Value.absent(),
+                Value<String> supplierTerm = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<int> totalMinor = const Value.absent(),
+                Value<int> receivedMinor = const Value.absent(),
+                Value<int> paidMinor = const Value.absent(),
+                Value<int> outstandingMinor = const Value.absent(),
+                Value<String?> note = const Value.absent(),
+                Value<int> serverVersion = const Value.absent(),
+                Value<String> localStatus = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int?> deletedAt = const Value.absent(),
+                Value<int?> lastSyncedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => PurchasesLocalCompanion(
+                id: id,
+                businessId: businessId,
+                branchId: branchId,
+                supplierId: supplierId,
+                supplierName: supplierName,
+                supplierCode: supplierCode,
+                code: code,
+                date: date,
+                dueDate: dueDate,
+                supplierTerm: supplierTerm,
+                status: status,
+                totalMinor: totalMinor,
+                receivedMinor: receivedMinor,
+                paidMinor: paidMinor,
+                outstandingMinor: outstandingMinor,
+                note: note,
+                serverVersion: serverVersion,
+                localStatus: localStatus,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                lastSyncedAt: lastSyncedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String businessId,
+                required String branchId,
+                required String supplierId,
+                Value<String?> supplierName = const Value.absent(),
+                Value<String?> supplierCode = const Value.absent(),
+                required String code,
+                required String date,
+                required String dueDate,
+                Value<String> supplierTerm = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<int> totalMinor = const Value.absent(),
+                Value<int> receivedMinor = const Value.absent(),
+                Value<int> paidMinor = const Value.absent(),
+                Value<int> outstandingMinor = const Value.absent(),
+                Value<String?> note = const Value.absent(),
+                Value<int> serverVersion = const Value.absent(),
+                Value<String> localStatus = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int?> deletedAt = const Value.absent(),
+                Value<int?> lastSyncedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => PurchasesLocalCompanion.insert(
+                id: id,
+                businessId: businessId,
+                branchId: branchId,
+                supplierId: supplierId,
+                supplierName: supplierName,
+                supplierCode: supplierCode,
+                code: code,
+                date: date,
+                dueDate: dueDate,
+                supplierTerm: supplierTerm,
+                status: status,
+                totalMinor: totalMinor,
+                receivedMinor: receivedMinor,
+                paidMinor: paidMinor,
+                outstandingMinor: outstandingMinor,
+                note: note,
+                serverVersion: serverVersion,
+                localStatus: localStatus,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                lastSyncedAt: lastSyncedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$PurchasesLocalTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $PurchasesLocalTable,
+      PurchasesLocalData,
+      $$PurchasesLocalTableFilterComposer,
+      $$PurchasesLocalTableOrderingComposer,
+      $$PurchasesLocalTableAnnotationComposer,
+      $$PurchasesLocalTableCreateCompanionBuilder,
+      $$PurchasesLocalTableUpdateCompanionBuilder,
+      (
+        PurchasesLocalData,
+        BaseReferences<_$AppDatabase, $PurchasesLocalTable, PurchasesLocalData>,
+      ),
+      PurchasesLocalData,
+      PrefetchHooks Function()
+    >;
+typedef $$PurchaseItemsLocalTableCreateCompanionBuilder =
+    PurchaseItemsLocalCompanion Function({
+      required String id,
+      required String purchaseId,
+      Value<String?> productId,
+      required String productName,
+      required int orderedQty,
+      Value<int> receivedQty,
+      required int unitCostMinor,
+      required int subtotalMinor,
+      Value<int> rowid,
+    });
+typedef $$PurchaseItemsLocalTableUpdateCompanionBuilder =
+    PurchaseItemsLocalCompanion Function({
+      Value<String> id,
+      Value<String> purchaseId,
+      Value<String?> productId,
+      Value<String> productName,
+      Value<int> orderedQty,
+      Value<int> receivedQty,
+      Value<int> unitCostMinor,
+      Value<int> subtotalMinor,
+      Value<int> rowid,
+    });
+
+class $$PurchaseItemsLocalTableFilterComposer
+    extends Composer<_$AppDatabase, $PurchaseItemsLocalTable> {
+  $$PurchaseItemsLocalTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get purchaseId => $composableBuilder(
+    column: $table.purchaseId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get productId => $composableBuilder(
+    column: $table.productId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get productName => $composableBuilder(
+    column: $table.productName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get orderedQty => $composableBuilder(
+    column: $table.orderedQty,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get receivedQty => $composableBuilder(
+    column: $table.receivedQty,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get unitCostMinor => $composableBuilder(
+    column: $table.unitCostMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get subtotalMinor => $composableBuilder(
+    column: $table.subtotalMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$PurchaseItemsLocalTableOrderingComposer
+    extends Composer<_$AppDatabase, $PurchaseItemsLocalTable> {
+  $$PurchaseItemsLocalTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get purchaseId => $composableBuilder(
+    column: $table.purchaseId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get productId => $composableBuilder(
+    column: $table.productId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get productName => $composableBuilder(
+    column: $table.productName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get orderedQty => $composableBuilder(
+    column: $table.orderedQty,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get receivedQty => $composableBuilder(
+    column: $table.receivedQty,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get unitCostMinor => $composableBuilder(
+    column: $table.unitCostMinor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get subtotalMinor => $composableBuilder(
+    column: $table.subtotalMinor,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$PurchaseItemsLocalTableAnnotationComposer
+    extends Composer<_$AppDatabase, $PurchaseItemsLocalTable> {
+  $$PurchaseItemsLocalTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get purchaseId => $composableBuilder(
+    column: $table.purchaseId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get productId =>
+      $composableBuilder(column: $table.productId, builder: (column) => column);
+
+  GeneratedColumn<String> get productName => $composableBuilder(
+    column: $table.productName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get orderedQty => $composableBuilder(
+    column: $table.orderedQty,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get receivedQty => $composableBuilder(
+    column: $table.receivedQty,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get unitCostMinor => $composableBuilder(
+    column: $table.unitCostMinor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get subtotalMinor => $composableBuilder(
+    column: $table.subtotalMinor,
+    builder: (column) => column,
+  );
+}
+
+class $$PurchaseItemsLocalTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $PurchaseItemsLocalTable,
+          PurchaseItemsLocalData,
+          $$PurchaseItemsLocalTableFilterComposer,
+          $$PurchaseItemsLocalTableOrderingComposer,
+          $$PurchaseItemsLocalTableAnnotationComposer,
+          $$PurchaseItemsLocalTableCreateCompanionBuilder,
+          $$PurchaseItemsLocalTableUpdateCompanionBuilder,
+          (
+            PurchaseItemsLocalData,
+            BaseReferences<
+              _$AppDatabase,
+              $PurchaseItemsLocalTable,
+              PurchaseItemsLocalData
+            >,
+          ),
+          PurchaseItemsLocalData,
+          PrefetchHooks Function()
+        > {
+  $$PurchaseItemsLocalTableTableManager(
+    _$AppDatabase db,
+    $PurchaseItemsLocalTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PurchaseItemsLocalTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$PurchaseItemsLocalTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$PurchaseItemsLocalTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> purchaseId = const Value.absent(),
+                Value<String?> productId = const Value.absent(),
+                Value<String> productName = const Value.absent(),
+                Value<int> orderedQty = const Value.absent(),
+                Value<int> receivedQty = const Value.absent(),
+                Value<int> unitCostMinor = const Value.absent(),
+                Value<int> subtotalMinor = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => PurchaseItemsLocalCompanion(
+                id: id,
+                purchaseId: purchaseId,
+                productId: productId,
+                productName: productName,
+                orderedQty: orderedQty,
+                receivedQty: receivedQty,
+                unitCostMinor: unitCostMinor,
+                subtotalMinor: subtotalMinor,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String purchaseId,
+                Value<String?> productId = const Value.absent(),
+                required String productName,
+                required int orderedQty,
+                Value<int> receivedQty = const Value.absent(),
+                required int unitCostMinor,
+                required int subtotalMinor,
+                Value<int> rowid = const Value.absent(),
+              }) => PurchaseItemsLocalCompanion.insert(
+                id: id,
+                purchaseId: purchaseId,
+                productId: productId,
+                productName: productName,
+                orderedQty: orderedQty,
+                receivedQty: receivedQty,
+                unitCostMinor: unitCostMinor,
+                subtotalMinor: subtotalMinor,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$PurchaseItemsLocalTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $PurchaseItemsLocalTable,
+      PurchaseItemsLocalData,
+      $$PurchaseItemsLocalTableFilterComposer,
+      $$PurchaseItemsLocalTableOrderingComposer,
+      $$PurchaseItemsLocalTableAnnotationComposer,
+      $$PurchaseItemsLocalTableCreateCompanionBuilder,
+      $$PurchaseItemsLocalTableUpdateCompanionBuilder,
+      (
+        PurchaseItemsLocalData,
+        BaseReferences<
+          _$AppDatabase,
+          $PurchaseItemsLocalTable,
+          PurchaseItemsLocalData
+        >,
+      ),
+      PurchaseItemsLocalData,
+      PrefetchHooks Function()
+    >;
 typedef $$PaymentsLocalTableCreateCompanionBuilder =
     PaymentsLocalCompanion Function({
       required String clientPaymentId,
@@ -13340,6 +15921,10 @@ class $AppDatabaseManager {
       $$SaleItemsLocalTableTableManager(_db, _db.saleItemsLocal);
   $$SuppliersLocalTableTableManager get suppliersLocal =>
       $$SuppliersLocalTableTableManager(_db, _db.suppliersLocal);
+  $$PurchasesLocalTableTableManager get purchasesLocal =>
+      $$PurchasesLocalTableTableManager(_db, _db.purchasesLocal);
+  $$PurchaseItemsLocalTableTableManager get purchaseItemsLocal =>
+      $$PurchaseItemsLocalTableTableManager(_db, _db.purchaseItemsLocal);
   $$PaymentsLocalTableTableManager get paymentsLocal =>
       $$PaymentsLocalTableTableManager(_db, _db.paymentsLocal);
   $$ReceiptSequencesLocalTableTableManager get receiptSequencesLocal =>

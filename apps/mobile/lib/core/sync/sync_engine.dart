@@ -8,6 +8,7 @@ import '../../products/data/product_repository.dart';
 import '../../sales/data/sales_sync_repository.dart';
 import '../../customers/data/customer_repository.dart';
 import '../../suppliers/data/supplier_repository.dart';
+import '../../purchases/data/purchase_repository.dart';
 import 'http_sync_api_client.dart' show HttpException, NetworkException;
 import 'package:sentry_flutter/sentry_flutter.dart';
 
@@ -17,6 +18,7 @@ class SyncSummary {
   final int pulledProducts;
   final int pulledCustomers;
   final int pulledSuppliers;
+  final int pulledPurchases;
   final int pulledSales;
   final SyncCounts counts;
   const SyncSummary({
@@ -25,6 +27,7 @@ class SyncSummary {
     required this.pulledProducts,
     required this.pulledCustomers,
     required this.pulledSuppliers,
+    this.pulledPurchases = 0,
     required this.pulledSales,
     required this.counts,
   });
@@ -39,6 +42,8 @@ class SyncEngine extends ChangeNotifier {
     required this._salesSync,
     required this._customers,
     required this._suppliers,
+    this.purchases,
+    this.branchId,
     required this._businessId,
   });
 
@@ -49,11 +54,13 @@ class SyncEngine extends ChangeNotifier {
   final SalesSyncRepository _salesSync;
   final CustomerRepository _customers;
   final SupplierRepository _suppliers;
+  final PurchaseRepository? purchases;
+  final String? branchId;
   final String _businessId;
 
   Future<SyncSummary> syncNow() async {
     bool reachable = false;
-    int pushed = 0, pulledP = 0, pulledC = 0, pulledS = 0, pulledSup = 0;
+    int pushed = 0, pulledP = 0, pulledC = 0, pulledS = 0, pulledSup = 0, pulledPurchases = 0;
     try {
       reachable = await _api.health();
     } catch (_) {
@@ -67,7 +74,8 @@ class SyncEngine extends ChangeNotifier {
         pulledP = pull.$1;
         pulledC = pull.$2;
         pulledSup = pull.$3;
-        pulledS = pull.$4;
+        pulledPurchases = pull.$4;
+        pulledS = pull.$5;
       } on HttpException catch (e, st) {
         if (e.statusCode == 401) {
           // Graceful abort on auth error. Session expiry is handled by AuthStateNotifier.
@@ -96,6 +104,7 @@ class SyncEngine extends ChangeNotifier {
       pulledProducts: pulledP,
       pulledCustomers: pulledC,
       pulledSuppliers: pulledSup,
+      pulledPurchases: pulledPurchases,
       pulledSales: pulledS,
       counts: counts,
     );
@@ -111,6 +120,7 @@ class SyncEngine extends ChangeNotifier {
       final saleItems = due.where((d) => d.entityType == 'sale').toList();
       final customerItems = due.where((d) => d.entityType == 'customer').toList();
       final supplierItems = due.where((d) => d.entityType == 'supplier').toList();
+      final purchaseItems = due.where((d) => d.entityType == 'purchase').toList();
 
       for (final item in productItems) {
         await _pushProduct(item);
@@ -126,6 +136,10 @@ class SyncEngine extends ChangeNotifier {
       }
       for (final item in supplierItems) {
         await _pushSupplier(item);
+        pushed++;
+      }
+      for (final item in purchaseItems) {
+        await _pushPurchase(item);
         pushed++;
       }
     }
@@ -322,7 +336,51 @@ class SyncEngine extends ChangeNotifier {
     }
   }
 
-  Future<(int, int, int, int)> _pull() async {
+  Future<void> _pushPurchase(SyncOutboxItem item) async {
+    final dto = PurchaseDto.fromJson(
+      jsonDecode(item.payloadJson) as Map<String, dynamic>,
+    );
+    final now = DateTime.now().millisecondsSinceEpoch;
+    try {
+      PurchasePushResult res;
+      if (item.operation == 'create') {
+        res = await _api.createPurchaseDraft(dto, idempotencyKey: item.idempotencyKey!);
+      } else {
+        res = await _api.updatePurchaseDraft(dto, ifMatchVersion: dto.serverVersion, idempotencyKey: item.idempotencyKey!);
+      }
+      if (res.ok) {
+        await _outbox.markSynced(item.id);
+        if (purchases != null) {
+          await purchases!.markSyncedAfterPush(
+            dto.id,
+            res.serverVersion ?? dto.serverVersion,
+          );
+        }
+      } else if (res.conflict) {
+        await _outbox.markConflict(
+          item.id,
+          jsonEncode(res.serverState?.toJson() ?? {}),
+          res.error ?? 'PURCHASE_VERSION_CONFLICT',
+        );
+      } else if (res.error == 'VALIDATION_ERROR') {
+        await _outbox.markFailed(item.id, res.error!);
+      } else {
+        await _outbox.markRetry(item.id, now, res.error ?? 'unknown');
+      }
+    } catch (e, st) {
+      if (e is HttpException && e.statusCode != null && e.statusCode! >= 500) {
+        Sentry.captureException(e, stackTrace: st, withScope: (scope) {
+          scope.setTag('operation', 'pushPurchase');
+          if (e.requestId != null) scope.setTag('request_id', e.requestId!);
+        });
+      } else if (e is! HttpException && e is! NetworkException) {
+        Sentry.captureException(e, stackTrace: st, withScope: (scope) => scope.setTag('operation', 'pushPurchase'));
+      }
+      await _outbox.markRetry(item.id, now, e.toString());
+    }
+  }
+
+  Future<(int, int, int, int, int)> _pull() async {
     // Pull products (skip local dirty — policy B)
     int pulledP = 0;
     final sinceV = await _products.maxServerVersion(_businessId);
@@ -356,6 +414,20 @@ class SyncEngine extends ChangeNotifier {
       if (await _suppliers.applyServerSync(dto, _businessId)) pulledSup++;
     }
 
+    // Pull purchases (skip local dirty — policy B)
+    int pulledPur = 0;
+    if (purchases != null && branchId != null) {
+      final sincePV = await purchases!.maxServerVersion(_businessId, branchId!);
+      final purRes = await _api.pullPurchases(
+        businessId: _businessId,
+        branchId: branchId!,
+        sinceVersion: sincePV,
+      );
+      for (final dto in purRes.purchases) {
+        if (await purchases!.applyServerSync(dto, _businessId)) pulledPur++;
+      }
+    }
+
     // Pull sales (append-only, never overwrite)
     int pulledS = 0;
     final sinceMs = await _meta.getInt('sales_pull_cursor');
@@ -371,6 +443,6 @@ class SyncEngine extends ChangeNotifier {
     }
     await _meta.setInt('sales_pull_cursor', maxCursor);
 
-    return (pulledP, pulledC, pulledSup, pulledS);
+    return (pulledP, pulledC, pulledSup, pulledPur, pulledS);
   }
 }

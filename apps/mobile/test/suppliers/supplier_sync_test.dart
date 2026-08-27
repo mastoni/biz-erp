@@ -112,6 +112,46 @@ class MockSyncApi implements SyncApiClient {
   Future<SupplierPushResult> deleteSupplier(SupplierDto supplier, {required String idempotencyKey}) async =>
       onDeleteSupplier?.call(supplier, idempotencyKey) ??
       SupplierPushResult(ok: true, serverVersion: supplier.serverVersion + 1);
+
+  @override
+  Future<PullPurchasesResponse> pullPurchases({
+    required String businessId,
+    required String branchId,
+    required int sinceVersion,
+    int limit = 500,
+  }) async => const PullPurchasesResponse([], false, 0);
+
+  @override
+  Future<PurchasePushResult> createPurchaseDraft(PurchaseDto purchase, {required String idempotencyKey}) async =>
+      const PurchasePushResult(ok: true, serverVersion: 1);
+
+  @override
+  Future<PurchasePushResult> updatePurchaseDraft(PurchaseDto purchase, {int? ifMatchVersion, required String idempotencyKey}) async =>
+      const PurchasePushResult(ok: true, serverVersion: 1);
+
+  @override
+  Future<PurchaseDto> getPurchase({required String id}) async =>
+      throw UnimplementedError();
+
+  @override
+  Future<PurchasePushResult> sendPurchase({required String id, int? ifMatchVersion, required String idempotencyKey}) async =>
+      const PurchasePushResult(ok: true);
+
+  @override
+  Future<PurchasePushResult> receivePurchase({required String id, required List<Map<String, dynamic>> items, int? ifMatchVersion, required String idempotencyKey}) async =>
+      const PurchasePushResult(ok: true);
+
+  @override
+  Future<PurchasePushResult> payPurchase({required String id, required int amountMinor, required String method, String? reference, int? ifMatchVersion, required String idempotencyKey}) async =>
+      const PurchasePushResult(ok: true);
+
+  @override
+  Future<PurchasePushResult> cancelPurchase({required String id, int? ifMatchVersion, required String idempotencyKey}) async =>
+      const PurchasePushResult(ok: true);
+
+  @override
+  Future<PurchasePushResult> deleteDraftPurchase({required String id}) async =>
+      const PurchasePushResult(ok: true);
 }
 
 void main() {

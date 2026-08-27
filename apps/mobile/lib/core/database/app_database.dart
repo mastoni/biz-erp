@@ -11,6 +11,8 @@ import 'tables/products_local.dart';
 import 'tables/receipt_sequences_local.dart';
 import 'tables/sale_items_local.dart';
 import 'tables/sales_local.dart';
+import 'tables/purchases_local.dart';
+import 'tables/purchase_items_local.dart';
 import 'tables/suppliers_local.dart';
 import 'tables/sync_meta.dart';
 import 'tables/sync_outbox.dart';
@@ -29,6 +31,8 @@ part 'app_database.g.dart';
     SalesLocal,
     SaleItemsLocal,
     SuppliersLocal,
+    PurchasesLocal,
+    PurchaseItemsLocal,
     PaymentsLocal,
     ReceiptSequencesLocal,
     LocalIdempotencyKeys,
@@ -43,7 +47,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.memory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -56,6 +60,18 @@ class AppDatabase extends _$AppDatabase {
           await customStatement(
             'CREATE UNIQUE INDEX IF NOT EXISTS idx_one_active_cart_per_business '
             'ON cart_local(business_id) WHERE status = \'ACTIVE\'',
+          );
+          await m.database.customStatement(
+            'CREATE INDEX IF NOT EXISTS idx_purchases_business_branch '
+            'ON purchases_local (business_id, branch_id)',
+          );
+          await m.database.customStatement(
+            'CREATE INDEX IF NOT EXISTS idx_purchases_business_branch_version '
+            'ON purchases_local (business_id, branch_id, server_version)',
+          );
+          await m.database.customStatement(
+            'CREATE INDEX IF NOT EXISTS idx_purchase_items_purchase '
+            'ON purchase_items_local (purchase_id)',
           );
         },
     onUpgrade: (m, from, to) async {
@@ -171,6 +187,33 @@ class AppDatabase extends _$AppDatabase {
         if (tables.isEmpty) {
           await m.createTable(suppliersLocal);
         }
+      }
+      if (from < 10) {
+        // V10: Add purchases_local & purchase_items_local tables for Purchase sync (Phase 9B.6)
+        final pTables = await customSelect(
+          "SELECT name FROM sqlite_master WHERE type='table' AND name='purchases_local'",
+        ).get();
+        if (pTables.isEmpty) {
+          await m.createTable(purchasesLocal);
+        }
+        final piTables = await customSelect(
+          "SELECT name FROM sqlite_master WHERE type='table' AND name='purchase_items_local'",
+        ).get();
+        if (piTables.isEmpty) {
+          await m.createTable(purchaseItemsLocal);
+        }
+        await m.database.customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_purchases_business_branch '
+          'ON purchases_local (business_id, branch_id)',
+        );
+        await m.database.customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_purchases_business_branch_version '
+          'ON purchases_local (business_id, branch_id, server_version)',
+        );
+        await m.database.customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_purchase_items_purchase '
+          'ON purchase_items_local (purchase_id)',
+        );
       }
     },
     beforeOpen: (details) async {

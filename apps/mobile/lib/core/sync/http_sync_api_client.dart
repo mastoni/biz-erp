@@ -1025,6 +1025,307 @@ Map<String, dynamic> _saleDtoToBatchItem(SaleDto sale) {
     }
   }
 
+  @override
+  Future<PullPurchasesResponse> pullPurchases({
+    required String businessId,
+    required String branchId,
+    required int sinceVersion,
+    int limit = 500,
+  }) async {
+    final uri = Uri.parse('$baseUrl/v1/sync/purchases').replace(
+      queryParameters: {
+        'business_id': businessId,
+        'branch_id': branchId,
+        'after_version': sinceVersion.toString(),
+        'limit': limit.toString(),
+      },
+    );
+
+    try {
+      http.Response? response;
+      for (int attempt = 1; attempt <= 2; attempt++) {
+        response = await _client.get(uri, headers: _headers).timeout(_timeout);
+
+        if (response.statusCode == 401 && attempt == 1 && _onRefresh != null) {
+          final result = await _onRefresh();
+          if (result == RefreshResult.success) {
+            continue;
+          } else {
+            break;
+          }
+        }
+        break;
+      }
+
+      if (response!.statusCode == 200) {
+        final json = jsonDecode(response.body) as Map<String, dynamic>;
+        final items = (json['items'] as List<dynamic>?) ?? [];
+        final purchases = items
+            .map((e) => PurchaseDto.fromJson(e as Map<String, dynamic>))
+            .toList();
+        final hasMore = json['has_more'] as bool? ?? false;
+        final currentVersion = (json['current_version'] as num?)?.toInt() ?? 0;
+
+        return PullPurchasesResponse(purchases, hasMore, currentVersion);
+      } else if (response.statusCode >= 500) {
+        throw HttpException(
+          'Server error: HTTP ${response.statusCode}',
+          statusCode: response.statusCode,
+          requestId: response.headers['x-request-id'],
+        );
+      } else {
+        throw HttpException(
+          'Unexpected error: HTTP ${response.statusCode}',
+          statusCode: response.statusCode,
+          requestId: response.headers['x-request-id'],
+        );
+      }
+    } catch (e) {
+      if (e is HttpException || e is MalformedResponseException) {
+        rethrow;
+      }
+      throw NetworkException('Network error during pull purchases', e);
+    }
+  }
+
+  @override
+  Future<PurchasePushResult> createPurchaseDraft(
+    PurchaseDto purchase, {
+    required String idempotencyKey,
+  }) async {
+    final uri = Uri.parse('$baseUrl/v1/purchases');
+    final body = {
+      'id': purchase.id,
+      'business_id': purchase.businessId,
+      'branch_id': purchase.branchId,
+      'supplier_id': purchase.supplierId,
+      'date': purchase.date,
+      'due_date': purchase.dueDate,
+      'note': purchase.note,
+      'items': purchase.items.map((i) => {
+        'product_id': i.productId,
+        'ordered_qty': i.orderedQty,
+      }).toList(),
+    };
+
+    try {
+      final response = await _client.post(
+        uri,
+        headers: {..._headers, 'Idempotency-Key': idempotencyKey},
+        body: jsonEncode(body),
+      ).timeout(_timeout);
+
+      if (response.statusCode == 201) {
+        final json = jsonDecode(response.body) as Map<String, dynamic>;
+        return PurchasePushResult(ok: true, serverVersion: json['server_version'] as int?);
+      } else if (response.statusCode == 409) {
+        final json = jsonDecode(response.body) as Map<String, dynamic>;
+        final code = (json['error'] as Map<String, dynamic>?)?['code'] as String?;
+        return PurchasePushResult(ok: false, conflict: true, error: code ?? 'PURCHASE_VERSION_CONFLICT');
+      } else if (response.statusCode == 400) {
+        return const PurchasePushResult(ok: false, error: 'VALIDATION_ERROR');
+      }
+      return PurchasePushResult(ok: false, error: 'HTTP ${response.statusCode}');
+    } catch (e) {
+      return PurchasePushResult(ok: false, error: e.toString());
+    }
+  }
+
+  @override
+  Future<PurchasePushResult> updatePurchaseDraft(
+    PurchaseDto purchase, {
+    int? ifMatchVersion,
+    required String idempotencyKey,
+  }) async {
+    final uri = Uri.parse('$baseUrl/v1/purchases/${purchase.id}');
+    final body = {
+      'supplier_id': purchase.supplierId,
+      'date': purchase.date,
+      'due_date': purchase.dueDate,
+      'note': purchase.note,
+      'expected_server_version': ifMatchVersion ?? purchase.serverVersion,
+      'items': purchase.items.map((i) => {
+        'product_id': i.productId,
+        'ordered_qty': i.orderedQty,
+      }).toList(),
+    };
+
+    try {
+      final response = await _client.put(
+        uri,
+        headers: {..._headers, 'Idempotency-Key': idempotencyKey},
+        body: jsonEncode(body),
+      ).timeout(_timeout);
+
+      if (response.statusCode == 200) {
+        final json = jsonDecode(response.body) as Map<String, dynamic>;
+        return PurchasePushResult(ok: true, serverVersion: json['server_version'] as int?);
+      } else if (response.statusCode == 409) {
+        final json = jsonDecode(response.body) as Map<String, dynamic>;
+        final code = (json['error'] as Map<String, dynamic>?)?['code'] as String?;
+        return PurchasePushResult(ok: false, conflict: true, error: code ?? 'PURCHASE_VERSION_CONFLICT');
+      }
+      return PurchasePushResult(ok: false, error: 'HTTP ${response.statusCode}');
+    } catch (e) {
+      return PurchasePushResult(ok: false, error: e.toString());
+    }
+  }
+
+  @override
+  Future<PurchaseDto> getPurchase({required String id}) async {
+    final uri = Uri.parse('$baseUrl/v1/purchases/$id');
+    final response = await _client.get(uri, headers: _headers).timeout(_timeout);
+
+    if (response.statusCode == 200) {
+      final json = jsonDecode(response.body) as Map<String, dynamic>;
+      return PurchaseDto.fromJson(json);
+    } else {
+      throw HttpException('Failed to fetch purchase detail: HTTP ${response.statusCode}');
+    }
+  }
+
+  @override
+  Future<PurchasePushResult> sendPurchase({
+    required String id,
+    int? ifMatchVersion,
+    required String idempotencyKey,
+  }) async {
+    final uri = Uri.parse('$baseUrl/v1/purchases/$id/send');
+    final body = {
+      if (ifMatchVersion != null) 'expected_server_version': ifMatchVersion,
+    };
+
+    try {
+      final response = await _client.post(
+        uri,
+        headers: {..._headers, 'Idempotency-Key': idempotencyKey},
+        body: jsonEncode(body),
+      ).timeout(_timeout);
+
+      if (response.statusCode == 200) {
+        final json = jsonDecode(response.body) as Map<String, dynamic>;
+        return PurchasePushResult(ok: true, serverVersion: json['server_version'] as int?);
+      } else if (response.statusCode == 409) {
+        return const PurchasePushResult(ok: false, conflict: true, error: 'PURCHASE_VERSION_CONFLICT');
+      }
+      return PurchasePushResult(ok: false, error: 'HTTP ${response.statusCode}');
+    } catch (e) {
+      return PurchasePushResult(ok: false, error: e.toString());
+    }
+  }
+
+  @override
+  Future<PurchasePushResult> receivePurchase({
+    required String id,
+    required List<Map<String, dynamic>> items,
+    int? ifMatchVersion,
+    required String idempotencyKey,
+  }) async {
+    final uri = Uri.parse('$baseUrl/v1/purchases/$id/receive');
+    final body = {
+      'items': items,
+      if (ifMatchVersion != null) 'expected_server_version': ifMatchVersion,
+    };
+
+    try {
+      final response = await _client.post(
+        uri,
+        headers: {..._headers, 'Idempotency-Key': idempotencyKey},
+        body: jsonEncode(body),
+      ).timeout(_timeout);
+
+      if (response.statusCode == 200) {
+        final json = jsonDecode(response.body) as Map<String, dynamic>;
+        return PurchasePushResult(ok: true, serverVersion: json['server_version'] as int?);
+      } else if (response.statusCode == 409) {
+        return const PurchasePushResult(ok: false, conflict: true, error: 'PURCHASE_VERSION_CONFLICT');
+      }
+      return PurchasePushResult(ok: false, error: 'HTTP ${response.statusCode}');
+    } catch (e) {
+      return PurchasePushResult(ok: false, error: e.toString());
+    }
+  }
+
+  @override
+  Future<PurchasePushResult> payPurchase({
+    required String id,
+    required int amountMinor,
+    required String method,
+    String? reference,
+    int? ifMatchVersion,
+    required String idempotencyKey,
+  }) async {
+    final uri = Uri.parse('$baseUrl/v1/purchases/$id/pay');
+    final body = {
+      'amount_minor': amountMinor,
+      'method': method,
+      'reference': reference,
+      if (ifMatchVersion != null) 'expected_server_version': ifMatchVersion,
+    };
+
+    try {
+      final response = await _client.post(
+        uri,
+        headers: {..._headers, 'Idempotency-Key': idempotencyKey},
+        body: jsonEncode(body),
+      ).timeout(_timeout);
+
+      if (response.statusCode == 200) {
+        final json = jsonDecode(response.body) as Map<String, dynamic>;
+        return PurchasePushResult(ok: true, serverVersion: json['server_version'] as int?);
+      } else if (response.statusCode == 409) {
+        return const PurchasePushResult(ok: false, conflict: true, error: 'PURCHASE_VERSION_CONFLICT');
+      }
+      return PurchasePushResult(ok: false, error: 'HTTP ${response.statusCode}');
+    } catch (e) {
+      return PurchasePushResult(ok: false, error: e.toString());
+    }
+  }
+
+  @override
+  Future<PurchasePushResult> cancelPurchase({
+    required String id,
+    int? ifMatchVersion,
+    required String idempotencyKey,
+  }) async {
+    final uri = Uri.parse('$baseUrl/v1/purchases/$id/cancel');
+    final body = {
+      if (ifMatchVersion != null) 'expected_server_version': ifMatchVersion,
+    };
+
+    try {
+      final response = await _client.post(
+        uri,
+        headers: {..._headers, 'Idempotency-Key': idempotencyKey},
+        body: jsonEncode(body),
+      ).timeout(_timeout);
+
+      if (response.statusCode == 200) {
+        final json = jsonDecode(response.body) as Map<String, dynamic>;
+        return PurchasePushResult(ok: true, serverVersion: json['server_version'] as int?);
+      } else if (response.statusCode == 409) {
+        return const PurchasePushResult(ok: false, conflict: true, error: 'PURCHASE_VERSION_CONFLICT');
+      }
+      return PurchasePushResult(ok: false, error: 'HTTP ${response.statusCode}');
+    } catch (e) {
+      return PurchasePushResult(ok: false, error: e.toString());
+    }
+  }
+
+  @override
+  Future<PurchasePushResult> deleteDraftPurchase({required String id}) async {
+    final uri = Uri.parse('$baseUrl/v1/purchases/$id');
+    try {
+      final response = await _client.delete(uri, headers: _headers).timeout(_timeout);
+      if (response.statusCode == 204 || response.statusCode == 200) {
+        return const PurchasePushResult(ok: true);
+      }
+      return PurchasePushResult(ok: false, error: 'HTTP ${response.statusCode}');
+    } catch (e) {
+      return PurchasePushResult(ok: false, error: e.toString());
+    }
+  }
+
   void close() {
     _client.close();
   }
