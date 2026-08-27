@@ -6,6 +6,7 @@ class Product {
   final String name;
   final String? description;
   final int priceMinor;
+  final int? costMinor;
   final String? category;
   final bool isActive;
   final int serverVersion;
@@ -21,6 +22,7 @@ class Product {
     required this.name,
     this.description,
     required this.priceMinor,
+    this.costMinor,
     this.category,
     required this.isActive,
     required this.serverVersion,

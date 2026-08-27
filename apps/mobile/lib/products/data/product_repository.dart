@@ -20,6 +20,7 @@ class ProductRepository {
       name: data.name,
       description: data.description,
       priceMinor: data.priceMinor,
+      costMinor: data.costMinor,
       category: data.category,
       isActive: data.isActive == 1,
       serverVersion: data.serverVersion,
@@ -36,6 +37,7 @@ class ProductRepository {
       name: row.name,
       description: row.description,
       priceMinor: row.priceMinor,
+      costMinor: row.costMinor,
       category: row.category,
       isActive: row.isActive == 1,
       serverVersion: row.serverVersion,
@@ -51,6 +53,9 @@ class ProductRepository {
     if (product.priceMinor < 0) {
       throw ArgumentError('price_minor must be >= 0');
     }
+    if (product.costMinor != null && product.costMinor! < 0) {
+      throw ArgumentError('cost_minor must be >= 0');
+    }
 
     final now = DateTime.now().millisecondsSinceEpoch;
     await _db
@@ -62,6 +67,7 @@ class ProductRepository {
             name: Value(product.name),
             description: Value(product.description),
             priceMinor: Value(product.priceMinor),
+            costMinor: Value(product.costMinor),
             category: Value(product.category),
             isActive: Value(product.isActive ? 1 : 0),
             serverVersion: Value(product.serverVersion),
@@ -88,6 +94,9 @@ class ProductRepository {
     }
     if (updated.priceMinor < 0) {
       throw ArgumentError('Harga harus >= 0');
+    }
+    if (updated.costMinor != null && updated.costMinor! < 0) {
+      throw ArgumentError('HPP harus >= 0');
     }
 
     // 2. Verify exists & tenant isolation
@@ -116,6 +125,7 @@ class ProductRepository {
         name: Value(updated.name),
         description: Value(updated.description),
         priceMinor: Value(updated.priceMinor),
+        costMinor: Value(updated.costMinor),
         category: Value(updated.category),
         isActive: Value(updated.isActive ? 1 : 0),
         // PRESERVE existing serverVersion — only SyncEngine bumps it on push success
@@ -133,6 +143,7 @@ class ProductRepository {
       description: updated.description,
       barcode: updated.barcode?.trim().isEmpty == true ? null : updated.barcode?.trim(),
       priceMinor: updated.priceMinor,
+      costMinor: updated.costMinor,
       category: updated.category,
       isActive: updated.isActive,
       serverVersion: existing.serverVersion,
@@ -189,6 +200,7 @@ class ProductRepository {
         description: existing.description,
         barcode: existing.barcode,
         priceMinor: existing.priceMinor,
+        costMinor: existing.costMinor,
         category: existing.category,
         isActive: false,
         serverVersion: existing.serverVersion,
@@ -219,6 +231,7 @@ class ProductRepository {
         description: existing.description,
         barcode: existing.barcode,
         priceMinor: existing.priceMinor,
+        costMinor: existing.costMinor,
         category: existing.category,
         isActive: true,
         serverVersion: existing.serverVersion,
@@ -282,6 +295,7 @@ class ProductRepository {
             description: Value(dto.description),
             barcode: Value(dto.barcode),
             priceMinor: dto.priceMinor,
+            costMinor: Value(dto.costMinor),
             category: Value(dto.category),
             isActive: Value(dto.isActive ? 1 : 0),
             serverVersion: Value(dto.serverVersion),
@@ -317,6 +331,7 @@ class ProductRepository {
         description: Value(dto.description),
         barcode: Value(dto.barcode),
         priceMinor: dto.priceMinor,
+        costMinor: Value(dto.costMinor),
         category: Value(dto.category),
         isActive: Value(dto.isActive ? 1 : 0),
         serverVersion: Value(dto.serverVersion),
@@ -330,6 +345,7 @@ class ProductRepository {
   Future<void> createProduct(Product product, SyncOutboxRepository outbox) async {
     if (product.name.trim().isEmpty) throw ArgumentError('Nama produk wajib diisi');
     if (product.priceMinor < 0) throw ArgumentError('Harga harus >= 0');
+    if (product.costMinor != null && product.costMinor! < 0) throw ArgumentError('HPP harus >= 0');
 
     if (product.barcode != null && product.barcode!.trim().isNotEmpty) {
       final lookup = await findByBarcode(product.businessId, product.barcode!.trim());
@@ -343,6 +359,7 @@ class ProductRepository {
         ProductsLocalCompanion.insert(
           id: product.id, businessId: product.businessId, name: product.name,
           description: Value(product.description), priceMinor: product.priceMinor,
+          costMinor: Value(product.costMinor),
           category: Value(product.category), isActive: Value(product.isActive ? 1 : 0),
           serverVersion: const Value(0), lastSyncedAt: Value(product.lastSyncedAt),
           barcode: Value(product.barcode), localStatus: const Value('dirty'),
@@ -351,6 +368,7 @@ class ProductRepository {
       final dto = ProductDto(
         id: product.id, name: product.name, description: product.description,
         barcode: product.barcode, priceMinor: product.priceMinor,
+        costMinor: product.costMinor,
         category: product.category, isActive: product.isActive, serverVersion: 0,
       );
       await outbox.enqueueProductCreate(dto);

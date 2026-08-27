@@ -47,7 +47,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.memory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -214,6 +214,20 @@ class AppDatabase extends _$AppDatabase {
           'CREATE INDEX IF NOT EXISTS idx_purchase_items_purchase '
           'ON purchase_items_local (purchase_id)',
         );
+      }
+      if (from < 11) {
+        // V11: Add cost_minor column to products_local for HPP (Phase 9B.7.2)
+        final columns = await customSelect(
+          "PRAGMA table_info(products_local)",
+        ).get();
+        final hasCostMinor = columns.any(
+          (row) => row.read<String>('name') == 'cost_minor',
+        );
+        if (!hasCostMinor) {
+          await customStatement(
+            'ALTER TABLE products_local ADD COLUMN cost_minor INTEGER',
+          );
+        }
       }
     },
     beforeOpen: (details) async {

@@ -84,6 +84,18 @@ class $ProductsLocalTable extends ProductsLocal
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _costMinorMeta = const VerificationMeta(
+    'costMinor',
+  );
+  @override
+  late final GeneratedColumn<int> costMinor = GeneratedColumn<int>(
+    'cost_minor',
+    aliasedName,
+    true,
+    check: () => const CustomExpression('cost_minor >= 0'),
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _categoryMeta = const VerificationMeta(
     'category',
   );
@@ -139,6 +151,7 @@ class $ProductsLocalTable extends ProductsLocal
     barcode,
     localStatus,
     priceMinor,
+    costMinor,
     category,
     isActive,
     serverVersion,
@@ -209,6 +222,12 @@ class $ProductsLocalTable extends ProductsLocal
     } else if (isInserting) {
       context.missing(_priceMinorMeta);
     }
+    if (data.containsKey('cost_minor')) {
+      context.handle(
+        _costMinorMeta,
+        costMinor.isAcceptableOrUnknown(data['cost_minor']!, _costMinorMeta),
+      );
+    }
     if (data.containsKey('category')) {
       context.handle(
         _categoryMeta,
@@ -276,6 +295,10 @@ class $ProductsLocalTable extends ProductsLocal
         DriftSqlType.int,
         data['${effectivePrefix}price_minor'],
       )!,
+      costMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}cost_minor'],
+      ),
       category: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}category'],
@@ -313,6 +336,9 @@ class ProductsLocalData extends DataClass
 
   /// Price in minor units (INTEGER, no floating point)
   final int priceMinor;
+
+  /// Cost in minor units (HPP) - nullable, separate from sale price
+  final int? costMinor;
   final String? category;
 
   /// Soft delete flag. 1 = active, 0 = inactive.
@@ -332,6 +358,7 @@ class ProductsLocalData extends DataClass
     this.barcode,
     required this.localStatus,
     required this.priceMinor,
+    this.costMinor,
     this.category,
     required this.isActive,
     required this.serverVersion,
@@ -351,6 +378,9 @@ class ProductsLocalData extends DataClass
     }
     map['local_status'] = Variable<String>(localStatus);
     map['price_minor'] = Variable<int>(priceMinor);
+    if (!nullToAbsent || costMinor != null) {
+      map['cost_minor'] = Variable<int>(costMinor);
+    }
     if (!nullToAbsent || category != null) {
       map['category'] = Variable<String>(category);
     }
@@ -375,6 +405,9 @@ class ProductsLocalData extends DataClass
           : Value(barcode),
       localStatus: Value(localStatus),
       priceMinor: Value(priceMinor),
+      costMinor: costMinor == null && nullToAbsent
+          ? const Value.absent()
+          : Value(costMinor),
       category: category == null && nullToAbsent
           ? const Value.absent()
           : Value(category),
@@ -399,6 +432,7 @@ class ProductsLocalData extends DataClass
       barcode: serializer.fromJson<String?>(json['barcode']),
       localStatus: serializer.fromJson<String>(json['localStatus']),
       priceMinor: serializer.fromJson<int>(json['priceMinor']),
+      costMinor: serializer.fromJson<int?>(json['costMinor']),
       category: serializer.fromJson<String?>(json['category']),
       isActive: serializer.fromJson<int>(json['isActive']),
       serverVersion: serializer.fromJson<int>(json['serverVersion']),
@@ -416,6 +450,7 @@ class ProductsLocalData extends DataClass
       'barcode': serializer.toJson<String?>(barcode),
       'localStatus': serializer.toJson<String>(localStatus),
       'priceMinor': serializer.toJson<int>(priceMinor),
+      'costMinor': serializer.toJson<int?>(costMinor),
       'category': serializer.toJson<String?>(category),
       'isActive': serializer.toJson<int>(isActive),
       'serverVersion': serializer.toJson<int>(serverVersion),
@@ -431,6 +466,7 @@ class ProductsLocalData extends DataClass
     Value<String?> barcode = const Value.absent(),
     String? localStatus,
     int? priceMinor,
+    Value<int?> costMinor = const Value.absent(),
     Value<String?> category = const Value.absent(),
     int? isActive,
     int? serverVersion,
@@ -443,6 +479,7 @@ class ProductsLocalData extends DataClass
     barcode: barcode.present ? barcode.value : this.barcode,
     localStatus: localStatus ?? this.localStatus,
     priceMinor: priceMinor ?? this.priceMinor,
+    costMinor: costMinor.present ? costMinor.value : this.costMinor,
     category: category.present ? category.value : this.category,
     isActive: isActive ?? this.isActive,
     serverVersion: serverVersion ?? this.serverVersion,
@@ -465,6 +502,7 @@ class ProductsLocalData extends DataClass
       priceMinor: data.priceMinor.present
           ? data.priceMinor.value
           : this.priceMinor,
+      costMinor: data.costMinor.present ? data.costMinor.value : this.costMinor,
       category: data.category.present ? data.category.value : this.category,
       isActive: data.isActive.present ? data.isActive.value : this.isActive,
       serverVersion: data.serverVersion.present
@@ -486,6 +524,7 @@ class ProductsLocalData extends DataClass
           ..write('barcode: $barcode, ')
           ..write('localStatus: $localStatus, ')
           ..write('priceMinor: $priceMinor, ')
+          ..write('costMinor: $costMinor, ')
           ..write('category: $category, ')
           ..write('isActive: $isActive, ')
           ..write('serverVersion: $serverVersion, ')
@@ -503,6 +542,7 @@ class ProductsLocalData extends DataClass
     barcode,
     localStatus,
     priceMinor,
+    costMinor,
     category,
     isActive,
     serverVersion,
@@ -519,6 +559,7 @@ class ProductsLocalData extends DataClass
           other.barcode == this.barcode &&
           other.localStatus == this.localStatus &&
           other.priceMinor == this.priceMinor &&
+          other.costMinor == this.costMinor &&
           other.category == this.category &&
           other.isActive == this.isActive &&
           other.serverVersion == this.serverVersion &&
@@ -533,6 +574,7 @@ class ProductsLocalCompanion extends UpdateCompanion<ProductsLocalData> {
   final Value<String?> barcode;
   final Value<String> localStatus;
   final Value<int> priceMinor;
+  final Value<int?> costMinor;
   final Value<String?> category;
   final Value<int> isActive;
   final Value<int> serverVersion;
@@ -546,6 +588,7 @@ class ProductsLocalCompanion extends UpdateCompanion<ProductsLocalData> {
     this.barcode = const Value.absent(),
     this.localStatus = const Value.absent(),
     this.priceMinor = const Value.absent(),
+    this.costMinor = const Value.absent(),
     this.category = const Value.absent(),
     this.isActive = const Value.absent(),
     this.serverVersion = const Value.absent(),
@@ -560,6 +603,7 @@ class ProductsLocalCompanion extends UpdateCompanion<ProductsLocalData> {
     this.barcode = const Value.absent(),
     this.localStatus = const Value.absent(),
     required int priceMinor,
+    this.costMinor = const Value.absent(),
     this.category = const Value.absent(),
     this.isActive = const Value.absent(),
     this.serverVersion = const Value.absent(),
@@ -577,6 +621,7 @@ class ProductsLocalCompanion extends UpdateCompanion<ProductsLocalData> {
     Expression<String>? barcode,
     Expression<String>? localStatus,
     Expression<int>? priceMinor,
+    Expression<int>? costMinor,
     Expression<String>? category,
     Expression<int>? isActive,
     Expression<int>? serverVersion,
@@ -591,6 +636,7 @@ class ProductsLocalCompanion extends UpdateCompanion<ProductsLocalData> {
       if (barcode != null) 'barcode': barcode,
       if (localStatus != null) 'local_status': localStatus,
       if (priceMinor != null) 'price_minor': priceMinor,
+      if (costMinor != null) 'cost_minor': costMinor,
       if (category != null) 'category': category,
       if (isActive != null) 'is_active': isActive,
       if (serverVersion != null) 'server_version': serverVersion,
@@ -607,6 +653,7 @@ class ProductsLocalCompanion extends UpdateCompanion<ProductsLocalData> {
     Value<String?>? barcode,
     Value<String>? localStatus,
     Value<int>? priceMinor,
+    Value<int?>? costMinor,
     Value<String?>? category,
     Value<int>? isActive,
     Value<int>? serverVersion,
@@ -621,6 +668,7 @@ class ProductsLocalCompanion extends UpdateCompanion<ProductsLocalData> {
       barcode: barcode ?? this.barcode,
       localStatus: localStatus ?? this.localStatus,
       priceMinor: priceMinor ?? this.priceMinor,
+      costMinor: costMinor ?? this.costMinor,
       category: category ?? this.category,
       isActive: isActive ?? this.isActive,
       serverVersion: serverVersion ?? this.serverVersion,
@@ -653,6 +701,9 @@ class ProductsLocalCompanion extends UpdateCompanion<ProductsLocalData> {
     if (priceMinor.present) {
       map['price_minor'] = Variable<int>(priceMinor.value);
     }
+    if (costMinor.present) {
+      map['cost_minor'] = Variable<int>(costMinor.value);
+    }
     if (category.present) {
       map['category'] = Variable<String>(category.value);
     }
@@ -681,6 +732,7 @@ class ProductsLocalCompanion extends UpdateCompanion<ProductsLocalData> {
           ..write('barcode: $barcode, ')
           ..write('localStatus: $localStatus, ')
           ..write('priceMinor: $priceMinor, ')
+          ..write('costMinor: $costMinor, ')
           ..write('category: $category, ')
           ..write('isActive: $isActive, ')
           ..write('serverVersion: $serverVersion, ')
@@ -10044,6 +10096,7 @@ typedef $$ProductsLocalTableCreateCompanionBuilder =
       Value<String?> barcode,
       Value<String> localStatus,
       required int priceMinor,
+      Value<int?> costMinor,
       Value<String?> category,
       Value<int> isActive,
       Value<int> serverVersion,
@@ -10059,6 +10112,7 @@ typedef $$ProductsLocalTableUpdateCompanionBuilder =
       Value<String?> barcode,
       Value<String> localStatus,
       Value<int> priceMinor,
+      Value<int?> costMinor,
       Value<String?> category,
       Value<int> isActive,
       Value<int> serverVersion,
@@ -10135,6 +10189,11 @@ class $$ProductsLocalTableFilterComposer
 
   ColumnFilters<int> get priceMinor => $composableBuilder(
     column: $table.priceMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get costMinor => $composableBuilder(
+    column: $table.costMinor,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -10228,6 +10287,11 @@ class $$ProductsLocalTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get costMinor => $composableBuilder(
+    column: $table.costMinor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get category => $composableBuilder(
     column: $table.category,
     builder: (column) => ColumnOrderings(column),
@@ -10286,6 +10350,9 @@ class $$ProductsLocalTableAnnotationComposer
     column: $table.priceMinor,
     builder: (column) => column,
   );
+
+  GeneratedColumn<int> get costMinor =>
+      $composableBuilder(column: $table.costMinor, builder: (column) => column);
 
   GeneratedColumn<String> get category =>
       $composableBuilder(column: $table.category, builder: (column) => column);
@@ -10364,6 +10431,7 @@ class $$ProductsLocalTableTableManager
                 Value<String?> barcode = const Value.absent(),
                 Value<String> localStatus = const Value.absent(),
                 Value<int> priceMinor = const Value.absent(),
+                Value<int?> costMinor = const Value.absent(),
                 Value<String?> category = const Value.absent(),
                 Value<int> isActive = const Value.absent(),
                 Value<int> serverVersion = const Value.absent(),
@@ -10377,6 +10445,7 @@ class $$ProductsLocalTableTableManager
                 barcode: barcode,
                 localStatus: localStatus,
                 priceMinor: priceMinor,
+                costMinor: costMinor,
                 category: category,
                 isActive: isActive,
                 serverVersion: serverVersion,
@@ -10392,6 +10461,7 @@ class $$ProductsLocalTableTableManager
                 Value<String?> barcode = const Value.absent(),
                 Value<String> localStatus = const Value.absent(),
                 required int priceMinor,
+                Value<int?> costMinor = const Value.absent(),
                 Value<String?> category = const Value.absent(),
                 Value<int> isActive = const Value.absent(),
                 Value<int> serverVersion = const Value.absent(),
@@ -10405,6 +10475,7 @@ class $$ProductsLocalTableTableManager
                 barcode: barcode,
                 localStatus: localStatus,
                 priceMinor: priceMinor,
+                costMinor: costMinor,
                 category: category,
                 isActive: isActive,
                 serverVersion: serverVersion,

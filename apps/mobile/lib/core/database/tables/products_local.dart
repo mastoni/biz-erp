@@ -18,6 +18,10 @@ class ProductsLocal extends Table {
   IntColumn get priceMinor =>
       integer().check(const CustomExpression('price_minor >= 0'))();
 
+  /// Cost in minor units (HPP) - nullable, separate from sale price
+  IntColumn get costMinor =>
+      integer().nullable().check(const CustomExpression('cost_minor >= 0'))();
+
   TextColumn get category => text().nullable()();
 
   /// Soft delete flag. 1 = active, 0 = inactive.

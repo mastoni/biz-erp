@@ -76,6 +76,7 @@ class ProductDto {
   final String? description;
   final String? barcode;
   final int priceMinor;
+  final int? costMinor;
   final String? category;
   final bool isActive;
   final int serverVersion;
@@ -87,6 +88,7 @@ class ProductDto {
     this.description,
     this.barcode,
     required this.priceMinor,
+    this.costMinor,
     this.category,
     required this.isActive,
     required this.serverVersion,
@@ -99,6 +101,7 @@ class ProductDto {
     'description': description,
     'barcode': barcode,
     'price_minor': priceMinor,
+    'cost_minor': costMinor,
     'category': category,
     'is_active': isActive ? 1 : 0,
     'server_version': serverVersion,
@@ -111,6 +114,7 @@ class ProductDto {
     description: j['description'] as String?,
     barcode: j['barcode'] as String?,
     priceMinor: (j['price_minor'] as num).toInt(),
+    costMinor: (j['cost_minor'] as num?)?.toInt(),
     category: j['category'] as String?,
     isActive: (j['is_active'] as int) == 1,
     serverVersion: (j['server_version'] as num).toInt(),
