@@ -7,6 +7,8 @@ import { createApp } from '../src/app'
 import { createPool } from '../src/db/pool'
 import { runMigrations } from '../src/db/migrate'
 import { seedTestUser, authenticateTestUser } from './auth_helper'
+import { accountRepository } from '../src/repositories/account_repository'
+import { journalRepository } from '../src/repositories/journal_repository'
 
 const BUSINESS_A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 const BUSINESS_B = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
@@ -1813,6 +1815,1067 @@ describe('FIN-009: branch filter', () => {
         `UPDATE journal_lines SET journal_entry_id = $1 WHERE id = $2`,
         [reversalId, lineId]
       )).rejects.toThrow()
+    })
+  })
+
+  describe('FIN-091: finance summary asset calculation', () => {
+    it('FIN-091: total_assets = sum of asset account balances (debit - credit)', async () => {
+      const cashAcc = await getCashAccount(BUSINESS_A)
+      const bankAcc = await pool.query(`SELECT id FROM accounts WHERE business_id = $1 AND type = 'bank'`, [BUSINESS_A])
+      const revenueAcc = await pool.query(`SELECT id FROM accounts WHERE business_id = $1 AND type = 'revenue'`, [BUSINESS_A])
+
+      const je1 = await createJournaEntry(BUSINESS_A, {
+        source_type: 'SALE',
+        lines: [
+          { account_id: cashAcc, debit_minor: 100000, credit_minor: 0 },
+          { account_id: revenueAcc.rows[0].id, debit_minor: 0, credit_minor: 100000 }
+        ]
+      })
+      await pool.query(`UPDATE journal_entries SET status = 'posted' WHERE id = $1`, [je1.id])
+
+      const je2 = await createJournaEntry(BUSINESS_A, {
+        source_type: 'SALE',
+        lines: [
+          { account_id: bankAcc.rows[0].id, debit_minor: 50000, credit_minor: 0 },
+          { account_id: revenueAcc.rows[0].id, debit_minor: 0, credit_minor: 50000 }
+        ]
+      })
+      await pool.query(`UPDATE journal_entries SET status = 'posted' WHERE id = $1`, [je2.id])
+
+      const client = await pool.connect()
+      try {
+        const result = await accountRepository.getFinanceSummary(client, BUSINESS_A)
+        expect(result.total_assets).toBe(150000)
+      } finally {
+        client.release()
+      }
+    })
+  })
+
+  describe('FIN-092: finance summary liability calculation', () => {
+    it('FIN-092: total_liabilities = sum of payable balances (credit - debit)', async () => {
+      const cashAcc = await getCashAccount(BUSINESS_A)
+      const payableAcc = await pool.query(`SELECT id FROM accounts WHERE business_id = $1 AND type = 'payable'`, [BUSINESS_A])
+
+      const je = await createJournaEntry(BUSINESS_A, {
+        source_type: 'PURCHASE_PAYMENT',
+        lines: [
+          { account_id: payableAcc.rows[0].id, debit_minor: 0, credit_minor: 200000 },
+          { account_id: cashAcc, debit_minor: 200000, credit_minor: 0 }
+        ]
+      })
+      await pool.query(`UPDATE journal_entries SET status = 'posted' WHERE id = $1`, [je.id])
+
+      const client = await pool.connect()
+      try {
+        const result = await accountRepository.getFinanceSummary(client, BUSINESS_A)
+        expect(result.total_liabilities).toBe(200000)
+      } finally {
+        client.release()
+      }
+    })
+  })
+
+  describe('FIN-093: finance summary revenue calculation', () => {
+    it('FIN-093: total_revenue = sum of revenue/income balances (credit - debit)', async () => {
+      const cashAcc = await getCashAccount(BUSINESS_A)
+      const revenueAcc = await pool.query(`SELECT id FROM accounts WHERE business_id = $1 AND type = 'revenue'`, [BUSINESS_A])
+
+      const je = await createJournaEntry(BUSINESS_A, {
+        source_type: 'SALE',
+        lines: [
+          { account_id: cashAcc, debit_minor: 300000, credit_minor: 0 },
+          { account_id: revenueAcc.rows[0].id, debit_minor: 0, credit_minor: 300000 }
+        ]
+      })
+      await pool.query(`UPDATE journal_entries SET status = 'posted' WHERE id = $1`, [je.id])
+
+      const client = await pool.connect()
+      try {
+        const result = await accountRepository.getFinanceSummary(client, BUSINESS_A)
+        expect(result.total_revenue).toBe(300000)
+      } finally {
+        client.release()
+      }
+    })
+  })
+
+  describe('FIN-094: finance summary expense calculation', () => {
+    it('FIN-094: total_expense = sum of expense/cogs balances (debit - credit)', async () => {
+      const cashAcc = await getCashAccount(BUSINESS_A)
+      const expenseAcc = await pool.query(`SELECT id FROM accounts WHERE business_id = $1 AND type = 'expense'`, [BUSINESS_A])
+
+      const je = await createJournaEntry(BUSINESS_A, {
+        source_type: 'EXPENSE',
+        lines: [
+          { account_id: expenseAcc.rows[0].id, debit_minor: 75000, credit_minor: 0 },
+          { account_id: cashAcc, debit_minor: 0, credit_minor: 75000 }
+        ]
+      })
+      await pool.query(`UPDATE journal_entries SET status = 'posted' WHERE id = $1`, [je.id])
+
+      const client = await pool.connect()
+      try {
+        const result = await accountRepository.getFinanceSummary(client, BUSINESS_A)
+        expect(result.total_expense).toBe(75000)
+      } finally {
+        client.release()
+      }
+    })
+  })
+
+  describe('FIN-095: net income calculation', () => {
+    it('FIN-095: net_income = total_revenue - total_expense', async () => {
+      const cashAcc = await getCashAccount(BUSINESS_A)
+      const revenueAcc = await pool.query(`SELECT id FROM accounts WHERE business_id = $1 AND type = 'revenue'`, [BUSINESS_A])
+      const expenseAcc = await pool.query(`SELECT id FROM accounts WHERE business_id = $1 AND type = 'expense'`, [BUSINESS_A])
+
+      const je1 = await createJournaEntry(BUSINESS_A, {
+        source_type: 'SALE',
+        lines: [
+          { account_id: cashAcc, debit_minor: 500000, credit_minor: 0 },
+          { account_id: revenueAcc.rows[0].id, debit_minor: 0, credit_minor: 500000 }
+        ]
+      })
+      await pool.query(`UPDATE journal_entries SET status = 'posted' WHERE id = $1`, [je1.id])
+
+      const je2 = await createJournaEntry(BUSINESS_A, {
+        source_type: 'EXPENSE',
+        lines: [
+          { account_id: expenseAcc.rows[0].id, debit_minor: 120000, credit_minor: 0 },
+          { account_id: cashAcc, debit_minor: 0, credit_minor: 120000 }
+        ]
+      })
+      await pool.query(`UPDATE journal_entries SET status = 'posted' WHERE id = $1`, [je2.id])
+
+      const client = await pool.connect()
+      try {
+        const result = await accountRepository.getFinanceSummary(client, BUSINESS_A)
+        expect(result.net_income).toBe(380000)
+      } finally {
+        client.release()
+      }
+    })
+  })
+
+  describe('FIN-096: cash inflow = debit', () => {
+    it('FIN-096: cash_inflow = sum of debit on cash/bank/mobile', async () => {
+      const cashAcc = await getCashAccount(BUSINESS_A)
+      const revenueAcc = await pool.query(`SELECT id FROM accounts WHERE business_id = $1 AND type = 'revenue'`, [BUSINESS_A])
+
+      const je = await createJournaEntry(BUSINESS_A, {
+        source_type: 'SALE',
+        lines: [
+          { account_id: cashAcc, debit_minor: 250000, credit_minor: 0 },
+          { account_id: revenueAcc.rows[0].id, debit_minor: 0, credit_minor: 250000 }
+        ]
+      })
+      await pool.query(`UPDATE journal_entries SET status = 'posted' WHERE id = $1`, [je.id])
+
+      const client = await pool.connect()
+      try {
+        const result = await accountRepository.getFinanceSummary(client, BUSINESS_A)
+        expect(result.cash_inflow).toBe(250000)
+      } finally {
+        client.release()
+      }
+    })
+  })
+
+  describe('FIN-097: cash outflow = credit', () => {
+    it('FIN-097: cash_outflow = sum of credit on cash/bank/mobile', async () => {
+      const cashAcc = await getCashAccount(BUSINESS_A)
+      const expenseAcc = await pool.query(`SELECT id FROM accounts WHERE business_id = $1 AND type = 'expense'`, [BUSINESS_A])
+
+      const je = await createJournaEntry(BUSINESS_A, {
+        source_type: 'EXPENSE',
+        lines: [
+          { account_id: expenseAcc.rows[0].id, debit_minor: 80000, credit_minor: 0 },
+          { account_id: cashAcc, debit_minor: 0, credit_minor: 80000 }
+        ]
+      })
+      await pool.query(`UPDATE journal_entries SET status = 'posted' WHERE id = $1`, [je.id])
+
+      const client = await pool.connect()
+      try {
+        const result = await accountRepository.getFinanceSummary(client, BUSINESS_A)
+        expect(result.cash_outflow).toBe(80000)
+      } finally {
+        client.release()
+      }
+    })
+  })
+
+  describe('FIN-098: net cash flow', () => {
+    it('FIN-098: net_cash_flow = cash_inflow - cash_outflow', async () => {
+      const cashAcc = await getCashAccount(BUSINESS_A)
+      const revenueAcc = await pool.query(`SELECT id FROM accounts WHERE business_id = $1 AND type = 'revenue'`, [BUSINESS_A])
+      const expenseAcc = await pool.query(`SELECT id FROM accounts WHERE business_id = $1 AND type = 'expense'`, [BUSINESS_A])
+
+      const je1 = await createJournaEntry(BUSINESS_A, {
+        source_type: 'SALE',
+        lines: [
+          { account_id: cashAcc, debit_minor: 400000, credit_minor: 0 },
+          { account_id: revenueAcc.rows[0].id, debit_minor: 0, credit_minor: 400000 }
+        ]
+      })
+      await pool.query(`UPDATE journal_entries SET status = 'posted' WHERE id = $1`, [je1.id])
+
+      const je2 = await createJournaEntry(BUSINESS_A, {
+        source_type: 'EXPENSE',
+        lines: [
+          { account_id: expenseAcc.rows[0].id, debit_minor: 150000, credit_minor: 0 },
+          { account_id: cashAcc, debit_minor: 0, credit_minor: 150000 }
+        ]
+      })
+      await pool.query(`UPDATE journal_entries SET status = 'posted' WHERE id = $1`, [je2.id])
+
+      const client = await pool.connect()
+      try {
+        const result = await accountRepository.getFinanceSummary(client, BUSINESS_A)
+        expect(result.net_cash_flow).toBe(250000)
+      } finally {
+        client.release()
+      }
+    })
+  })
+
+  describe('FIN-099: draft/reversed excluded from summary', () => {
+    it('FIN-099: draft and reversed journals do not affect summary', async () => {
+      const cashAcc = await getCashAccount(BUSINESS_A)
+      const revenueAcc = await pool.query(`SELECT id FROM accounts WHERE business_id = $1 AND type = 'revenue'`, [BUSINESS_A])
+
+      const draftJe = await createJournaEntry(BUSINESS_A, {
+        source_type: 'SALE',
+        status: 'draft',
+        lines: [
+          { account_id: cashAcc, debit_minor: 999999, credit_minor: 0 },
+          { account_id: revenueAcc.rows[0].id, debit_minor: 0, credit_minor: 999999 }
+        ]
+      })
+
+      const postedJe = await createJournaEntry(BUSINESS_A, {
+        source_type: 'SALE',
+        lines: [
+          { account_id: cashAcc, debit_minor: 100000, credit_minor: 0 },
+          { account_id: revenueAcc.rows[0].id, debit_minor: 0, credit_minor: 100000 }
+        ]
+      })
+      await pool.query(`UPDATE journal_entries SET status = 'posted' WHERE id = $1`, [postedJe.id])
+
+      const client = await pool.connect()
+      try {
+        const result = await accountRepository.getFinanceSummary(client, BUSINESS_A)
+        expect(result.total_revenue).toBe(100000)
+        expect(result.cash_inflow).toBe(100000)
+      } finally {
+        client.release()
+      }
+    })
+  })
+
+  describe('FIN-100: zero-activity account returns zero DTO', () => {
+    it('FIN-100: account with no posted transactions returns zero balance DTO', async () => {
+      const cashAcc = await getCashAccount(BUSINESS_A)
+
+      const client = await pool.connect()
+      try {
+        const result = await accountRepository.getAccountBalance(client, BUSINESS_A, cashAcc)
+        expect(result).toBeDefined()
+        expect(result.debit_total).toBe(0)
+        expect(result.credit_total).toBe(0)
+        expect(result.balance).toBe(0)
+        expect(result.account_id).toBe(cashAcc)
+      } finally {
+        client.release()
+      }
+    })
+  })
+
+  describe('FIN-101: account update increments server_version', () => {
+    it('FIN-101: successful update increments server_version', async () => {
+      const cashAcc = await getCashAccount(BUSINESS_A)
+
+      const client = await pool.connect()
+      try {
+        const result = await accountRepository.updateAccount(client, BUSINESS_A, cashAcc, {
+          name: 'Updated Cash',
+          expected_server_version: 1
+        })
+        expect(result).toBeDefined()
+        expect(result!.server_version).toBe(2)
+      } finally {
+        client.release()
+      }
+    })
+  })
+
+  describe('FIN-102: account update updates updated_at', () => {
+    it('FIN-102: successful update sets updated_at to now', async () => {
+      const cashAcc = await getCashAccount(BUSINESS_A)
+
+      const before = await pool.query(`SELECT updated_at FROM accounts WHERE id = $1`, [cashAcc])
+      const beforeTime = new Date(before.rows[0].updated_at).getTime()
+
+      await new Promise(resolve => setTimeout(resolve, 10))
+
+      const client = await pool.connect()
+      try {
+        await accountRepository.updateAccount(client, BUSINESS_A, cashAcc, {
+          name: 'Updated Cash Again',
+          expected_server_version: 1
+        })
+      } finally {
+        client.release()
+      }
+
+      const after = await pool.query(`SELECT updated_at FROM accounts WHERE id = $1`, [cashAcc])
+      const afterTime = new Date(after.rows[0].updated_at).getTime()
+      expect(afterTime).toBeGreaterThanOrEqual(beforeTime)
+    })
+  })
+
+  describe('FIN-103: stale account update rejected', () => {
+    it('FIN-103: update with stale server_version returns null', async () => {
+      const cashAcc = await getCashAccount(BUSINESS_A)
+
+      const client = await pool.connect()
+      try {
+        const result = await accountRepository.updateAccount(client, BUSINESS_A, cashAcc, {
+          name: 'Stale Update',
+          expected_server_version: 999
+        })
+        expect(result).toBeNull()
+      } finally {
+        client.release()
+      }
+    })
+  })
+
+  describe('FIN-104: create draft journal', () => {
+    it('FIN-104: creates draft journal with correct fields', async () => {
+      const client = await pool.connect()
+      try {
+        const journalId = randomUUID()
+        await journalRepository.createDraftJournal(client, BUSINESS_A, {
+          id: journalId,
+          date: '2026-08-28',
+          source_type: 'SALE',
+          source_id: randomUUID(),
+          reference: 'REF-001',
+          description: 'Test Sale',
+          branch_id: null
+        })
+
+        const result = await journalRepository.getJournalById(client, BUSINESS_A, journalId)
+        expect(result).toBeDefined()
+        expect(result!.status).toBe('draft')
+        expect(result!.source_type).toBe('SALE')
+        expect(result!.reference).toBe('REF-001')
+        expect(result!.business_id).toBe(BUSINESS_A)
+      } finally {
+        client.release()
+      }
+    })
+  })
+
+  describe('FIN-105: draft tenant isolation', () => {
+    it('FIN-105: cannot access draft journal from different tenant', async () => {
+      const client = await pool.connect()
+      try {
+        const journalId = randomUUID()
+        await journalRepository.createDraftJournal(client, BUSINESS_A, {
+          id: journalId,
+          date: '2026-08-28',
+          source_type: 'SALE',
+          source_id: randomUUID(),
+          description: 'Tenant A Journal'
+        })
+
+        const result = await journalRepository.getJournalById(client, BUSINESS_B, journalId)
+        expect(result).toBeNull()
+      } finally {
+        client.release()
+      }
+    })
+  })
+
+  describe('FIN-106: add line to draft', () => {
+    it('FIN-106: can add line to draft journal', async () => {
+      const cashAcc = await getCashAccount(BUSINESS_A)
+      const client = await pool.connect()
+      try {
+        const journalId = randomUUID()
+        await journalRepository.createDraftJournal(client, BUSINESS_A, {
+          id: journalId,
+          date: '2026-08-28',
+          source_type: 'SALE',
+          source_id: randomUUID(),
+          description: 'Draft with line'
+        })
+
+        await journalRepository.addJournalLine(client, {
+          id: randomUUID(),
+          journal_entry_id: journalId,
+          account_id: cashAcc,
+          debit_minor: 100000,
+          credit_minor: 0
+        })
+
+        const lines = await journalRepository.listJournalLines(client, BUSINESS_A, journalId)
+        expect(lines).toHaveLength(1)
+        expect(lines[0].debit_minor).toBe(100000)
+      } finally {
+        client.release()
+      }
+    })
+  })
+
+  describe('FIN-107: posted journal rejects new line', () => {
+    it('FIN-107: cannot add line to posted journal', async () => {
+      const cashAcc = await getCashAccount(BUSINESS_A)
+      const bankAcc = await pool.query(`SELECT id FROM accounts WHERE business_id = $1 AND type = 'bank'`, [BUSINESS_A])
+      const client = await pool.connect()
+      try {
+        const journalId = randomUUID()
+        await journalRepository.createDraftJournal(client, BUSINESS_A, {
+          id: journalId,
+          date: '2026-08-28',
+          source_type: 'SALE',
+          source_id: randomUUID(),
+          description: 'Will be posted'
+        })
+
+        await journalRepository.addJournalLine(client, {
+          id: randomUUID(),
+          journal_entry_id: journalId,
+          account_id: cashAcc,
+          debit_minor: 50000,
+          credit_minor: 0
+        })
+        await journalRepository.addJournalLine(client, {
+          id: randomUUID(),
+          journal_entry_id: journalId,
+          account_id: bankAcc.rows[0].id,
+          debit_minor: 0,
+          credit_minor: 50000
+        })
+
+        await journalRepository.postJournal(client, journalId)
+
+        await expect(journalRepository.addJournalLine(client, {
+          id: randomUUID(),
+          journal_entry_id: journalId,
+          account_id: cashAcc,
+          debit_minor: 10000,
+          credit_minor: 0
+        })).rejects.toThrow()
+      } finally {
+        client.release()
+      }
+    })
+  })
+
+  describe('FIN-108: post balanced journal', () => {
+    it('FIN-108: can post balanced draft journal', async () => {
+      const cashAcc = await getCashAccount(BUSINESS_A)
+      const bankAcc = await pool.query(`SELECT id FROM accounts WHERE business_id = $1 AND type = 'bank'`, [BUSINESS_A])
+      const client = await pool.connect()
+      try {
+        const journalId = randomUUID()
+        await journalRepository.createDraftJournal(client, BUSINESS_A, {
+          id: journalId,
+          date: '2026-08-28',
+          source_type: 'SALE',
+          source_id: randomUUID(),
+          description: 'Balanced journal'
+        })
+
+        await journalRepository.addJournalLine(client, {
+          id: randomUUID(),
+          journal_entry_id: journalId,
+          account_id: cashAcc,
+          debit_minor: 75000,
+          credit_minor: 0
+        })
+        await journalRepository.addJournalLine(client, {
+          id: randomUUID(),
+          journal_entry_id: journalId,
+          account_id: bankAcc.rows[0].id,
+          debit_minor: 0,
+          credit_minor: 75000
+        })
+
+        await journalRepository.postJournal(client, journalId)
+
+        const result = await journalRepository.getJournalById(client, BUSINESS_A, journalId)
+        expect(result!.status).toBe('posted')
+      } finally {
+        client.release()
+      }
+    })
+  })
+
+  describe('FIN-109: unbalanced journal rejected', () => {
+    it('FIN-109: cannot post unbalanced journal', async () => {
+      const cashAcc = await getCashAccount(BUSINESS_A)
+      const bankAcc = await pool.query(`SELECT id FROM accounts WHERE business_id = $1 AND type = 'bank'`, [BUSINESS_A])
+      const client = await pool.connect()
+      try {
+        const journalId = randomUUID()
+        await journalRepository.createDraftJournal(client, BUSINESS_A, {
+          id: journalId,
+          date: '2026-08-28',
+          source_type: 'SALE',
+          source_id: randomUUID(),
+          description: 'Unbalanced journal'
+        })
+
+        await journalRepository.addJournalLine(client, {
+          id: randomUUID(),
+          journal_entry_id: journalId,
+          account_id: cashAcc,
+          debit_minor: 100000,
+          credit_minor: 0
+        })
+        await journalRepository.addJournalLine(client, {
+          id: randomUUID(),
+          journal_entry_id: journalId,
+          account_id: bankAcc.rows[0].id,
+          debit_minor: 0,
+          credit_minor: 50000
+        })
+
+        await expect(journalRepository.postJournal(client, journalId)).rejects.toThrow()
+      } finally {
+        client.release()
+      }
+    })
+  })
+
+  describe('FIN-110: get journal with lines', () => {
+    it('FIN-110: getJournalById returns header + lines', async () => {
+      const cashAcc = await getCashAccount(BUSINESS_A)
+      const bankAcc = await pool.query(`SELECT id FROM accounts WHERE business_id = $1 AND type = 'bank'`, [BUSINESS_A])
+      const client = await pool.connect()
+      try {
+        const journalId = randomUUID()
+        await journalRepository.createDraftJournal(client, BUSINESS_A, {
+          id: journalId,
+          date: '2026-08-28',
+          source_type: 'SALE',
+          source_id: randomUUID(),
+          description: 'Journal with lines'
+        })
+
+        await journalRepository.addJournalLine(client, {
+          id: randomUUID(),
+          journal_entry_id: journalId,
+          account_id: cashAcc,
+          debit_minor: 60000,
+          credit_minor: 0,
+          description: 'Cash line'
+        })
+        await journalRepository.addJournalLine(client, {
+          id: randomUUID(),
+          journal_entry_id: journalId,
+          account_id: bankAcc.rows[0].id,
+          debit_minor: 0,
+          credit_minor: 60000,
+          description: 'Bank line'
+        })
+
+        const result = await journalRepository.getJournalById(client, BUSINESS_A, journalId)
+        expect(result).toBeDefined()
+        expect(result!.lines).toHaveLength(2)
+        expect(result!.lines![0].description).toBe('Cash line')
+        expect(result!.lines![1].description).toBe('Bank line')
+      } finally {
+        client.release()
+      }
+    })
+  })
+
+  describe('FIN-111: cross-tenant get rejected', () => {
+    it('FIN-111: getJournalById returns null for different tenant', async () => {
+      const client = await pool.connect()
+      try {
+        const journalId = randomUUID()
+        await journalRepository.createDraftJournal(client, BUSINESS_A, {
+          id: journalId,
+          date: '2026-08-28',
+          source_type: 'SALE',
+          source_id: randomUUID(),
+          description: 'Tenant A only'
+        })
+
+        const result = await journalRepository.getJournalById(client, BUSINESS_B, journalId)
+        expect(result).toBeNull()
+      } finally {
+        client.release()
+      }
+    })
+  })
+
+  describe('FIN-112: find by source', () => {
+    it('FIN-112: getJournalBySource returns journal identity', async () => {
+      const client = await pool.connect()
+      try {
+        const sourceId = randomUUID()
+        const journalId = randomUUID()
+        await journalRepository.createDraftJournal(client, BUSINESS_A, {
+          id: journalId,
+          date: '2026-08-28',
+          source_type: 'SALE',
+          source_id: sourceId,
+          description: 'Source lookup'
+        })
+
+        const result = await journalRepository.getJournalBySource(client, BUSINESS_A, 'SALE', sourceId)
+        expect(result).toBeDefined()
+        expect(result!.id).toBe(journalId)
+        expect(result!.status).toBe('draft')
+      } finally {
+        client.release()
+      }
+    })
+  })
+
+  describe('FIN-113: duplicate source', () => {
+    it('FIN-113: cannot create duplicate source_type + source_id', async () => {
+      const client = await pool.connect()
+      try {
+        const sourceId = randomUUID()
+        await journalRepository.createDraftJournal(client, BUSINESS_A, {
+          id: randomUUID(),
+          date: '2026-08-28',
+          source_type: 'SALE',
+          source_id: sourceId,
+          description: 'First'
+        })
+
+        await expect(journalRepository.createDraftJournal(client, BUSINESS_A, {
+          id: randomUUID(),
+          date: '2026-08-28',
+          source_type: 'SALE',
+          source_id: sourceId,
+          description: 'Duplicate'
+        })).rejects.toThrow()
+      } finally {
+        client.release()
+      }
+    })
+  })
+
+  describe('FIN-114: branch filter', () => {
+    it('FIN-114: listJournals filters by branch_id', async () => {
+      const client = await pool.connect()
+      try {
+        await journalRepository.createDraftJournal(client, BUSINESS_A, {
+          id: randomUUID(),
+          date: '2026-08-28',
+          source_type: 'SALE',
+          source_id: randomUUID(),
+          description: 'Branch A',
+          branch_id: BRANCH_A
+        })
+        await journalRepository.createDraftJournal(client, BUSINESS_A, {
+          id: randomUUID(),
+          date: '2026-08-28',
+          source_type: 'SALE',
+          source_id: randomUUID(),
+          description: 'Branch B',
+          branch_id: BRANCH_B
+        })
+
+        const result = await journalRepository.listJournals(client, BUSINESS_A, { branchId: BRANCH_A })
+        expect(result.items).toHaveLength(1)
+        expect(result.items[0].branch_id).toBe(BRANCH_A)
+      } finally {
+        client.release()
+      }
+    })
+  })
+
+  describe('FIN-115: all-branch listing', () => {
+    it('FIN-115: listJournals returns all when branch omitted', async () => {
+      const client = await pool.connect()
+      try {
+        await journalRepository.createDraftJournal(client, BUSINESS_A, {
+          id: randomUUID(),
+          date: '2026-08-28',
+          source_type: 'SALE',
+          source_id: randomUUID(),
+          description: 'Branch A',
+          branch_id: BRANCH_A
+        })
+        await journalRepository.createDraftJournal(client, BUSINESS_A, {
+          id: randomUUID(),
+          date: '2026-08-28',
+          source_type: 'SALE',
+          source_id: randomUUID(),
+          description: 'No branch',
+          branch_id: null
+        })
+
+        const result = await journalRepository.listJournals(client, BUSINESS_A)
+        expect(result.total).toBeGreaterThanOrEqual(2)
+      } finally {
+        client.release()
+      }
+    })
+  })
+
+  describe('FIN-116: posted-only account balance', () => {
+    it('FIN-116: getAccountBalance only counts posted journals', async () => {
+      const cashAcc = await getCashAccount(BUSINESS_A)
+      const bankAcc = await pool.query(`SELECT id FROM accounts WHERE business_id = $1 AND type = 'bank'`, [BUSINESS_A])
+      const client = await pool.connect()
+      try {
+        const draftJournalId = randomUUID()
+        await journalRepository.createDraftJournal(client, BUSINESS_A, {
+          id: draftJournalId,
+          date: '2026-08-28',
+          source_type: 'SALE',
+          source_id: randomUUID(),
+          description: 'Draft'
+        })
+        await journalRepository.addJournalLine(client, {
+          id: randomUUID(),
+          journal_entry_id: draftJournalId,
+          account_id: cashAcc,
+          debit_minor: 999999,
+          credit_minor: 0
+        })
+
+        const postedJournalId = randomUUID()
+        await journalRepository.createDraftJournal(client, BUSINESS_A, {
+          id: postedJournalId,
+          date: '2026-08-28',
+          source_type: 'SALE',
+          source_id: randomUUID(),
+          description: 'Posted'
+        })
+        await journalRepository.addJournalLine(client, {
+          id: randomUUID(),
+          journal_entry_id: postedJournalId,
+          account_id: cashAcc,
+          debit_minor: 100000,
+          credit_minor: 0
+        })
+        await journalRepository.addJournalLine(client, {
+          id: randomUUID(),
+          journal_entry_id: postedJournalId,
+          account_id: bankAcc.rows[0].id,
+          debit_minor: 0,
+          credit_minor: 100000
+        })
+        await journalRepository.postJournal(client, postedJournalId)
+
+        const balance = await accountRepository.getAccountBalance(client, BUSINESS_A, cashAcc)
+        expect(balance.debit_total).toBe(100000)
+        expect(balance.balance).toBe(100000)
+      } finally {
+        client.release()
+      }
+    })
+  })
+
+  describe('FIN-117: zero account balance', () => {
+    it('FIN-117: getAccountBalance returns zero for account with no posted lines', async () => {
+      const cashAcc = await getCashAccount(BUSINESS_A)
+      const client = await pool.connect()
+      try {
+        const balance = await accountRepository.getAccountBalance(client, BUSINESS_A, cashAcc)
+        expect(balance.debit_total).toBe(0)
+        expect(balance.credit_total).toBe(0)
+        expect(balance.balance).toBe(0)
+      } finally {
+        client.release()
+      }
+    })
+  })
+
+  describe('FIN-118: cashflow debit=inflow', () => {
+    it('FIN-118: cashflow debit is inflow', async () => {
+      const cashAcc = await getCashAccount(BUSINESS_A)
+      const revenueAcc = await pool.query(`SELECT id FROM accounts WHERE business_id = $1 AND type = 'revenue'`, [BUSINESS_A])
+      const client = await pool.connect()
+      try {
+        const journalId = randomUUID()
+        await journalRepository.createDraftJournal(client, BUSINESS_A, {
+          id: journalId,
+          date: '2026-08-28',
+          source_type: 'SALE',
+          source_id: randomUUID(),
+          description: 'Cash inflow'
+        })
+        await journalRepository.addJournalLine(client, {
+          id: randomUUID(),
+          journal_entry_id: journalId,
+          account_id: cashAcc,
+          debit_minor: 200000,
+          credit_minor: 0
+        })
+        await journalRepository.addJournalLine(client, {
+          id: randomUUID(),
+          journal_entry_id: journalId,
+          account_id: revenueAcc.rows[0].id,
+          debit_minor: 0,
+          credit_minor: 200000
+        })
+        await journalRepository.postJournal(client, journalId)
+
+        const cashflow = await accountRepository.getCashflow(client, BUSINESS_A)
+        expect(cashflow).toHaveLength(1)
+        expect(cashflow[0].debit_minor).toBe(200000)
+        expect(cashflow[0].net_flow).toBe(200000)
+      } finally {
+        client.release()
+      }
+    })
+  })
+
+  describe('FIN-119: cashflow credit=outflow', () => {
+    it('FIN-119: cashflow credit is outflow', async () => {
+      const cashAcc = await getCashAccount(BUSINESS_A)
+      const expenseAcc = await pool.query(`SELECT id FROM accounts WHERE business_id = $1 AND type = 'expense'`, [BUSINESS_A])
+      const client = await pool.connect()
+      try {
+        const journalId = randomUUID()
+        await journalRepository.createDraftJournal(client, BUSINESS_A, {
+          id: journalId,
+          date: '2026-08-28',
+          source_type: 'EXPENSE',
+          source_id: randomUUID(),
+          description: 'Cash outflow'
+        })
+        await journalRepository.addJournalLine(client, {
+          id: randomUUID(),
+          journal_entry_id: journalId,
+          account_id: expenseAcc.rows[0].id,
+          debit_minor: 75000,
+          credit_minor: 0
+        })
+        await journalRepository.addJournalLine(client, {
+          id: randomUUID(),
+          journal_entry_id: journalId,
+          account_id: cashAcc,
+          debit_minor: 0,
+          credit_minor: 75000
+        })
+        await journalRepository.postJournal(client, journalId)
+
+        const cashflow = await accountRepository.getCashflow(client, BUSINESS_A)
+        expect(cashflow).toHaveLength(1)
+        expect(cashflow[0].credit_minor).toBe(75000)
+        expect(cashflow[0].net_flow).toBe(-75000)
+      } finally {
+        client.release()
+      }
+    })
+  })
+
+  describe('FIN-120: reversal delegates to DB', () => {
+    it('FIN-120: createReversal delegates to DB function', async () => {
+      const cashAcc = await getCashAccount(BUSINESS_A)
+      const bankAcc = await pool.query(`SELECT id FROM accounts WHERE business_id = $1 AND type = 'bank'`, [BUSINESS_A])
+      const client = await pool.connect()
+      try {
+        const journalId = randomUUID()
+        await journalRepository.createDraftJournal(client, BUSINESS_A, {
+          id: journalId,
+          date: '2026-08-28',
+          source_type: 'SALE',
+          source_id: randomUUID(),
+          description: 'To be reversed'
+        })
+        await journalRepository.addJournalLine(client, {
+          id: randomUUID(),
+          journal_entry_id: journalId,
+          account_id: cashAcc,
+          debit_minor: 50000,
+          credit_minor: 0
+        })
+        await journalRepository.addJournalLine(client, {
+          id: randomUUID(),
+          journal_entry_id: journalId,
+          account_id: bankAcc.rows[0].id,
+          debit_minor: 0,
+          credit_minor: 50000
+        })
+        await journalRepository.postJournal(client, journalId)
+
+        const result = await journalRepository.createReversal(client, journalId)
+        expect(result.reversal_id).toBeDefined()
+        expect(result.reversal_id).not.toBe(journalId)
+
+        const reversal = await journalRepository.getJournalById(client, BUSINESS_A, result.reversal_id)
+        expect(reversal!.source_type).toBe('REVERSAL')
+        expect(reversal!.status).toBe('posted')
+      } finally {
+        client.release()
+      }
+    })
+  })
+
+  describe('FIN-121: reversal branch preserved', () => {
+    it('FIN-121: reversal preserves original branch_id', async () => {
+      const cashAcc = await getCashAccount(BUSINESS_A)
+      const bankAcc = await pool.query(`SELECT id FROM accounts WHERE business_id = $1 AND type = 'bank'`, [BUSINESS_A])
+      const client = await pool.connect()
+      try {
+        const journalId = randomUUID()
+        await journalRepository.createDraftJournal(client, BUSINESS_A, {
+          id: journalId,
+          date: '2026-08-28',
+          source_type: 'SALE',
+          source_id: randomUUID(),
+          description: 'Branch A journal',
+          branch_id: BRANCH_A
+        })
+        await journalRepository.addJournalLine(client, {
+          id: randomUUID(),
+          journal_entry_id: journalId,
+          account_id: cashAcc,
+          debit_minor: 30000,
+          credit_minor: 0
+        })
+        await journalRepository.addJournalLine(client, {
+          id: randomUUID(),
+          journal_entry_id: journalId,
+          account_id: bankAcc.rows[0].id,
+          debit_minor: 0,
+          credit_minor: 30000
+        })
+        await journalRepository.postJournal(client, journalId)
+
+        const result = await journalRepository.createReversal(client, journalId)
+        const reversal = await journalRepository.getJournalById(client, BUSINESS_A, result.reversal_id)
+        expect(reversal!.branch_id).toBe(BRANCH_A)
+      } finally {
+        client.release()
+      }
+    })
+  })
+
+  describe('FIN-122: reversal UUID', () => {
+    it('FIN-122: reversal returns valid UUID', async () => {
+      const cashAcc = await getCashAccount(BUSINESS_A)
+      const bankAcc = await pool.query(`SELECT id FROM accounts WHERE business_id = $1 AND type = 'bank'`, [BUSINESS_A])
+      const client = await pool.connect()
+      try {
+        const journalId = randomUUID()
+        await journalRepository.createDraftJournal(client, BUSINESS_A, {
+          id: journalId,
+          date: '2026-08-28',
+          source_type: 'SALE',
+          source_id: randomUUID(),
+          description: 'For reversal UUID test'
+        })
+        await journalRepository.addJournalLine(client, {
+          id: randomUUID(),
+          journal_entry_id: journalId,
+          account_id: cashAcc,
+          debit_minor: 20000,
+          credit_minor: 0
+        })
+        await journalRepository.addJournalLine(client, {
+          id: randomUUID(),
+          journal_entry_id: journalId,
+          account_id: bankAcc.rows[0].id,
+          debit_minor: 0,
+          credit_minor: 20000
+        })
+        await journalRepository.postJournal(client, journalId)
+
+        const result = await journalRepository.createReversal(client, journalId)
+        expect(typeof result.reversal_id).toBe('string')
+        expect(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(result.reversal_id)).toBe(true)
+      } finally {
+        client.release()
+      }
+    })
+  })
+
+  describe('FIN-123: reversal original lines unchanged', () => {
+    it('FIN-123: reversal does not modify original journal lines', async () => {
+      const cashAcc = await getCashAccount(BUSINESS_A)
+      const bankAcc = await pool.query(`SELECT id FROM accounts WHERE business_id = $1 AND type = 'bank'`, [BUSINESS_A])
+      const client = await pool.connect()
+      try {
+        const journalId = randomUUID()
+        await journalRepository.createDraftJournal(client, BUSINESS_A, {
+          id: journalId,
+          date: '2026-08-28',
+          source_type: 'SALE',
+          source_id: randomUUID(),
+          description: 'Original unchanged test'
+        })
+        await journalRepository.addJournalLine(client, {
+          id: randomUUID(),
+          journal_entry_id: journalId,
+          account_id: cashAcc,
+          debit_minor: 40000,
+          credit_minor: 0
+        })
+        await journalRepository.addJournalLine(client, {
+          id: randomUUID(),
+          journal_entry_id: journalId,
+          account_id: bankAcc.rows[0].id,
+          debit_minor: 0,
+          credit_minor: 40000
+        })
+        await journalRepository.postJournal(client, journalId)
+
+        await journalRepository.createReversal(client, journalId)
+
+        const originalLines = await journalRepository.listJournalLines(client, BUSINESS_A, journalId)
+        expect(originalLines).toHaveLength(2)
+        expect(originalLines[0].debit_minor).toBe(40000)
+        expect(originalLines[1].credit_minor).toBe(40000)
+      } finally {
+        client.release()
+      }
+    })
+  })
+
+  describe('FIN-124: second reversal rejected', () => {
+    it('FIN-124: cannot reverse already reversed journal', async () => {
+      const cashAcc = await getCashAccount(BUSINESS_A)
+      const bankAcc = await pool.query(`SELECT id FROM accounts WHERE business_id = $1 AND type = 'bank'`, [BUSINESS_A])
+      const client = await pool.connect()
+      try {
+        const journalId = randomUUID()
+        await journalRepository.createDraftJournal(client, BUSINESS_A, {
+          id: journalId,
+          date: '2026-08-28',
+          source_type: 'SALE',
+          source_id: randomUUID(),
+          description: 'Single reversal test'
+        })
+        await journalRepository.addJournalLine(client, {
+          id: randomUUID(),
+          journal_entry_id: journalId,
+          account_id: cashAcc,
+          debit_minor: 25000,
+          credit_minor: 0
+        })
+        await journalRepository.addJournalLine(client, {
+          id: randomUUID(),
+          journal_entry_id: journalId,
+          account_id: bankAcc.rows[0].id,
+          debit_minor: 0,
+          credit_minor: 25000
+        })
+        await journalRepository.postJournal(client, journalId)
+
+        await journalRepository.createReversal(client, journalId)
+
+        await expect(journalRepository.createReversal(client, journalId)).rejects.toThrow()
+      } finally {
+        client.release()
+      }
     })
   })
 })
