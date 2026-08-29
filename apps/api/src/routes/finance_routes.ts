@@ -149,6 +149,19 @@ export function createFinanceRoutes(pool: Pool): Router {
   )
 
   router.post(
+    '/postings/income',
+    requireRole('OWNER') as RequestHandler,
+    asyncHandler<SyncAuthenticatedRequest>(async (req, res) => {
+      const { income_id } = req.body as { income_id: string }
+      if (!income_id || typeof income_id !== 'string' || !isUuid(income_id)) {
+        throw new ValidationError('income_id must be a valid UUID')
+      }
+      const result = await service.postIncome(income_id, req.tenantId!)
+      res.status(201).json(result)
+    })
+  )
+
+  router.post(
     '/reversals',
     requireRole('OWNER') as RequestHandler,
     asyncHandler<SyncAuthenticatedRequest>(async (req, res) => {

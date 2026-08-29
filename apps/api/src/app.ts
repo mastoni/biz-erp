@@ -28,6 +28,7 @@ import { createPurchaseRoutes } from './routes/purchase_routes'
 import { createPurchaseSyncRouter } from './routes/purchase_sync_routes'
 import { createFinanceRoutes } from './routes/finance_routes'
 import { createExpenseRoutes } from './routes/expense_routes'
+import { createIncomeRoutes } from './routes/income_routes'
 import { httpLogger } from './utils/logger'
 import { initSentry } from './utils/sentry'
 import { loadEnv } from './config/env'
@@ -105,6 +106,7 @@ export function createApp(pool: Pool): Express {
 
   app.use('/v1/finance', createFinanceRoutes(pool))
   app.use('/v1/expenses', createExpenseRoutes(pool))
+  app.use('/v1/incomes', createIncomeRoutes(pool))
 
   app.use('/v1/platform', createPlatformRoutes(pool))
 

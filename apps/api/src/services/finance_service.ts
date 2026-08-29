@@ -6,6 +6,7 @@ import { idempotencyRepository } from '../repositories/idempotency_repository'
 import { accountRepository } from '../repositories/account_repository'
 import { journalRepository } from '../repositories/journal_repository'
 import { expenseRepository } from '../repositories/expense_repository'
+import { incomeRepository } from '../repositories/income_repository'
 import { withTransaction } from '../db/transaction'
 import { ApiError } from '../errors/api_error'
 import { ConflictError } from '../errors/conflict_error'
@@ -322,6 +323,95 @@ export function createFinanceService(pool: Pool) {
       }
 
       return { journalId, sourceId: expenseId }
+    })
+  },
+
+  async postIncome(incomeId: string, businessId: string): Promise<{ journalId: string; sourceId: string }> {
+    return withTransaction(pool, async (client) => {
+      const income = await incomeRepository.findById(client, businessId, incomeId)
+      if (!income) {
+        throw new ApiError(404, 'NOT_FOUND', 'Income not found')
+      }
+
+      const existing = await journalRepository.getJournalBySource(client, businessId, 'INCOME', incomeId)
+      if (existing) {
+        if (existing.status === 'posted') {
+          return { journalId: existing.id, sourceId: incomeId }
+        }
+        throw new ApiError(409, 'SOURCE_CONFLICT', 'Journal already exists for this income')
+      }
+
+      if (income.status !== 'draft') {
+        throw new ApiError(409, 'SOURCE_CONFLICT', 'Only draft incomes can be posted')
+      }
+
+      const incomeAccount = await accountRepository.findByType(client, businessId, 'income')
+      if (!incomeAccount) {
+        throw new ApiError(500, 'CONFIG_ERROR', 'Income account not configured')
+      }
+
+      let debitAccountType: 'cash' | 'bank'
+      switch (income.method) {
+        case 'cash':
+          debitAccountType = 'cash'
+          break
+        case 'bank_transfer':
+        case 'debit':
+        case 'credit':
+          debitAccountType = 'bank'
+          break
+        default:
+          throw new ApiError(400, 'UNSUPPORTED_METHOD', `Unsupported payment method: ${income.method}`)
+      }
+
+      const debitAccount = await accountRepository.findByType(client, businessId, debitAccountType)
+      if (!debitAccount) {
+        throw new ApiError(500, 'CONFIG_ERROR', `Payment account of type ${debitAccountType} not configured`)
+      }
+
+      const journalId = randomUUID()
+
+      await journalRepository.createDraftJournal(client, businessId, {
+        id: journalId,
+        date: income.date,
+        source_type: 'INCOME',
+        source_id: incomeId,
+        reference: income.reference ?? null,
+        description: income.description,
+        branch_id: income.branch_id
+      })
+
+      await journalRepository.addJournalLine(client, {
+        id: randomUUID(),
+        journal_entry_id: journalId,
+        account_id: debitAccount.id,
+        debit_minor: income.amount_minor,
+        credit_minor: 0,
+        description: 'Income inflow'
+      })
+
+      await journalRepository.addJournalLine(client, {
+        id: randomUUID(),
+        journal_entry_id: journalId,
+        account_id: incomeAccount.id,
+        debit_minor: 0,
+        credit_minor: income.amount_minor,
+        description: 'Income credit'
+      })
+
+      await journalRepository.postJournal(client, journalId)
+
+      const idemKey = `income_journal_${incomeId}`
+      await idempotencyRepository.insert(client, businessId, idemKey, '', 201, { journal_id: journalId })
+
+      const updated = await incomeRepository.updateDraft(client, businessId, incomeId, income.server_version, {
+        status: 'posted'
+      })
+      if (!updated) {
+        throw new ConflictError('VERSION_CONFLICT', 'Income version conflict after posting')
+      }
+
+      return { journalId, sourceId: incomeId }
     })
   },
 
