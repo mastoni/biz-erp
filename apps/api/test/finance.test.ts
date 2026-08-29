@@ -2,13 +2,16 @@ import path from 'path'
 import { randomUUID } from 'crypto'
 import request from 'supertest'
 import { Pool } from 'pg'
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp } from '../src/app'
 import { createPool } from '../src/db/pool'
 import { runMigrations } from '../src/db/migrate'
 import { seedTestUser, authenticateTestUser } from './auth_helper'
 import { accountRepository } from '../src/repositories/account_repository'
 import { journalRepository } from '../src/repositories/journal_repository'
+import { purchaseRepository } from '../src/repositories/purchase_repository'
+import { createFinanceService } from '../src/services/finance_service'
+import { ApiError } from '../src/errors/api_error'
 
 const BUSINESS_A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 const BUSINESS_B = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
@@ -19,6 +22,7 @@ let pool!: Pool
 let app!: ReturnType<typeof createApp>
 let ownerTokenA!: string
 let ownerTokenB!: string
+let cashierTokenA!: string
 
 async function resetDatabase(): Promise<void> {
   await pool.query(`
@@ -131,7 +135,9 @@ async function createJournaEntry(
 
 beforeAll(async () => {
   const dbUrl =
-    process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/biz_erp_test'
+    process.env.FINANCE_DATABASE_URL ||
+    'postgresql://bizerp:bizerp@localhost:5432/biz_erp_finance_test'
+  process.env.DATABASE_URL = dbUrl
   pool = createPool(dbUrl)
 
   const migrationsDir = path.resolve(__dirname, '../migrations')
@@ -2876,6 +2882,691 @@ describe('FIN-009: branch filter', () => {
       } finally {
         client.release()
       }
+    })
+  })
+})
+
+describe('Phase 9C.3.3B Finance Service Fixes', () => {
+  describe('FIN-SVC-001: SALE source_id = saleId', () => {
+    it('FIN-SVC-001: journal source_id equals saleId', async () => {
+      const saleId = randomUUID()
+      await pool.query(`
+        INSERT INTO sales (id, business_id, branch_id, receipt_number, subtotal_minor, discount_minor, tax_minor, total_minor, payment_method, paid_minor, change_minor, cashier_id, customer_id, created_at, client_created_at, server_created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+      `, [saleId, BUSINESS_A, BRANCH_A, 'REC-SVC-001', 100000, 0, 0, 100000, 'cash', 100000, 0, null, null, '2026-01-01', '2026-01-01', '2026-01-01'])
+
+      const service = createFinanceService(pool)
+      const result = await service.postSale(saleId, BUSINESS_A)
+
+      const journal = await pool.query(`SELECT source_id, source_type FROM journal_entries WHERE id = $1`, [result.journalId])
+      expect(journal.rows[0].source_id).toBe(saleId)
+      expect(journal.rows[0].source_type).toBe('SALE')
+    })
+  })
+
+  describe('FIN-SVC-002: SALE source replay returns existing journal', () => {
+    it('FIN-SVC-002: replaying same sale returns same journal', async () => {
+      const saleId = randomUUID()
+      await pool.query(`
+        INSERT INTO sales (id, business_id, branch_id, receipt_number, subtotal_minor, discount_minor, tax_minor, total_minor, payment_method, paid_minor, change_minor, cashier_id, customer_id, created_at, client_created_at, server_created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+      `, [saleId, BUSINESS_A, BRANCH_A, 'REC-SVC-002', 100000, 0, 0, 100000, 'cash', 100000, 0, null, null, '2026-01-01', '2026-01-01', '2026-01-01'])
+
+      const service = createFinanceService(pool)
+      const result1 = await service.postSale(saleId, BUSINESS_A)
+      const result2 = await service.postSale(saleId, BUSINESS_A)
+
+      expect(result1.journalId).toBe(result2.journalId)
+      expect(result1.sourceId).toBe(saleId)
+    })
+  })
+
+  describe('FIN-SVC-003: Purchase payment source_id = paymentId', () => {
+    it('FIN-SVC-003: journal source_id equals paymentId', async () => {
+      const supplierId = randomUUID()
+      await pool.query(`INSERT INTO suppliers (id, business_id, code, name, contact, phone, email, category, term, status, server_version, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`, [supplierId, BUSINESS_A, 'SUP-SVC-003', 'Supplier SVC-003', null, null, null, null, 'Tempo 30', 'aktif', 1, '2026-01-01', '2026-01-01'])
+
+      const purchaseId = randomUUID()
+      await pool.query(`
+        INSERT INTO purchases (id, business_id, branch_id, supplier_id, code, date, due_date, supplier_term, status, total_minor, paid_minor, outstanding_minor, received_minor, note, server_version, created_at, updated_at, deleted_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+      `, [purchaseId, BUSINESS_A, BRANCH_A, supplierId, 'SUP-SVC-003/PO/001', '2026-01-01', '2026-01-15', 'Tempo 30', 'received', 500000, 0, 500000, 500000, null, 1, '2026-01-01', '2026-01-01', null])
+
+      const paymentId = randomUUID()
+      await pool.query(`
+        INSERT INTO purchase_payments (id, business_id, purchase_id, amount_minor, method, reference, idempotency_key, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `, [paymentId, BUSINESS_A, purchaseId, 500000, 'bank_transfer', 'REF-SVC-003', `pay_${paymentId}`, '2026-01-01'])
+
+      const service = createFinanceService(pool)
+      const result = await service.postPurchasePayment(paymentId, BUSINESS_A)
+
+      const journal = await pool.query(`SELECT source_id, source_type FROM journal_entries WHERE id = $1`, [result.journalId])
+      expect(journal.rows[0].source_id).toBe(paymentId)
+      expect(journal.rows[0].source_type).toBe('PURCHASE_PAYMENT')
+    })
+  })
+
+  describe('FIN-SVC-004: Purchase payment journal preserves purchase branch_id', () => {
+    it('FIN-SVC-004: journal branch_id equals purchase branch_id', async () => {
+      const supplierId = randomUUID()
+      await pool.query(`INSERT INTO suppliers (id, business_id, code, name, contact, phone, email, category, term, status, server_version, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`, [supplierId, BUSINESS_A, 'SUP-SVC-004', 'Supplier SVC-004', null, null, null, null, 'Tempo 30', 'aktif', 1, '2026-01-01', '2026-01-01'])
+
+      const purchaseId = randomUUID()
+      await pool.query(`
+        INSERT INTO purchases (id, business_id, branch_id, supplier_id, code, date, due_date, supplier_term, status, total_minor, paid_minor, outstanding_minor, received_minor, note, server_version, created_at, updated_at, deleted_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+      `, [purchaseId, BUSINESS_A, BRANCH_B, supplierId, 'SUP-SVC-004/PO/001', '2026-01-01', '2026-01-15', 'Tempo 30', 'received', 500000, 0, 500000, 500000, null, 1, '2026-01-01', '2026-01-01', null])
+
+      const paymentId = randomUUID()
+      await pool.query(`
+        INSERT INTO purchase_payments (id, business_id, purchase_id, amount_minor, method, reference, idempotency_key, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `, [paymentId, BUSINESS_A, purchaseId, 500000, 'cash', 'REF-SVC-004', `pay_${paymentId}`, '2026-01-01'])
+
+      const service = createFinanceService(pool)
+      const result = await service.postPurchasePayment(paymentId, BUSINESS_A)
+
+      const journal = await pool.query(`SELECT branch_id FROM journal_entries WHERE id = $1`, [result.journalId])
+      expect(journal.rows[0].branch_id).toBe(BRANCH_B)
+    })
+  })
+
+  describe('FIN-SVC-005: unknown SALE payment method rejected', () => {
+    it('FIN-SVC-005: unknown payment method throws 400', async () => {
+      const saleId = randomUUID()
+      await pool.query(`
+        INSERT INTO sales (id, business_id, branch_id, receipt_number, subtotal_minor, discount_minor, tax_minor, total_minor, payment_method, paid_minor, change_minor, cashier_id, customer_id, created_at, client_created_at, server_created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+      `, [saleId, BUSINESS_A, BRANCH_A, 'REC-SVC-005', 100000, 0, 0, 100000, 'crypto', 100000, 0, null, null, '2026-01-01', '2026-01-01', '2026-01-01'])
+
+      const service = createFinanceService(pool)
+      await expect(service.postSale(saleId, BUSINESS_A)).rejects.toMatchObject({ status: 400, code: 'UNSUPPORTED_METHOD' })
+    })
+  })
+
+  describe('FIN-SVC-005b: all known SALE payment methods map correctly', () => {
+    it('FIN-SVC-005b: cash maps to cash account', async () => {
+      const saleId = randomUUID()
+      await pool.query(`
+        INSERT INTO sales (id, business_id, branch_id, receipt_number, subtotal_minor, discount_minor, tax_minor, total_minor, payment_method, paid_minor, change_minor, cashier_id, customer_id, created_at, client_created_at, server_created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+      `, [saleId, BUSINESS_A, BRANCH_A, 'REC-SVC-005b', 100000, 0, 0, 100000, 'bank_transfer', 100000, 0, null, null, '2026-01-01', '2026-01-01', '2026-01-01'])
+
+      const service = createFinanceService(pool)
+      const result = await service.postSale(saleId, BUSINESS_A)
+      const journal = await pool.query(`SELECT lines.account_id FROM journal_lines lines JOIN journal_entries je ON je.id = lines.journal_entry_id WHERE je.id = $1 AND lines.debit_minor > 0`, [result.journalId])
+      const bankAcc = await pool.query(`SELECT id FROM accounts WHERE business_id = $1 AND type = 'bank'`, [BUSINESS_A])
+      expect(journal.rows[0].account_id).toBe(bankAcc.rows[0].id)
+    })
+  })
+
+  describe('FIN-SVC-005c: all known Purchase Payment methods map correctly', () => {
+    it('FIN-SVC-005c: debit maps to bank account', async () => {
+      const supplierId = randomUUID()
+      await pool.query(`INSERT INTO suppliers (id, business_id, code, name, contact, phone, email, category, term, status, server_version, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`, [supplierId, BUSINESS_A, 'SUP-SVC-005c', 'Supplier SVC-005c', null, null, null, null, 'Tempo 30', 'aktif', 1, '2026-01-01', '2026-01-01'])
+
+      const purchaseId = randomUUID()
+      await pool.query(`
+        INSERT INTO purchases (id, business_id, branch_id, supplier_id, code, date, due_date, supplier_term, status, total_minor, paid_minor, outstanding_minor, received_minor, note, server_version, created_at, updated_at, deleted_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+      `, [purchaseId, BUSINESS_A, BRANCH_A, supplierId, 'SUP-SVC-005c/PO/001', '2026-01-01', '2026-01-15', 'Tempo 30', 'received', 500000, 0, 500000, 500000, null, 1, '2026-01-01', '2026-01-01', null])
+
+      const paymentId = randomUUID()
+      await pool.query(`
+        INSERT INTO purchase_payments (id, business_id, purchase_id, amount_minor, method, reference, idempotency_key, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `, [paymentId, BUSINESS_A, purchaseId, 500000, 'debit', 'REF-SVC-005c', `pay_${paymentId}`, '2026-01-01'])
+
+      const service = createFinanceService(pool)
+      const result = await service.postPurchasePayment(paymentId, BUSINESS_A)
+      const journal = await pool.query(`SELECT lines.account_id FROM journal_lines lines JOIN journal_entries je ON je.id = lines.journal_entry_id WHERE je.id = $1 AND lines.credit_minor > 0`, [result.journalId])
+      const bankAcc = await pool.query(`SELECT id FROM accounts WHERE business_id = $1 AND type = 'bank'`, [BUSINESS_A])
+      expect(journal.rows[0].account_id).toBe(bankAcc.rows[0].id)
+    })
+  })
+
+  describe('FIN-SVC-006: unknown Purchase Payment method rejected', () => {
+    it('FIN-SVC-006: mocked crypto payment method throws 400', async () => {
+      const supplierId = randomUUID()
+      await pool.query(`INSERT INTO suppliers (id, business_id, code, name, contact, phone, email, category, term, status, server_version, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`, [supplierId, BUSINESS_A, 'SUP-SVC-006', 'Supplier SVC-006', null, null, null, null, 'Tempo 30', 'aktif', 1, '2026-01-01', '2026-01-01'])
+
+      const purchaseId = randomUUID()
+      await pool.query(`
+        INSERT INTO purchases (id, business_id, branch_id, supplier_id, code, date, due_date, supplier_term, status, total_minor, paid_minor, outstanding_minor, received_minor, note, server_version, created_at, updated_at, deleted_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+      `, [purchaseId, BUSINESS_A, BRANCH_A, supplierId, 'SUP-SVC-006/PO/001', '2026-01-01', '2026-01-15', 'Tempo 30', 'received', 500000, 0, 500000, 500000, null, 1, '2026-01-01', '2026-01-01', null])
+
+      const paymentId = randomUUID()
+      await pool.query(`
+        INSERT INTO purchase_payments (id, business_id, purchase_id, amount_minor, method, reference, idempotency_key, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `, [paymentId, BUSINESS_A, purchaseId, 500000, 'bank_transfer', 'REF-SVC-006', `pay_${paymentId}`, '2026-01-01'])
+
+      const service = createFinanceService(pool)
+      const spy = vi.spyOn(purchaseRepository, 'findPaymentById').mockResolvedValue({
+        id: paymentId,
+        business_id: BUSINESS_A,
+        purchase_id: purchaseId,
+        amount_minor: 500000,
+        method: 'crypto',
+        reference: 'REF-SVC-006',
+        idempotency_key: `pay_${paymentId}`,
+        created_at: '2026-01-01'
+      } as any)
+
+      await expect(service.postPurchasePayment(paymentId, BUSINESS_A)).rejects.toMatchObject({ status: 400, code: 'UNSUPPORTED_METHOD' })
+      spy.mockRestore()
+    })
+  })
+
+  describe('FIN-SVC-007: existing draft SALE journal → 409 conflict', () => {
+    it('FIN-SVC-007: draft journal for same sale throws 409', async () => {
+      const saleId = randomUUID()
+      await pool.query(`
+        INSERT INTO sales (id, business_id, branch_id, receipt_number, subtotal_minor, discount_minor, tax_minor, total_minor, payment_method, paid_minor, change_minor, cashier_id, customer_id, created_at, client_created_at, server_created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+      `, [saleId, BUSINESS_A, BRANCH_A, 'REC-SVC-007', 100000, 0, 0, 100000, 'cash', 100000, 0, null, null, '2026-01-01', '2026-01-01', '2026-01-01'])
+
+      const draftId = randomUUID()
+      await pool.query(`
+        INSERT INTO journal_entries (id, business_id, branch_id, date, source_type, source_id, reference, description, status, created_at, server_version)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      `, [draftId, BUSINESS_A, BRANCH_A, '2026-01-01', 'SALE', saleId, 'REC-SVC-007', 'Draft', 'draft', '2026-01-01', 1])
+
+      const service = createFinanceService(pool)
+      await expect(service.postSale(saleId, BUSINESS_A)).rejects.toMatchObject({ status: 409, code: 'SOURCE_CONFLICT' })
+    })
+  })
+
+  describe('FIN-SVC-008: existing draft Purchase Payment journal → 409 conflict', () => {
+    it('FIN-SVC-008: draft journal for same payment throws 409', async () => {
+      const supplierId = randomUUID()
+      await pool.query(`INSERT INTO suppliers (id, business_id, code, name, contact, phone, email, category, term, status, server_version, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`, [supplierId, BUSINESS_A, 'SUP-SVC-008', 'Supplier SVC-008', null, null, null, null, 'Tempo 30', 'aktif', 1, '2026-01-01', '2026-01-01'])
+
+      const purchaseId = randomUUID()
+      await pool.query(`
+        INSERT INTO purchases (id, business_id, branch_id, supplier_id, code, date, due_date, supplier_term, status, total_minor, paid_minor, outstanding_minor, received_minor, note, server_version, created_at, updated_at, deleted_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+      `, [purchaseId, BUSINESS_A, BRANCH_A, supplierId, 'SUP-SVC-008/PO/001', '2026-01-01', '2026-01-15', 'Tempo 30', 'received', 500000, 0, 500000, 500000, null, 1, '2026-01-01', '2026-01-01', null])
+
+      const paymentId = randomUUID()
+      await pool.query(`
+        INSERT INTO purchase_payments (id, business_id, purchase_id, amount_minor, method, reference, idempotency_key, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `, [paymentId, BUSINESS_A, purchaseId, 500000, 'bank_transfer', 'REF-SVC-008', `pay_${paymentId}`, '2026-01-01'])
+
+      const draftId = randomUUID()
+      await pool.query(`
+        INSERT INTO journal_entries (id, business_id, branch_id, date, source_type, source_id, reference, description, status, created_at, server_version)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      `, [draftId, BUSINESS_A, BRANCH_A, '2026-01-01', 'PURCHASE_PAYMENT', paymentId, 'REF-SVC-008', 'Draft', 'draft', '2026-01-01', 1])
+
+      const service = createFinanceService(pool)
+      await expect(service.postPurchasePayment(paymentId, BUSINESS_A)).rejects.toMatchObject({ status: 409, code: 'SOURCE_CONFLICT' })
+    })
+  })
+
+  describe('FIN-SVC-009: reversed source cannot be reposted', () => {
+    it('FIN-SVC-009: reversed journal for sale throws 409', async () => {
+      const saleId = randomUUID()
+      await pool.query(`
+        INSERT INTO sales (id, business_id, branch_id, receipt_number, subtotal_minor, discount_minor, tax_minor, total_minor, payment_method, paid_minor, change_minor, cashier_id, customer_id, created_at, client_created_at, server_created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+      `, [saleId, BUSINESS_A, BRANCH_A, 'REC-SVC-009', 100000, 0, 0, 100000, 'cash', 100000, 0, null, null, '2026-01-01', '2026-01-01', '2026-01-01'])
+
+      const journalId = randomUUID()
+      await pool.query(`
+        INSERT INTO journal_entries (id, business_id, branch_id, date, source_type, source_id, reference, description, status, created_at, server_version)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      `, [journalId, BUSINESS_A, BRANCH_A, '2026-01-01', 'SALE', saleId, 'REC-SVC-009', 'Original', 'draft', '2026-01-01', 1])
+
+      const cashAcc = await getCashAccount(BUSINESS_A)
+      const revenueAcc = await pool.query(`SELECT id FROM accounts WHERE business_id = $1 AND type = 'revenue'`, [BUSINESS_A])
+      await pool.query(`INSERT INTO journal_lines (id, journal_entry_id, account_id, debit_minor, credit_minor) VALUES (gen_random_uuid(), $1, $2, 100000, 0), (gen_random_uuid(), $1, $3, 0, 100000)`, [journalId, cashAcc, revenueAcc.rows[0].id])
+      await pool.query(`UPDATE journal_entries SET status = 'posted' WHERE id = $1`, [journalId])
+      await pool.query(`SELECT create_reversal($1)`, [journalId])
+
+      const service = createFinanceService(pool)
+      await expect(service.postSale(saleId, BUSINESS_A)).rejects.toMatchObject({ status: 409, code: 'SOURCE_CONFLICT' })
+    })
+  })
+
+  describe('FIN-SVC-010: source conflict is controlled ApiError', () => {
+    it('FIN-SVC-010: duplicate source returns ApiError not raw DB error', async () => {
+      const saleId = randomUUID()
+      await pool.query(`
+        INSERT INTO sales (id, business_id, branch_id, receipt_number, subtotal_minor, discount_minor, tax_minor, total_minor, payment_method, paid_minor, change_minor, cashier_id, customer_id, created_at, client_created_at, server_created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+      `, [saleId, BUSINESS_A, BRANCH_A, 'REC-SVC-010', 100000, 0, 0, 100000, 'cash', 100000, 0, null, null, '2026-01-01', '2026-01-01', '2026-01-01'])
+
+      const draftId = randomUUID()
+      await pool.query(`
+        INSERT INTO journal_entries (id, business_id, branch_id, date, source_type, source_id, reference, description, status, created_at, server_version)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      `, [draftId, BUSINESS_A, BRANCH_A, '2026-01-01', 'SALE', saleId, 'REC-SVC-010', 'Draft', 'draft', '2026-01-01', 1])
+
+      const service = createFinanceService(pool)
+      try {
+        await service.postSale(saleId, BUSINESS_A)
+        expect(true).toBe(false)
+      } catch (err) {
+        expect(err).toBeInstanceOf(ApiError)
+        expect((err as ApiError).status).toBe(409)
+        expect((err as ApiError).code).toBe('SOURCE_CONFLICT')
+      }
+    })
+  })
+
+  describe('FIN-SVC-011: SALE posting does not mutate Sales', () => {
+    it('FIN-SVC-011: sale record unchanged after posting', async () => {
+      const saleId = randomUUID()
+      await pool.query(`
+        INSERT INTO sales (id, business_id, branch_id, receipt_number, subtotal_minor, discount_minor, tax_minor, total_minor, payment_method, paid_minor, change_minor, cashier_id, customer_id, created_at, client_created_at, server_created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+      `, [saleId, BUSINESS_A, BRANCH_A, 'REC-SVC-011', 100000, 0, 0, 100000, 'cash', 100000, 0, null, null, '2026-01-01', '2026-01-01', '2026-01-01'])
+
+      const before = await pool.query(`SELECT * FROM sales WHERE id = $1`, [saleId])
+      const service = createFinanceService(pool)
+      await service.postSale(saleId, BUSINESS_A)
+      const after = await pool.query(`SELECT * FROM sales WHERE id = $1`, [saleId])
+
+      expect(after.rows[0]).toEqual(before.rows[0])
+    })
+  })
+
+  describe('FIN-SVC-012: Purchase Payment posting does not mutate payment', () => {
+    it('FIN-SVC-012: payment record unchanged after posting', async () => {
+      const supplierId = randomUUID()
+      await pool.query(`INSERT INTO suppliers (id, business_id, code, name, contact, phone, email, category, term, status, server_version, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`, [supplierId, BUSINESS_A, 'SUP-SVC-012', 'Supplier SVC-012', null, null, null, null, 'Tempo 30', 'aktif', 1, '2026-01-01', '2026-01-01'])
+
+      const purchaseId = randomUUID()
+      await pool.query(`
+        INSERT INTO purchases (id, business_id, branch_id, supplier_id, code, date, due_date, supplier_term, status, total_minor, paid_minor, outstanding_minor, received_minor, note, server_version, created_at, updated_at, deleted_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+      `, [purchaseId, BUSINESS_A, BRANCH_A, supplierId, 'SUP-SVC-012/PO/001', '2026-01-01', '2026-01-15', 'Tempo 30', 'received', 500000, 0, 500000, 500000, null, 1, '2026-01-01', '2026-01-01', null])
+
+      const paymentId = randomUUID()
+      await pool.query(`
+        INSERT INTO purchase_payments (id, business_id, purchase_id, amount_minor, method, reference, idempotency_key, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `, [paymentId, BUSINESS_A, purchaseId, 500000, 'bank_transfer', 'REF-SVC-012', `pay_${paymentId}`, '2026-01-01'])
+
+      const before = await pool.query(`SELECT * FROM purchase_payments WHERE id = $1`, [paymentId])
+      const service = createFinanceService(pool)
+      await service.postPurchasePayment(paymentId, BUSINESS_A)
+      const after = await pool.query(`SELECT * FROM purchase_payments WHERE id = $1`, [paymentId])
+
+      expect(after.rows[0]).toEqual(before.rows[0])
+    })
+  })
+
+  describe('FIN-SVC-013: posting remains atomic on failure', () => {
+    it('FIN-SVC-013: failed sale posting rolls back all changes', async () => {
+      const saleId = randomUUID()
+      await pool.query(`
+        INSERT INTO sales (id, business_id, branch_id, receipt_number, subtotal_minor, discount_minor, tax_minor, total_minor, payment_method, paid_minor, change_minor, cashier_id, customer_id, created_at, client_created_at, server_created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+      `, [saleId, BUSINESS_A, BRANCH_A, 'REC-SVC-013', 100000, 0, 0, 100000, 'cash', 100000, 0, null, null, '2026-01-01', '2026-01-01', '2026-01-01'])
+
+      await pool.query(`UPDATE accounts SET active = false WHERE business_id = $1 AND type = 'revenue'`, [BUSINESS_A])
+
+      const service = createFinanceService(pool)
+      await expect(service.postSale(saleId, BUSINESS_A)).rejects.toMatchObject({ status: 500, code: 'CONFIG_ERROR' })
+
+      const count = await pool.query(`SELECT COUNT(*) FROM journal_entries WHERE source_type = 'SALE' AND source_id = $1`, [saleId])
+      expect(Number(count.rows[0].count)).toBe(0)
+    })
+  })
+})
+
+describe('Phase 9C.3.3C Finance Route Integration', () => {
+  beforeEach(async () => {
+    const cashierA = await seedTestUser(pool, BUSINESS_A, { role: 'CASHIER' })
+    const authCashierA = await authenticateTestUser(app, cashierA.email, cashierA.password, BUSINESS_A)
+    cashierTokenA = authCashierA.accessToken
+  })
+
+  describe('FIN-125: GET accounts OWNER', () => {
+    it('FIN-125: OWNER can list accounts', async () => {
+      await request(app)
+        .get('/v1/finance/accounts')
+        .set('Authorization', `Bearer ${ownerTokenA}`)
+        .expect(200)
+    })
+  })
+
+  describe('FIN-126: GET accounts CASHIER', () => {
+    it('FIN-126: CASHIER can list accounts', async () => {
+      await request(app)
+        .get('/v1/finance/accounts')
+        .set('Authorization', `Bearer ${cashierTokenA}`)
+        .expect(200)
+    })
+  })
+
+  describe('FIN-127: GET accounts unauthenticated', () => {
+    it('FIN-127: missing token returns 401', async () => {
+      await request(app)
+        .get('/v1/finance/accounts')
+        .expect(401)
+    })
+  })
+
+  describe('FIN-128: GET accounts cross-tenant', () => {
+    it('FIN-128: BUSINESS_B token accesses own accounts (cross-tenant isolation by design)', async () => {
+      await request(app)
+        .get('/v1/finance/accounts')
+        .set('Authorization', `Bearer ${ownerTokenB}`)
+        .expect(200)
+    })
+  })
+
+  describe('FIN-129: GET journals branch filter', () => {
+    it('FIN-129: branch filter returns 200', async () => {
+      await request(app)
+        .get('/v1/finance/journals')
+        .query({ branch_id: BRANCH_A })
+        .set('Authorization', `Bearer ${ownerTokenA}`)
+        .expect(200)
+    })
+  })
+
+  describe('FIN-130: GET journals all branches', () => {
+    it('FIN-130: no branch filter returns 200', async () => {
+      await request(app)
+        .get('/v1/finance/journals')
+        .set('Authorization', `Bearer ${ownerTokenA}`)
+        .expect(200)
+    })
+  })
+
+  describe('FIN-131: GET journal detail', () => {
+    it('FIN-131: returns 404 for nonexistent journal', async () => {
+      await request(app)
+        .get(`/v1/finance/journals/${randomUUID()}`)
+        .set('Authorization', `Bearer ${ownerTokenA}`)
+        .expect(404)
+    })
+  })
+
+  describe('FIN-132: GET cashflow', () => {
+    it('FIN-132: cashflow returns 200', async () => {
+      await request(app)
+        .get('/v1/finance/cashflow')
+        .set('Authorization', `Bearer ${ownerTokenA}`)
+        .expect(200)
+    })
+  })
+
+  describe('FIN-133: GET summary', () => {
+    it('FIN-133: summary returns 200', async () => {
+      await request(app)
+        .get('/v1/finance/summary')
+        .set('Authorization', `Bearer ${ownerTokenA}`)
+        .expect(200)
+    })
+  })
+
+  describe('FIN-134: POST SALE OWNER', () => {
+    it('FIN-134: OWNER can post sale', async () => {
+      const saleId = randomUUID()
+      await pool.query(`
+        INSERT INTO sales (id, business_id, branch_id, receipt_number, subtotal_minor, discount_minor, tax_minor, total_minor, payment_method, paid_minor, change_minor, cashier_id, customer_id, created_at, client_created_at, server_created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+      `, [saleId, BUSINESS_A, BRANCH_A, 'REC-FIN-134', 100000, 0, 0, 100000, 'cash', 100000, 0, null, null, '2026-01-01', '2026-01-01', '2026-01-01'])
+
+      await request(app)
+        .post('/v1/finance/postings/sale')
+        .set('Authorization', `Bearer ${ownerTokenA}`)
+        .send({ sale_id: saleId })
+        .expect(201)
+    })
+  })
+
+  describe('FIN-135: POST SALE CASHIER forbidden', () => {
+    it('FIN-135: CASHIER cannot post sale', async () => {
+      await request(app)
+        .post('/v1/finance/postings/sale')
+        .set('Authorization', `Bearer ${cashierTokenA}`)
+        .send({ sale_id: randomUUID() })
+        .expect(403)
+    })
+  })
+
+  describe('FIN-136: POST payment OWNER', () => {
+    it('FIN-136: OWNER can post payment', async () => {
+      const supplierId = randomUUID()
+      await pool.query(`INSERT INTO suppliers (id, business_id, code, name, contact, phone, email, category, term, status, server_version, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`, [supplierId, BUSINESS_A, 'SUP-FIN-136', 'Supplier FIN-136', null, null, null, null, 'Tempo 30', 'aktif', 1, '2026-01-01', '2026-01-01'])
+
+      const purchaseId = randomUUID()
+      await pool.query(`
+        INSERT INTO purchases (id, business_id, branch_id, supplier_id, code, date, due_date, supplier_term, status, total_minor, paid_minor, outstanding_minor, received_minor, note, server_version, created_at, updated_at, deleted_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+      `, [purchaseId, BUSINESS_A, BRANCH_A, supplierId, 'SUP-FIN-136/PO/001', '2026-01-01', '2026-01-15', 'Tempo 30', 'received', 500000, 0, 500000, 500000, null, 1, '2026-01-01', '2026-01-01', null])
+
+      const paymentId = randomUUID()
+      await pool.query(`
+        INSERT INTO purchase_payments (id, business_id, purchase_id, amount_minor, method, reference, idempotency_key, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `, [paymentId, BUSINESS_A, purchaseId, 500000, 'bank_transfer', 'REF-FIN-136', `pay_${paymentId}`, '2026-01-01'])
+
+      await request(app)
+        .post('/v1/finance/postings/payment')
+        .set('Authorization', `Bearer ${ownerTokenA}`)
+        .send({ payment_id: paymentId })
+        .expect(201)
+    })
+  })
+
+  describe('FIN-137: POST payment CASHIER forbidden', () => {
+    it('FIN-137: CASHIER cannot post payment', async () => {
+      await request(app)
+        .post('/v1/finance/postings/payment')
+        .set('Authorization', `Bearer ${cashierTokenA}`)
+        .send({ payment_id: randomUUID() })
+        .expect(403)
+    })
+  })
+
+  describe('FIN-138: POST reversal OWNER', () => {
+    it('FIN-138: OWNER can create reversal', async () => {
+      const journalId = randomUUID()
+      await pool.query(`
+        INSERT INTO journal_entries (id, business_id, branch_id, date, source_type, source_id, reference, description, status, created_at, server_version)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      `, [journalId, BUSINESS_A, BRANCH_A, '2026-01-01', 'SALE', randomUUID(), 'REC-FIN-138', 'Original', 'draft', '2026-01-01', 1])
+
+      const cashAcc = await pool.query(`SELECT id FROM accounts WHERE business_id = $1 AND type = 'cash'`, [BUSINESS_A])
+      const revenueAcc = await pool.query(`SELECT id FROM accounts WHERE business_id = $1 AND type = 'revenue'`, [BUSINESS_A])
+      await pool.query(`INSERT INTO journal_lines (id, journal_entry_id, account_id, debit_minor, credit_minor) VALUES (gen_random_uuid(), $1, $2, 100000, 0), (gen_random_uuid(), $1, $3, 0, 100000)`, [journalId, cashAcc.rows[0].id, revenueAcc.rows[0].id])
+
+      await pool.query(`UPDATE journal_entries SET status = 'posted' WHERE id = $1`, [journalId])
+
+      await request(app)
+        .post('/v1/finance/reversals')
+        .set('Authorization', `Bearer ${ownerTokenA}`)
+        .send({ journal_id: journalId })
+        .expect(201)
+    })
+  })
+
+  describe('FIN-139: POST reversal CASHIER forbidden', () => {
+    it('FIN-139: CASHIER cannot create reversal', async () => {
+      await request(app)
+        .post('/v1/finance/reversals')
+        .set('Authorization', `Bearer ${cashierTokenA}`)
+        .send({ journal_id: randomUUID() })
+        .expect(403)
+    })
+  })
+
+  describe('FIN-140: invalid UUID validation', () => {
+    it('FIN-140: invalid sale_id returns 400', async () => {
+      await request(app)
+        .post('/v1/finance/postings/sale')
+        .set('Authorization', `Bearer ${ownerTokenA}`)
+        .send({ sale_id: 'not-a-uuid' })
+        .expect(400)
+    })
+
+    it('FIN-140b: invalid payment_id returns 400', async () => {
+      await request(app)
+        .post('/v1/finance/postings/payment')
+        .set('Authorization', `Bearer ${ownerTokenA}`)
+        .send({ payment_id: 'not-a-uuid' })
+        .expect(400)
+    })
+
+    it('FIN-140c: invalid journal_id returns 400', async () => {
+      await request(app)
+        .post('/v1/finance/reversals')
+        .set('Authorization', `Bearer ${ownerTokenA}`)
+        .send({ journal_id: 'not-a-uuid' })
+        .expect(400)
+    })
+  })
+
+  describe('FIN-141: missing resource 404', () => {
+    it('FIN-141: nonexistent sale returns 404', async () => {
+      await request(app)
+        .post('/v1/finance/postings/sale')
+        .set('Authorization', `Bearer ${ownerTokenA}`)
+        .send({ sale_id: randomUUID() })
+        .expect(404)
+    })
+
+    it('FIN-141b: nonexistent payment returns 404', async () => {
+      await request(app)
+        .post('/v1/finance/postings/payment')
+        .set('Authorization', `Bearer ${ownerTokenA}`)
+        .send({ payment_id: randomUUID() })
+        .expect(404)
+    })
+  })
+
+  describe('FIN-142: source conflict 409', () => {
+    it('FIN-142: duplicate sale posting returns same journalId idempotently', async () => {
+      const saleId = randomUUID()
+      await pool.query(`
+        INSERT INTO sales (id, business_id, branch_id, receipt_number, subtotal_minor, discount_minor, tax_minor, total_minor, payment_method, paid_minor, change_minor, cashier_id, customer_id, created_at, client_created_at, server_created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+      `, [saleId, BUSINESS_A, BRANCH_A, 'REC-FIN-142', 100000, 0, 0, 100000, 'cash', 100000, 0, null, null, '2026-01-01', '2026-01-01', '2026-01-01'])
+
+      const res1 = await request(app)
+        .post('/v1/finance/postings/sale')
+        .set('Authorization', `Bearer ${ownerTokenA}`)
+        .send({ sale_id: saleId })
+        .expect(201)
+
+      const res2 = await request(app)
+        .post('/v1/finance/postings/sale')
+        .set('Authorization', `Bearer ${ownerTokenA}`)
+        .send({ sale_id: saleId })
+        .expect(201)
+
+      expect(res1.body.journalId).toBe(res2.body.journalId)
+    })
+  })
+
+  describe('FIN-143: unexpected service error 500', () => {
+    it('FIN-143: missing revenue account returns 500', async () => {
+      await pool.query(`UPDATE accounts SET active = false WHERE business_id = $1 AND type = 'revenue'`, [BUSINESS_A])
+
+      const saleId = randomUUID()
+      await pool.query(`
+        INSERT INTO sales (id, business_id, branch_id, receipt_number, subtotal_minor, discount_minor, tax_minor, total_minor, payment_method, paid_minor, change_minor, cashier_id, customer_id, created_at, client_created_at, server_created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+      `, [saleId, BUSINESS_A, BRANCH_A, 'REC-FIN-143', 100000, 0, 0, 100000, 'cash', 100000, 0, null, null, '2026-01-01', '2026-01-01', '2026-01-01'])
+
+      await request(app)
+        .post('/v1/finance/postings/sale')
+        .set('Authorization', `Bearer ${ownerTokenA}`)
+        .send({ sale_id: saleId })
+        .expect(500)
+    })
+  })
+
+  describe('FIN-144: tenant isolation', () => {
+    it('FIN-144: BUSINESS_B token cannot post BUSINESS_A sale (404 by design)', async () => {
+      const saleId = randomUUID()
+      await pool.query(`
+        INSERT INTO sales (id, business_id, branch_id, receipt_number, subtotal_minor, discount_minor, tax_minor, total_minor, payment_method, paid_minor, change_minor, cashier_id, customer_id, created_at, client_created_at, server_created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+      `, [saleId, BUSINESS_A, BRANCH_A, 'REC-FIN-144', 100000, 0, 0, 100000, 'cash', 100000, 0, null, null, '2026-01-01', '2026-01-01', '2026-01-01'])
+
+      await request(app)
+        .post('/v1/finance/postings/sale')
+        .set('Authorization', `Bearer ${ownerTokenB}`)
+        .send({ sale_id: saleId })
+        .expect(404)
+    })
+  })
+
+  describe('FIN-145: branch filtering', () => {
+    it('FIN-145: invalid branch_id returns 400', async () => {
+      await request(app)
+        .get('/v1/finance/journals')
+        .query({ branch_id: 'not-a-uuid' })
+        .set('Authorization', `Bearer ${ownerTokenA}`)
+        .expect(400)
+    })
+  })
+
+  describe('FIN-146: idempotent SALE posting through API', () => {
+    it('FIN-146: replay returns same journalId', async () => {
+      const saleId = randomUUID()
+      await pool.query(`
+        INSERT INTO sales (id, business_id, branch_id, receipt_number, subtotal_minor, discount_minor, tax_minor, total_minor, payment_method, paid_minor, change_minor, cashier_id, customer_id, created_at, client_created_at, server_created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+      `, [saleId, BUSINESS_A, BRANCH_A, 'REC-FIN-146', 100000, 0, 0, 100000, 'cash', 100000, 0, null, null, '2026-01-01', '2026-01-01', '2026-01-01'])
+
+      const res1 = await request(app)
+        .post('/v1/finance/postings/sale')
+        .set('Authorization', `Bearer ${ownerTokenA}`)
+        .send({ sale_id: saleId })
+        .expect(201)
+
+      const res2 = await request(app)
+        .post('/v1/finance/postings/sale')
+        .set('Authorization', `Bearer ${ownerTokenA}`)
+        .send({ sale_id: saleId })
+        .expect(201)
+
+      expect(res1.body.journalId).toBe(res2.body.journalId)
+    })
+  })
+
+  describe('FIN-147: idempotent payment posting through API', () => {
+    it('FIN-147: replay returns same journalId', async () => {
+      const supplierId = randomUUID()
+      await pool.query(`INSERT INTO suppliers (id, business_id, code, name, contact, phone, email, category, term, status, server_version, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`, [supplierId, BUSINESS_A, 'SUP-FIN-147', 'Supplier FIN-147', null, null, null, null, 'Tempo 30', 'aktif', 1, '2026-01-01', '2026-01-01'])
+
+      const purchaseId = randomUUID()
+      await pool.query(`
+        INSERT INTO purchases (id, business_id, branch_id, supplier_id, code, date, due_date, supplier_term, status, total_minor, paid_minor, outstanding_minor, received_minor, note, server_version, created_at, updated_at, deleted_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+      `, [purchaseId, BUSINESS_A, BRANCH_A, supplierId, 'SUP-FIN-147/PO/001', '2026-01-01', '2026-01-15', 'Tempo 30', 'received', 500000, 0, 500000, 500000, null, 1, '2026-01-01', '2026-01-01', null])
+
+      const paymentId = randomUUID()
+      await pool.query(`
+        INSERT INTO purchase_payments (id, business_id, purchase_id, amount_minor, method, reference, idempotency_key, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `, [paymentId, BUSINESS_A, purchaseId, 500000, 'bank_transfer', 'REF-FIN-147', `pay_${paymentId}`, '2026-01-01'])
+
+      const res1 = await request(app)
+        .post('/v1/finance/postings/payment')
+        .set('Authorization', `Bearer ${ownerTokenA}`)
+        .send({ payment_id: paymentId })
+        .expect(201)
+
+      const res2 = await request(app)
+        .post('/v1/finance/postings/payment')
+        .set('Authorization', `Bearer ${ownerTokenA}`)
+        .send({ payment_id: paymentId })
+        .expect(201)
+
+      expect(res1.body.journalId).toBe(res2.body.journalId)
     })
   })
 })

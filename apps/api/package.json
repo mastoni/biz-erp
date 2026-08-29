@@ -11,6 +11,7 @@
     "dev": "tsx watch src/server.ts",
     "migrate": "tsx src/db/migrate.ts",
     "test": "vitest run",
+    "test:setup-dbs": "tsx scripts/setup-test-dbs.ts",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   },

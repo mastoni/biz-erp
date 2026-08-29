@@ -122,7 +122,9 @@ async function seedProduct(
 
 beforeAll(async () => {
   const dbUrl =
-    process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/biz_erp_test'
+    process.env.PURCHASE_DATABASE_URL ||
+    'postgresql://bizerp:bizerp@localhost:5432/biz_erp_purchase_test'
+  process.env.DATABASE_URL = dbUrl
   pool = createPool(dbUrl)
 
   const migrationsDir = path.resolve(__dirname, '../migrations')

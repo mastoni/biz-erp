@@ -146,11 +146,12 @@ function makeUpdateBody(overrides: Record<string, any> = {}): Record<string, any
 // ---------------------------------------------------------------------------
 
 beforeAll(async () => {
-  const databaseUrl = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL
-  if (!databaseUrl) {
-    throw new Error('TEST_DATABASE_URL or DATABASE_URL must be set for integration tests')
-  }
-  pool = createPool(databaseUrl)
+  const dbUrl =
+    process.env.SUPPLIER_DATABASE_URL ||
+    process.env.TEST_DATABASE_URL ||
+    'postgresql://bizerp:bizerp@localhost:5432/biz_erp_supplier_test'
+  process.env.DATABASE_URL = dbUrl
+  pool = createPool(dbUrl)
   await runMigrations(pool, path.resolve(process.cwd(), 'migrations'))
   app = createApp(pool)
 })
