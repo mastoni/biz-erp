@@ -2,15 +2,19 @@ import 'dotenv/config'
 import fs from 'fs'
 import path from 'path'
 import { Client } from 'pg'
-import { createPool } from './pool'
 import { logger } from '../utils/logger'
 
-export async function runMigrations(_pool: any, migrationsDir?: string): Promise<void> {
+export async function runMigrations(_pool?: any, migrationsDir?: string): Promise<void> {
   const dir = migrationsDir ?? path.resolve(process.cwd(), 'migrations')
   
+  const connectionString =
+    (_pool && typeof _pool === 'object' && _pool.options && _pool.options.connectionString) ||
+    process.env.TEST_DATABASE_URL ||
+    process.env.DATABASE_URL
+
   // Create a dedicated client for migrations
   const client = new Client({
-    connectionString: process.env.DATABASE_URL,
+    connectionString,
   })
   
   await client.connect()
@@ -54,17 +58,13 @@ export async function runMigrations(_pool: any, migrationsDir?: string): Promise
 }
 
 if (require.main === module) {
-  const { loadEnv } = require('../config/env')
-  const env = loadEnv()
-  const pool = createPool(env.databaseUrl)
-
-  runMigrations(pool)
+  runMigrations()
     .then(() => {
-      return pool.end()
+      logger.info('Database migrations completed successfully.')
+      process.exit(0)
     })
-    .catch(async (error) => {
+    .catch((error) => {
       logger.error({ err: error }, 'Migration failed')
-      await pool.end()
       process.exit(1)
     })
 }
