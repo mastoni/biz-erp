@@ -338,9 +338,49 @@ describe('Phase 9C.8C Financial Reporting Tests', () => {
         .expect(200)
       expect(resB.body.revenue_minor).toBe(99999)
     })
-  })
 
-  describe('Balance Sheet', () => {
+    it('FIN-RPT-017: cogs + operating_expense = total expense', async () => {
+      await createPostedJournal(BUSINESS_A, {
+        source_type: 'SALE',
+        description: 'Revenue sale',
+        date: '2026-01-15',
+        lines: [
+          { account_type: 'cash', debit_minor: 200000, credit_minor: 0 },
+          { account_type: 'revenue', debit_minor: 0, credit_minor: 200000 },
+        ],
+      })
+      await createPostedJournal(BUSINESS_A, {
+        source_type: 'EXPENSE',
+        description: 'COGS entry',
+        date: '2026-01-15',
+        lines: [
+          { account_type: 'cogs', debit_minor: 50000, credit_minor: 0 },
+          { account_type: 'inventory', debit_minor: 0, credit_minor: 50000 },
+        ],
+      })
+      await createPostedJournal(BUSINESS_A, {
+        source_type: 'EXPENSE',
+        description: 'Operating expense',
+        date: '2026-01-15',
+        lines: [
+          { account_type: 'expense', debit_minor: 30000, credit_minor: 0 },
+          { account_type: 'cash', debit_minor: 0, credit_minor: 30000 },
+        ],
+      })
+
+      const res = await request(app)
+        .get('/v1/finance/reports/profit-loss')
+        .set('Authorization', `Bearer ${ownerTokenA}`)
+        .expect(200)
+
+      expect(res.body.revenue_minor).toBe(200000)
+      expect(res.body.cogs_minor).toBe(50000)
+      expect(res.body.operating_expense_minor).toBe(30000)
+      expect(res.body.expense_minor).toBe(80000)
+      expect(res.body.cogs_minor + res.body.operating_expense_minor).toBe(res.body.expense_minor)
+      expect(res.body.net_income_minor).toBe(120000)
+    })
+  })
     it('FIN-RPT-006: point-in-time as_of excludes later journals', async () => {
       await createPostedJournal(BUSINESS_A, {
         source_type: 'SALE',
@@ -411,7 +451,6 @@ describe('Phase 9C.8C Financial Reporting Tests', () => {
         res.body.total_liabilities_minor + res.body.total_equity_minor
       )
     })
-  })
 
   describe('Cashflow', () => {
     it('FIN-RPT-008: debit = inflow, credit = outflow', async () => {

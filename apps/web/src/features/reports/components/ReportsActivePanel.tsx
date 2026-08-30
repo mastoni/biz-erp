@@ -37,6 +37,7 @@ export function ReportsActivePanel({
 }: ReportsActivePanelProps) {
   const currentTabConfig = REPORT_TABS.find((t) => t.id === activeTab) || REPORT_TABS[0];
   const rangeDays = range === '7d' ? '7' : '30';
+  const financeAvailable = profitLoss.status !== 'FINANCIAL_UNAVAILABLE';
 
   return (
     <section className="rounded-xl border border-line bg-surface overflow-hidden shadow-sm" data-testid="reports-active-panel">
@@ -152,6 +153,11 @@ export function ReportsActivePanel({
           <p className="mb-4 text-center text-[11.5px] font-semibold uppercase tracking-[0.16em] text-fog">
             Laporan Laba Rugi · Periode {rangeDays} hari · {businessName}
           </p>
+          {profitLoss.status === 'FINANCIAL_UNAVAILABLE' && (
+            <p className="mb-4 rounded-lg border border-clay/40 bg-clay/10 px-3 py-2 text-center text-[12px] text-clay">
+              Data pembukuan keuangan gagal dimuat. Laporan laba rugi tidak dihitung dari angka penjualan operasional.
+            </p>
+          )}
           <dl className="num text-[14px] space-y-1">
             <div className="flex justify-between py-2 font-semibold text-ink border-b border-line/40">
               <dt>Pendapatan Penjualan</dt>
@@ -160,7 +166,9 @@ export function ReportsActivePanel({
             <div className="flex justify-between py-2 text-clay border-b border-line/40">
               <dt>Harga Pokok Penjualan (HPP)</dt>
               <dd>
-                {profitLoss.hpp_minor !== null ? `- ${idr(profitLoss.hpp_minor)}` : 'Data HPP tidak lengkap'}
+                {financeAvailable
+                  ? `- ${idr(profitLoss.hpp_minor ?? 0)}`
+                  : 'Data HPP tidak tersedia'}
               </dd>
             </div>
             <div className="flex justify-between border-b border-line/60 py-2.5 font-bold text-ink">

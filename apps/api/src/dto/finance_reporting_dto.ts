@@ -2,6 +2,8 @@ import type { AccountType, JournalSourceType } from './finance_dto'
 
 export interface ProfitLossReportDto {
   revenue_minor: number
+  cogs_minor: number
+  operating_expense_minor: number
   expense_minor: number
   net_income_minor: number
 }

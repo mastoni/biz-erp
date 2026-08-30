@@ -29,11 +29,11 @@ export function CashFlowChart({ points }: CashFlowChartProps) {
   return (
     <div className="rounded-xl border border-line bg-surface p-5 shadow-sm" data-testid="cash-flow-chart">
       <h3 className="font-display text-[16px] font-bold text-ink">Arus Kas Bulanan</h3>
-      <p className="mb-4 text-[11.5px] text-fog">Berdasarkan ringkasan penjualan harian · masuk vs keluar</p>
+      <p className="mb-4 text-[11.5px] text-fog">Berdasarkan pembukuan kas · masuk vs keluar</p>
 
       {points.length === 0 ? (
         <div className="flex h-48 items-center justify-center text-xs text-fog">
-          Belum ada data transaksi harian.
+          Belum ada data arus kas dari pembukuan.
         </div>
       ) : (
         <div className="flex h-48 items-end gap-1.5 sm:gap-2.5 overflow-x-auto pb-2">

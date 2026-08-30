@@ -24,6 +24,8 @@ export const financeReportingRepository = {
     const result = await client.query(
       `SELECT
          COALESCE(SUM(CASE WHEN a.type IN ('revenue','income') THEN jl.credit_minor - jl.debit_minor ELSE 0 END), 0) as revenue,
+         COALESCE(SUM(CASE WHEN a.type = 'cogs' THEN jl.debit_minor - jl.credit_minor ELSE 0 END), 0) as cogs,
+         COALESCE(SUM(CASE WHEN a.type = 'expense' THEN jl.debit_minor - jl.credit_minor ELSE 0 END), 0) as operating_expense,
          COALESCE(SUM(CASE WHEN a.type IN ('expense','cogs') THEN jl.debit_minor - jl.credit_minor ELSE 0 END), 0) as expense
        FROM journal_lines jl
        JOIN journal_entries je ON je.id = jl.journal_entry_id
@@ -32,17 +34,21 @@ export const financeReportingRepository = {
           AND ($3::date IS NULL OR je.date >= $3)
           AND ($4::date IS NULL OR je.date <= $4)
           AND ($2::uuid IS NULL OR je.branch_id = $2)
-        JOIN accounts a ON a.id = jl.account_id
-        WHERE a.business_id = $1`,
+       JOIN accounts a ON a.id = jl.account_id
+       WHERE a.business_id = $1`,
        [businessId, branchId, fromDate, toDate]
-    )
+     )
 
     const row = result.rows[0]
     const revenue = Number(row.revenue)
+    const cogs = Number(row.cogs)
+    const operatingExpense = Number(row.operating_expense)
     const expense = Number(row.expense)
 
     return {
       revenue_minor: revenue,
+      cogs_minor: cogs,
+      operating_expense_minor: operatingExpense,
       expense_minor: expense,
       net_income_minor: revenue - expense,
     }

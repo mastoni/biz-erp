@@ -136,7 +136,7 @@ export interface ProfitLossViewModel {
   gross_margin_percent: number | null;
   operating_expense_minor: number | null;
   net_profit_minor: number | null;
-  status: 'COMPLETE' | 'INCOMPLETE_COST_UNAVAILABLE' | 'EXPENSE_UNAVAILABLE';
+  status: 'COMPLETE' | 'INCOMPLETE_COST_UNAVAILABLE' | 'EXPENSE_UNAVAILABLE' | 'FINANCIAL_UNAVAILABLE';
 }
 
 export interface ReportsHubViewModel {
@@ -151,4 +151,87 @@ export interface ReportsHubViewModel {
   profitLoss: ProfitLossViewModel;
   isP1Tab: boolean;
   p1TabUnavailableMessage: string | null;
+}
+
+// -----------------------------------------------------------------------------
+// Finance Reporting API DTOs
+// Mirrors backend finance_reporting_dto.ts / finance_dto.ts exactly.
+// -----------------------------------------------------------------------------
+
+export type FinanceAccountType =
+  | 'cash'
+  | 'bank'
+  | 'mobile'
+  | 'receivable'
+  | 'payable'
+  | 'inventory'
+  | 'revenue'
+  | 'cogs'
+  | 'expense'
+  | 'income';
+
+export interface FinanceProfitLossDto {
+  revenue_minor: number;
+  cogs_minor: number;
+  operating_expense_minor: number;
+  expense_minor: number;
+  net_income_minor: number;
+}
+
+export interface FinanceBalanceSheetDto {
+  total_assets_minor: number;
+  total_liabilities_minor: number;
+  total_equity_minor: number;
+}
+
+export interface FinanceCashflowEntryDto {
+  journal_entry_id: string;
+  date: string;
+  account_id: string;
+  account_code: string;
+  account_name: string;
+  account_type: string;
+  debit_minor: number;
+  credit_minor: number;
+  net_flow: number;
+  description: string | null;
+}
+
+export interface FinanceCashflowReportDto {
+  entries: FinanceCashflowEntryDto[];
+  total_inflow: number;
+  total_outflow: number;
+  net_cash_flow: number;
+}
+
+export interface FinanceGLEntryDto {
+  account_id: string;
+  account_code: string;
+  account_name: string;
+  account_type: string;
+  opening_balance: number;
+  journal_entry_id: string;
+  date: string;
+  source_type: string;
+  description: string;
+  debit_minor: number;
+  credit_minor: number;
+  running_balance: number;
+}
+
+export interface FinanceGeneralLedgerDto {
+  opening_balance: number;
+  period_movements: number;
+  closing_balance: number;
+  entries: FinanceGLEntryDto[];
+}
+
+export interface FinanceAccountBalanceDto {
+  account_id: string;
+  account_code: string;
+  account_name: string;
+  account_type: FinanceAccountType;
+  debit_total: number;
+  credit_total: number;
+  balance: number;
 }

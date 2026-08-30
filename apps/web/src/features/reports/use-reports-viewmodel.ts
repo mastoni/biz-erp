@@ -6,13 +6,14 @@ import {
   getDailySales,
   getRecentSales,
   getProductSales,
+  getFinanceProfitLoss,
+  getFinanceCashflow,
 } from './api';
 import { getStocks, getStockSummary } from '@/features/inventory/api';
 import { getProducts } from '@/features/products/api';
 import {
   formatReportsDateRange,
   mapExecutiveKPI,
-  mapCashFlowPoints,
   mapSalesComposition,
   mapTopProducts,
   mapInventoryReport,
@@ -32,6 +33,8 @@ import type {
   SalesSummaryReport,
   RecentSaleItem,
   ProductSalesReport,
+  FinanceProfitLossDto,
+  FinanceCashflowReportDto,
 } from './types';
 
 interface UseReportsViewModelOptions {
@@ -54,17 +57,21 @@ export function useReportsViewModel({
   const [recentSales, setRecentSales] = useState<RecentSaleItem[]>([]);
   const [productSales, setProductSales] = useState<ProductSalesReport[]>([]);
   const [inventoryItems, setInventoryItems] = useState<any[]>([]);
+  const [financeProfitLoss, setFinanceProfitLoss] = useState<FinanceProfitLossDto | null>(null);
+  const [financeCashflow, setFinanceCashflow] = useState<FinanceCashflowReportDto | null>(null);
 
   const currentTenantRef = useRef<string | undefined>(businessId);
   const currentBranchRef = useRef<string | undefined>(branchId);
 
   const fetchAllData = useCallback(async () => {
-    if (!businessId) {
+     if (!businessId) {
       setSalesSummary(null);
       setDailyPoints([]);
       setRecentSales([]);
       setProductSales([]);
       setInventoryItems([]);
+      setFinanceProfitLoss(null);
+      setFinanceCashflow(null);
       return;
     }
 
@@ -74,7 +81,7 @@ export function useReportsViewModel({
     const { from, to } = formatReportsDateRange(range);
 
     try {
-      const [summaryRes, dailyRes, recentRes, productsRes, stocksRes] = await Promise.all([
+      const [summaryRes, dailyRes, recentRes, productsRes, stocksRes, pnlRes, cashflowRes] = await Promise.all([
         getSalesSummary(from, to, branchId).catch(() => ({
           sales_summary: {
             total_sales: 0,
@@ -88,12 +95,16 @@ export function useReportsViewModel({
         getRecentSales(branchId, 10).catch(() => ({ sales: [] })),
         getProductSales(from, to, branchId).catch(() => ({ product_sales: [] })),
         branchId ? getStocks(businessId, branchId).catch(() => []) : getProducts(businessId, 0, 100).catch(() => ({ items: [] })),
+        getFinanceProfitLoss(from, to, branchId).catch(() => null),
+        getFinanceCashflow(from, to, branchId).catch(() => null),
       ]);
 
       setSalesSummary(summaryRes.sales_summary);
       setDailyPoints(dailyRes.points || []);
       setRecentSales(recentRes.sales || []);
       setProductSales(productsRes.product_sales || []);
+      setFinanceProfitLoss(pnlRes);
+      setFinanceCashflow(cashflowRes);
 
       if (Array.isArray(stocksRes)) {
         setInventoryItems(stocksRes);
@@ -126,6 +137,8 @@ export function useReportsViewModel({
       setRecentSales([]);
       setProductSales([]);
       setInventoryItems([]);
+      setFinanceProfitLoss(null);
+      setFinanceCashflow(null);
     }
     if (currentBranchRef.current !== branchId) {
       currentBranchRef.current = branchId;
@@ -133,18 +146,46 @@ export function useReportsViewModel({
       setDailyPoints([]);
       setRecentSales([]);
       setProductSales([]);
+      setFinanceProfitLoss(null);
+      setFinanceCashflow(null);
     }
     fetchAllData();
   }, [businessId, branchId, range, fetchAllData]);
 
   // Derived ViewModels
   const kpi: ReportsExecutiveKPI = useMemo(() => {
-    return mapExecutiveKPI(salesSummary, null, null);
-  }, [salesSummary]);
+    const cogsMinor = financeProfitLoss?.cogs_minor ?? null;
+    const operatingExpenseMinor = financeProfitLoss?.operating_expense_minor ?? null;
+    const kpi = mapExecutiveKPI(salesSummary, cogsMinor, operatingExpenseMinor);
+    if (financeProfitLoss) {
+      return {
+        ...kpi,
+        net_profit_minor: financeProfitLoss.net_income_minor,
+      };
+    }
+    return kpi;
+  }, [salesSummary, financeProfitLoss]);
 
+  // Cash flow is derived strictly from the Finance Reporting API (general ledger
+  // cash/bank/mobile movements). It must NOT be derived from operational sales.
   const cashFlow: CashFlowPoint[] = useMemo(() => {
-    return mapCashFlowPoints(dailyPoints);
-  }, [dailyPoints]);
+    if (!financeCashflow) return [];
+    const byDate = new Map<string, { inflow: number; outflow: number }>();
+    for (const entry of financeCashflow.entries) {
+      const dayKey = String(entry.date).slice(0, 10);
+      const cur = byDate.get(dayKey) || { inflow: 0, outflow: 0 };
+      cur.inflow += Number(entry.debit_minor);
+      cur.outflow += Number(entry.credit_minor);
+      byDate.set(dayKey, cur);
+    }
+    return [...byDate.entries()]
+      .sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))
+      .map(([date, v]) => {
+        const parts = date.split('-');
+        const label = parts.length === 3 ? `${Number(parts[2])}/${Number(parts[1])}` : date;
+        return { date, label, inflow_minor: v.inflow, outflow_minor: v.outflow };
+      });
+  }, [financeCashflow]);
 
   const salesComposition: SalesCompositionItem[] = useMemo(() => {
     return mapSalesComposition(productSales);
@@ -169,8 +210,28 @@ export function useReportsViewModel({
   }, [inventoryItems]);
 
   const profitLoss: ProfitLossViewModel = useMemo(() => {
-    return mapProfitLoss(salesSummary?.total_revenue_minor ?? 0, null, null);
-  }, [salesSummary]);
+    if (financeProfitLoss) {
+      const pl = mapProfitLoss(
+        financeProfitLoss.revenue_minor,
+        financeProfitLoss.cogs_minor,
+        financeProfitLoss.operating_expense_minor
+      );
+      return {
+        ...pl,
+        net_profit_minor: financeProfitLoss.net_income_minor,
+      };
+    }
+    // Financial API unavailable: do NOT silently fall back to sales operational numbers.
+    return {
+      revenue_minor: 0,
+      hpp_minor: null,
+      gross_profit_minor: null,
+      gross_margin_percent: null,
+      operating_expense_minor: null,
+      net_profit_minor: null,
+      status: 'FINANCIAL_UNAVAILABLE',
+    };
+  }, [financeProfitLoss]);
 
   const isP1Tab = ['pembelian', 'hutangpiutang', 'digital'].includes(activeTab);
 
