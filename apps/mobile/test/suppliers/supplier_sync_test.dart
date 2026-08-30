@@ -142,7 +142,7 @@ class MockSyncApi implements SyncApiClient {
       const PurchasePushResult(ok: true);
 
   @override
-  Future<PurchasePushResult> payPurchase({required String id, required int amountMinor, required String method, String? reference, int? ifMatchVersion, required String idempotencyKey}) async =>
+  Future<PurchasePushResult> payPurchase({required String id, required String businessId, required int amountMinor, required String method, String? reference, int? ifMatchVersion, required String idempotencyKey}) async =>
       const PurchasePushResult(ok: true);
 
   @override

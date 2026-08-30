@@ -58,6 +58,7 @@ export type JournalSourceType =
   | 'RECEIVABLE'
   | 'CUSTOMER_PAYMENT'
   | 'PAYABLE'
+  | 'PURCHASE'
   | 'REVERSAL'
 
 export interface JournalLineDto {

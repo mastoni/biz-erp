@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createSupplier, deleteSupplier, getSuppliers, getSuppliersSummary, updateSupplier } from './api';
+import { getPurchases } from '../purchases/api';
 import { classifySupplierError } from './api';
 import {
   filterSuppliers,
@@ -17,6 +18,7 @@ import type {
   SupplierViewModel,
   SuppliersDataState,
   SuppliersMutationState,
+  LinkedPurchaseOrder,
 } from './types';
 
 export interface UseSuppliersViewModelOptions {
@@ -52,6 +54,10 @@ export function useSuppliersViewModel({
 }: UseSuppliersViewModelOptions): UseSuppliersViewModelResult {
   const [rawSuppliers, setRawSuppliers] = useState<Supplier[]>([]);
   const [rawSummary, setRawSummary] = useState<SupplierSummaryKPI | null>(null);
+  const [linkedPOMap, setLinkedPOMap] = useState<Map<string, LinkedPurchaseOrder[]>>(new Map());
+  const [outstandingMap, setOutstandingMap] = useState<Map<string, number>>(new Map());
+  const [totalOutstanding, setTotalOutstanding] = useState<number>(0);
+  const [poCountThisMonth, setPoCountThisMonth] = useState<number>(0);
   const [dataState, setDataState] = useState<SuppliersDataState>('loading');
   const [mutationState, setMutationState] = useState<SuppliersMutationState>('idle');
   const [error, setError] = useState<string | null>(null);
@@ -63,6 +69,10 @@ export function useSuppliersViewModel({
     if (!businessId) {
       setRawSuppliers([]);
       setRawSummary(null);
+      setLinkedPOMap(new Map());
+      setOutstandingMap(new Map());
+      setTotalOutstanding(0);
+      setPoCountThisMonth(0);
       setDataState('empty');
       return;
     }
@@ -71,10 +81,54 @@ export function useSuppliersViewModel({
     setError(null);
 
     try {
-      const [listRes, summaryRes] = await Promise.allSettled([
+      const [listRes, summaryRes, purchasesRes] = await Promise.allSettled([
         getSuppliers(businessId, limit, 0),
         getSuppliersSummary(businessId),
+        getPurchases(businessId, undefined, 200, 0),
       ]);
+
+      // Process Purchases for debt & PO history
+      const poMap = new Map<string, LinkedPurchaseOrder[]>();
+      const outMap = new Map<string, number>();
+      let debtTotal = 0;
+      let monthPoCount = 0;
+      const currentMonthPrefix = new Date().toISOString().slice(0, 7);
+
+      if (purchasesRes.status === 'fulfilled' && purchasesRes.value.items) {
+        const pos = purchasesRes.value.items;
+        pos.forEach((po) => {
+          if (po.status !== 'cancelled') {
+            if (po.date && po.date.startsWith(currentMonthPrefix)) {
+              monthPoCount++;
+            }
+            const curDebt = outMap.get(po.supplier_id) || 0;
+            outMap.set(po.supplier_id, curDebt + (po.outstanding_minor || 0));
+            debtTotal += (po.outstanding_minor || 0);
+          }
+
+          const linked: LinkedPurchaseOrder = {
+            id: po.id,
+            code: po.code,
+            date: po.date,
+            due_date: po.due_date,
+            status: po.status,
+            total_minor: po.total_minor,
+            paid_minor: po.paid_minor,
+            outstanding_minor: po.outstanding_minor,
+            items_count: (po.items || []).length,
+            items_summary: (po.items || []).map((it) => `${it.product_name} (${it.ordered_qty})`).join(', ') || '—',
+          };
+
+          const list = poMap.get(po.supplier_id) || [];
+          list.push(linked);
+          poMap.set(po.supplier_id, list);
+        });
+      }
+
+      setLinkedPOMap(poMap);
+      setOutstandingMap(outMap);
+      setTotalOutstanding(debtTotal);
+      setPoCountThisMonth(monthPoCount);
 
       if (listRes.status === 'fulfilled') {
         const items = listRes.value.items || [];
@@ -82,9 +136,19 @@ export function useSuppliersViewModel({
 
         let summaryData: SupplierSummaryKPI | null = null;
         if (summaryRes.status === 'fulfilled') {
-          summaryData = summaryRes.value;
+          summaryData = {
+            ...summaryRes.value,
+            total_outstanding_minor: debtTotal,
+            po_count_this_month: monthPoCount,
+          };
         } else if (listRes.value.summary) {
-          summaryData = listRes.value.summary;
+          summaryData = {
+            total_suppliers: listRes.value.summary.total_suppliers ?? items.length,
+            active_suppliers: listRes.value.summary.active_suppliers ?? items.filter((s) => s.status === 'aktif').length,
+            inactive_suppliers: listRes.value.summary.inactive_suppliers ?? items.filter((s) => s.status === 'nonaktif').length,
+            total_outstanding_minor: debtTotal,
+            po_count_this_month: monthPoCount,
+          };
         }
         setRawSummary(summaryData);
 
@@ -101,107 +165,80 @@ export function useSuppliersViewModel({
   }, [businessId, limit]);
 
   useEffect(() => {
-    const businessChanged = activeBusinessRef.current !== businessId;
-
-    if (businessChanged) {
-      activeBusinessRef.current = businessId;
-
-      // Clear previous tenant data immediately
-      setRawSuppliers([]);
-      setRawSummary(null);
-      setSearch('');
-      setDataState('loading');
-      setError(null);
-    }
-
+    activeBusinessRef.current = businessId;
     fetchSuppliersData();
-  }, [businessId, fetchSuppliersData]);
+  }, [fetchSuppliersData, businessId]);
 
-  const allSuppliers = useMemo<SupplierViewModel[]>(() => {
-    return rawSuppliers.map((s) => mapSupplierToViewModel(s));
-  }, [rawSuppliers]);
+  const allSuppliers: SupplierViewModel[] = useMemo(() => {
+    return rawSuppliers.map((s) =>
+      mapSupplierToViewModel(s, linkedPOMap.get(s.id) || [], outstandingMap.get(s.id) || 0)
+    );
+  }, [rawSuppliers, linkedPOMap, outstandingMap]);
 
-  const summary = useMemo<SupplierSummaryKPI>(() => {
-    return mapSupplierSummaryToViewModel(rawSummary, allSuppliers);
-  }, [rawSummary, allSuppliers]);
+  const suppliers: SupplierViewModel[] = useMemo(() => {
+    return filterSuppliers(allSuppliers, { search });
+  }, [allSuppliers, search]);
 
-  const filterModel = useMemo<SupplierFilterModel>(() => ({
-    search,
-  }), [search]);
-
-  const suppliers = useMemo<SupplierViewModel[]>(() => {
-    return filterSuppliers(allSuppliers, filterModel);
-  }, [allSuppliers, filterModel]);
+  const summary: SupplierSummaryKPI = useMemo(() => {
+    return mapSupplierSummaryToViewModel(rawSummary, allSuppliers, totalOutstanding, poCountThisMonth);
+  }, [rawSummary, allSuppliers, totalOutstanding, poCountThisMonth]);
 
   const addSupplier = useCallback(
     async (form: SupplierCreateFormModel): Promise<SupplierViewModel> => {
       if (!businessId) {
-        throw new Error('Business context is required.');
+        throw new Error('Business ID is missing.');
       }
 
       setMutationState('saving');
       try {
-        const newId = crypto.randomUUID();
         const created = await createSupplier({
-          id: newId,
+          id: crypto.randomUUID(),
           business_id: businessId,
-          name: form.name.trim(),
-          contact: form.contact.trim() || null,
-          phone: form.phone.trim() || null,
-          email: form.email.trim() || null,
-          category: form.category || null,
-          term: form.term,
+          ...form,
         });
-
-        // Prepend after server success (no optimistic insertion per spec)
         setRawSuppliers((prev) => [created, ...prev]);
         setMutationState('saved');
-
-        return mapSupplierToViewModel(created);
+        return mapSupplierToViewModel(created, [], 0);
       } catch (err: any) {
-        const errorType = classifySupplierError(err);
-        if (errorType === 'code_conflict' || errorType === 'version_conflict') {
-          setMutationState('conflict');
-        } else {
-          setMutationState('error');
-        }
+        setMutationState('error');
         throw err;
       }
     },
     [businessId]
   );
 
-  const updateSupplierById = useCallback(
+  const updateSupplierAction = useCallback(
     async (
       id: string,
       updates: Omit<SupplierUpdateInput, 'business_id' | 'expected_server_version'>
     ): Promise<SupplierViewModel> => {
       if (!businessId) {
-        throw new Error('Business context is required.');
+        throw new Error('Business ID is missing.');
       }
 
-      const current = allSuppliers.find((s) => s.id === id);
-      if (!current) {
-        throw new Error('Supplier not found.');
+      const existing = rawSuppliers.find((s) => s.id === id);
+      if (!existing) {
+        throw new Error('Supplier tidak ditemukan.');
       }
 
       setMutationState('saving');
       try {
         const updated = await updateSupplier(id, {
-          business_id: businessId,
-          expected_server_version: current.server_version,
           ...updates,
+          business_id: businessId,
+          expected_server_version: existing.server_version,
         });
 
-        setRawSuppliers((prev) =>
-          prev.map((s) => (s.id === id ? updated : s))
-        );
+        setRawSuppliers((prev) => prev.map((s) => (s.id === id ? updated : s)));
         setMutationState('saved');
-
-        return mapSupplierToViewModel(updated);
+        return mapSupplierToViewModel(
+          updated,
+          linkedPOMap.get(id) || [],
+          outstandingMap.get(id) || 0
+        );
       } catch (err: any) {
-        const errorType = classifySupplierError(err);
-        if (errorType === 'code_conflict' || errorType === 'version_conflict') {
+        const errType = classifySupplierError(err);
+        if (errType === 'version_conflict') {
           setMutationState('conflict');
         } else {
           setMutationState('error');
@@ -209,29 +246,22 @@ export function useSuppliersViewModel({
         throw err;
       }
     },
-    [businessId, allSuppliers]
+    [businessId, rawSuppliers, linkedPOMap, outstandingMap]
   );
 
-  const deleteSupplierById = useCallback(
+  const deleteSupplierAction = useCallback(
     async (id: string): Promise<void> => {
       if (!businessId) {
-        throw new Error('Business context is required.');
+        throw new Error('Business ID is missing.');
       }
 
       setMutationState('saving');
       try {
         await deleteSupplier(id);
-
-        // Remove from local state after server success
         setRawSuppliers((prev) => prev.filter((s) => s.id !== id));
         setMutationState('saved');
       } catch (err: any) {
-        const errorType = classifySupplierError(err);
-        if (errorType === 'code_conflict' || errorType === 'version_conflict') {
-          setMutationState('conflict');
-        } else {
-          setMutationState('error');
-        }
+        setMutationState('error');
         throw err;
       }
     },
@@ -244,14 +274,14 @@ export function useSuppliersViewModel({
     summary,
     dataState,
     isLoading: dataState === 'loading',
-    isEmpty: dataState === 'empty' && allSuppliers.length === 0,
+    isEmpty: dataState === 'empty',
     error,
     search,
     setSearch,
     mutationState,
     addSupplier,
-    updateSupplier: updateSupplierById,
-    deleteSupplier: deleteSupplierById,
+    updateSupplier: updateSupplierAction,
+    deleteSupplier: deleteSupplierAction,
     refresh: fetchSuppliersData,
   };
 }

@@ -8,6 +8,7 @@ import type {
   SupplierTerm,
   SupplierTone,
   SupplierStatus,
+  LinkedPurchaseOrder,
 } from './types';
 
 export const SUPPLIERS_PAGE_SIZE = 20;
@@ -44,9 +45,18 @@ export function num(n: number | string | undefined | null): string {
   return parsed.toLocaleString('id-ID');
 }
 
+export function idr(minor: number | undefined | null): string {
+  if (minor === undefined || minor === null) return 'Rp 0';
+  return new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    maximumFractionDigits: 0,
+  }).format(minor);
+}
+
 export function idrShort(minor: number | undefined | null): string {
   if (minor === undefined || minor === null) return 'Rp 0';
-  const major = minor / 100;
+  const major = minor;
   const abs = Math.abs(major);
   const sign = major < 0 ? '-' : '';
   const f = (v: number) =>
@@ -67,7 +77,11 @@ export function getSupplierStatusTone(status: SupplierStatus | string): Supplier
   return 'fog';
 }
 
-export function mapSupplierToViewModel(dto: Supplier): SupplierViewModel {
+export function mapSupplierToViewModel(
+  dto: Supplier,
+  linkedPOs: LinkedPurchaseOrder[] = [],
+  outstanding: number = 0
+): SupplierViewModel {
   const contact = dto.contact?.trim() ? dto.contact.trim() : '—';
   const phone = dto.phone?.trim() ? dto.phone.trim() : '—';
   const email = dto.email?.trim() ? dto.email.trim() : null;
@@ -91,37 +105,43 @@ export function mapSupplierToViewModel(dto: Supplier): SupplierViewModel {
     created_at: dto.created_at,
     updated_at: dto.updated_at,
     deleted_at: dto.deleted_at,
+    outstanding_balance_minor: outstanding,
+    purchase_orders: linkedPOs,
   };
 }
 
 export function mapSupplierSummaryToViewModel(
   dto?: Partial<SupplierSummaryKPI> | null,
-  fallbackItems: SupplierViewModel[] = []
+  fallbackItems: SupplierViewModel[] = [],
+  totalOutstandingMinor: number = 0,
+  poCountThisMonth: number = 0
 ): SupplierSummaryKPI {
-  if (dto && typeof dto.total_suppliers === 'number') {
-    return {
-      total_suppliers: dto.total_suppliers,
-      active_suppliers: dto.active_suppliers ?? 0,
-      inactive_suppliers: dto.inactive_suppliers ?? 0,
-    };
-  }
-
-  const total = fallbackItems.length;
-  const active = fallbackItems.filter((s) => s.status === 'aktif').length;
-  const inactive = fallbackItems.filter((s) => s.status === 'nonaktif').length;
+  const total = dto?.total_suppliers ?? fallbackItems.length;
+  const active = dto?.active_suppliers ?? fallbackItems.filter((s) => s.status === 'aktif').length;
+  const inactive = dto?.inactive_suppliers ?? fallbackItems.filter((s) => s.status === 'nonaktif').length;
+  const totalOutstanding = dto?.total_outstanding_minor ?? totalOutstandingMinor;
+  const poCount = dto?.po_count_this_month ?? poCountThisMonth;
 
   return {
     total_suppliers: total,
     active_suppliers: active,
     inactive_suppliers: inactive,
+    total_outstanding_minor: totalOutstanding,
+    po_count_this_month: poCount,
   };
 }
 
 export function mapSuppliersListToViewModel(
-  res: SupplierListResponse
+  res: SupplierListResponse,
+  linkedMap: Map<string, LinkedPurchaseOrder[]> = new Map(),
+  outstandingMap: Map<string, number> = new Map(),
+  totalOutstanding: number = 0,
+  poCount: number = 0
 ): SuppliersListViewModel {
-  const items = (res.items || []).map((s) => mapSupplierToViewModel(s));
-  const summary = mapSupplierSummaryToViewModel(res.summary, items);
+  const items = (res.items || []).map((s) =>
+    mapSupplierToViewModel(s, linkedMap.get(s.id) || [], outstandingMap.get(s.id) || 0)
+  );
+  const summary = mapSupplierSummaryToViewModel(res.summary, items, totalOutstanding, poCount);
 
   return {
     items,

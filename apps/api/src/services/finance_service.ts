@@ -1,4 +1,4 @@
-import { Pool } from 'pg'
+import { Pool, PoolClient } from 'pg'
 import { saleRepository } from '../repositories/sale_repository'
 import { purchaseRepository } from '../repositories/purchase_repository'
 import { inventoryRepository } from '../repositories/inventory_repository'
@@ -1132,6 +1132,77 @@ export function createFinanceService(pool: Pool) {
 
         return { entries, summary }
       })
+    },
+
+    async postCashPurchase(
+      client: PoolClient,
+      purchasePaymentId: string,
+      businessId: string,
+      amountMinor: number,
+      branchId?: string | null,
+      reference?: string | null,
+      description?: string | null
+    ): Promise<{ journalId: string; sourceId: string }> {
+      const existing = await journalRepository.getJournalBySource(client, businessId, 'PURCHASE', purchasePaymentId)
+      if (existing) {
+        if (existing.status === 'posted') {
+          return { journalId: existing.id, sourceId: purchasePaymentId }
+        }
+        throw new ApiError(409, 'SOURCE_CONFLICT', 'Journal already exists for this cash purchase')
+      }
+
+      const idemKey = `cash_purchase_journal_${purchasePaymentId}`
+      const existingIdem = await idempotencyRepository.findActive(client, businessId, idemKey)
+      if (existingIdem) {
+        const stored = existingIdem.response_body as { journal_id: string }
+        return { journalId: stored.journal_id, sourceId: purchasePaymentId }
+      }
+
+      const inventoryAccount = await accountRepository.findByType(client, businessId, 'inventory')
+      if (!inventoryAccount) {
+        throw new ApiError(500, 'CONFIG_ERROR', 'Inventory account not configured')
+      }
+
+      const paymentAccount = await accountRepository.findByType(client, businessId, 'cash')
+      if (!paymentAccount) {
+        throw new ApiError(500, 'CONFIG_ERROR', 'Cash account not configured')
+      }
+
+      const journalId = randomUUID()
+
+      await journalRepository.createDraftJournal(client, businessId, {
+        id: journalId,
+        date: new Date().toISOString().slice(0, 10),
+        source_type: 'PURCHASE',
+        source_id: purchasePaymentId,
+        reference: reference ?? null,
+        description: description ?? `Cash purchase payment ${purchasePaymentId}`,
+        branch_id: branchId ?? null
+      })
+
+      await journalRepository.addJournalLine(client, {
+        id: randomUUID(),
+        journal_entry_id: journalId,
+        account_id: inventoryAccount.id,
+        debit_minor: amountMinor,
+        credit_minor: 0,
+        description: 'Inventory from cash purchase'
+      })
+
+      await journalRepository.addJournalLine(client, {
+        id: randomUUID(),
+        journal_entry_id: journalId,
+        account_id: paymentAccount.id,
+        debit_minor: 0,
+        credit_minor: amountMinor,
+        description: 'Cash outflow for purchase'
+      })
+
+      await journalRepository.postJournal(client, journalId)
+
+      await idempotencyRepository.insert(client, businessId, idemKey, '', 201, { journal_id: journalId })
+
+      return { journalId, sourceId: purchasePaymentId }
     },
 
     async getAccountBalances(businessId: string) {

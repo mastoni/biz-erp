@@ -68,3 +68,38 @@ export interface PlatformSubscription {
   currency: string | null;
   created_at: string;
 }
+
+export interface PlatformOverviewKPIs {
+  total_businesses: number;
+  active_subscriptions: number;
+  estimated_mrr_minor: number;
+  total_plans: number;
+  total_modules: number;
+}
+
+export interface PlanDistributionItem {
+  plan_code: string;
+  plan_name: string;
+  count: number;
+  color: string;
+}
+
+export interface SubscriptionStatusDistributionItem {
+  status: string;
+  label: string;
+  count: number;
+  tone: 'pine' | 'tide' | 'clay' | 'fog';
+}
+
+export interface PlatformOverviewState {
+  context: PlatformContext | null;
+  kpis: PlatformOverviewKPIs;
+  planDistribution: PlanDistributionItem[];
+  statusDistribution: SubscriptionStatusDistributionItem[];
+  recentBusinesses: PlatformBusiness[];
+  recentSubscriptions: PlatformSubscription[];
+  loading: boolean;
+  error: string | null;
+  requestId: string | null;
+  refresh: () => Promise<void>;
+}

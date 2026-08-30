@@ -20,13 +20,14 @@ import {
   validatePurchasePay,
   validatePurchaseCancel,
   generatePurchaseCode,
-  calculateDueDate,
+  calculateDueDate
 } from '../dto/purchase_dto'
 import { purchaseRepository } from '../repositories/purchase_repository'
 import { inventoryRepository } from '../repositories/inventory_repository'
 import { idempotencyRepository } from '../repositories/idempotency_repository'
 import { withTransaction } from '../db/transaction'
 import { isUuid } from '../utils/uuid'
+import { createFinanceService } from './finance_service'
 
 const DEFAULT_LIMIT = 50
 const MAX_LIMIT = 500
@@ -112,9 +113,9 @@ export function createPurchaseService(pool: Pool) {
             supplierId,
             status,
             limit,
-            offset,
+            offset
           }),
-          purchaseRepository.getSummary(client, tenantId, { branchId, supplierId }),
+          purchaseRepository.getSummary(client, tenantId, { branchId, supplierId })
         ])
 
         return {
@@ -123,7 +124,7 @@ export function createPurchaseService(pool: Pool) {
           limit,
           offset,
           has_more: offset + rows.length < total,
-          summary,
+          summary
         }
       })
     },
@@ -152,49 +153,25 @@ export function createPurchaseService(pool: Pool) {
         return po
       })
     },
-    async create(
-      body: unknown,
-      idempotencyKey: string,
-      requestHash: string,
-      tenantId: string
-    ): Promise<PurchaseDto> {
+    async create(body: unknown, idempotencyKey: string, requestHash: string, tenantId: string): Promise<PurchaseDto> {
       const request = validatePurchaseCreate(body)
       assertTenant(request.business_id, tenantId)
 
       return withTransaction(pool, async (client) => {
-        const existing = await idempotencyRepository.findActive(
-          client,
-          request.business_id,
-          idempotencyKey
-        )
+        const existing = await idempotencyRepository.findActive(client, request.business_id, idempotencyKey)
         if (existing) {
           if (existing.request_hash !== requestHash) {
-            throw new ConflictError(
-              'IDEMPOTENCY_KEY_REUSE',
-              'Idempotency key was already used with a different request hash',
-              { idempotency_key: idempotencyKey }
-            )
+            throw new ConflictError('IDEMPOTENCY_KEY_REUSE', 'Idempotency key was already used with a different request hash', { idempotency_key: idempotencyKey })
           }
           return existing.response_body as PurchaseDto
         }
 
-        const duplicate = await purchaseRepository.findById(
-          client,
-          request.business_id,
-          request.id
-        )
+        const duplicate = await purchaseRepository.findById(client, request.business_id, request.id)
         if (duplicate) {
-          throw new ConflictError(
-            'PURCHASE_ID_CONFLICT',
-            'Purchase order with this id already exists',
-            { existing_purchase_id: request.id }
-          )
+          throw new ConflictError('PURCHASE_ID_CONFLICT', 'Purchase order with this id already exists', { existing_purchase_id: request.id })
         }
 
-        const branchResult = await client.query(
-          'SELECT id, business_id FROM branches WHERE id = $1',
-          [request.branch_id]
-        )
+        const branchResult = await client.query('SELECT id, business_id FROM branches WHERE id = $1', [request.branch_id])
         if (branchResult.rows.length === 0) {
           throw new ApiError(404, 'NOT_FOUND', 'Branch not found')
         }
@@ -259,7 +236,7 @@ export function createPurchaseService(pool: Pool) {
             ordered_qty: item.ordered_qty,
             received_qty: 0,
             unit_cost_minor: unitCostMinor,
-            subtotal_minor: subtotalMinor,
+            subtotal_minor: subtotalMinor
           })
         }
 
@@ -267,28 +244,19 @@ export function createPurchaseService(pool: Pool) {
         const dueDateStr = request.due_date ?? calculateDueDate(dateStr, supplier.term)
         const status = request.status === 'sent' ? 'sent' : 'draft'
 
-        const outstandingMinor =
-          supplier.term === 'Tunai' ? 0 : calculatedTotalMinor
+        const outstandingMinor = supplier.term === 'Tunai' ? 0 : calculatedTotalMinor
 
         await purchaseRepository.lockCodeSequence(client, request.business_id)
 
         let createdPo: PurchaseDto | null = null
         let attempts = 0
-        let seq = await purchaseRepository.getNextCodeSequence(
-          client,
-          request.business_id,
-          supplier.code
-        )
+        let seq = await purchaseRepository.getNextCodeSequence(client, request.business_id, supplier.code)
 
         while (attempts < 3) {
           attempts++
           const code = generatePurchaseCode(supplier.code, seq)
 
-          const existingCode = await purchaseRepository.findByCode(
-            client,
-            request.business_id,
-            code
-          )
+          const existingCode = await purchaseRepository.findByCode(client, request.business_id, code)
           if (existingCode) {
             seq++
             continue
@@ -309,7 +277,7 @@ export function createPurchaseService(pool: Pool) {
               paid_minor: 0,
               outstanding_minor: outstandingMinor,
               received_minor: 0,
-              note: request.note ?? null,
+              note: request.note ?? null
             })
             break
           } catch (err: any) {
@@ -322,36 +290,19 @@ export function createPurchaseService(pool: Pool) {
         }
 
         if (!createdPo) {
-          throw new ConflictError(
-            'CODE_GENERATION_FAILED',
-            'Failed to generate unique purchase order code after 3 attempts'
-          )
+          throw new ConflictError('CODE_GENERATION_FAILED', 'Failed to generate unique purchase order code after 3 attempts')
         }
 
-        const insertedItems = await purchaseRepository.insertPurchaseItems(
-          client,
-          lineItemsToInsert
-        )
+        const insertedItems = await purchaseRepository.insertPurchaseItems(client, lineItemsToInsert)
         createdPo.items = insertedItems
         createdPo.payments = []
 
-        await idempotencyRepository.insert(
-          client,
-          request.business_id,
-          idempotencyKey,
-          requestHash,
-          201,
-          createdPo
-        )
+        await idempotencyRepository.insert(client, request.business_id, idempotencyKey, requestHash, 201, createdPo)
 
         return createdPo
       })
     },
-    async updateDraft(
-      purchaseId: string,
-      body: unknown,
-      tenantId: string
-    ): Promise<PurchaseDto> {
+    async updateDraft(purchaseId: string, body: unknown, tenantId: string): Promise<PurchaseDto> {
       if (!isUuid(purchaseId)) {
         throw new ValidationError('Purchase id must be a valid UUID')
       }
@@ -360,46 +311,29 @@ export function createPurchaseService(pool: Pool) {
       assertTenant(request.business_id, tenantId)
 
       return withTransaction(pool, async (client) => {
-        const po = await purchaseRepository.findByIdForUpdate(
-          client,
-          request.business_id,
-          purchaseId
-        )
+        const po = await purchaseRepository.findByIdForUpdate(client, request.business_id, purchaseId)
         if (!po) {
           throw new ApiError(404, 'NOT_FOUND', 'Purchase order not found')
         }
 
         if (po.status !== 'draft') {
-          throw new ValidationError(
-            `Cannot modify purchase order in '${po.status}' status. Only draft orders can be updated.`
-          )
+          throw new ValidationError(`Cannot modify purchase order in '${po.status}' status. Only draft orders can be updated.`)
         }
 
         if (po.server_version !== request.expected_server_version) {
-          throw new ConflictError(
-            'PURCHASE_VERSION_CONFLICT',
-            'Purchase order was modified by another device',
-            {
-              expected_server_version: request.expected_server_version,
-              current_server_version: po.server_version,
-            }
-          )
+          throw new ConflictError('PURCHASE_VERSION_CONFLICT', 'Purchase order was modified by another device', {
+            expected_server_version: request.expected_server_version,
+            current_server_version: po.server_version
+          })
         }
 
         if (request.branch_id && request.branch_id !== po.branch_id) {
-          const branchResult = await client.query(
-            'SELECT id, business_id FROM branches WHERE id = $1',
-            [request.branch_id]
-          )
+          const branchResult = await client.query('SELECT id, business_id FROM branches WHERE id = $1', [request.branch_id])
           if (branchResult.rows.length === 0) {
             throw new ApiError(404, 'NOT_FOUND', 'Branch not found')
           }
           if (branchResult.rows[0].business_id !== request.business_id) {
-            throw new ApiError(
-              403,
-              'BUSINESS_ACCESS_DENIED',
-              'Branch belongs to another business'
-            )
+            throw new ApiError(403, 'BUSINESS_ACCESS_DENIED', 'Branch belongs to another business')
           }
         }
 
@@ -462,9 +396,7 @@ export function createPurchaseService(pool: Pool) {
               throw new ValidationError(`Product "${product.name}" is inactive`)
             }
             if (product.cost_minor === null || Number(product.cost_minor) < 0) {
-              throw new ValidationError(
-                `Product "${product.name}" must have a valid cost price set`
-              )
+              throw new ValidationError(`Product "${product.name}" must have a valid cost price set`)
             }
 
             const unitCostMinor = Number(product.cost_minor)
@@ -479,43 +411,32 @@ export function createPurchaseService(pool: Pool) {
               ordered_qty: item.ordered_qty,
               received_qty: 0,
               unit_cost_minor: unitCostMinor,
-              subtotal_minor: subtotalMinor,
+              subtotal_minor: subtotalMinor
             })
           }
 
           newTotalMinor = calculatedTotal
-          newOutstandingMinor =
-            effectiveSupplierTerm === 'Tunai' ? 0 : newTotalMinor
+          newOutstandingMinor = effectiveSupplierTerm === 'Tunai' ? 0 : newTotalMinor
 
           await purchaseRepository.deleteItems(client, purchaseId)
           await purchaseRepository.insertPurchaseItems(client, lineItemsToInsert)
         } else if (supplierTermChanged) {
-          newOutstandingMinor =
-            effectiveSupplierTerm === 'Tunai' ? 0 : po.total_minor
+          newOutstandingMinor = effectiveSupplierTerm === 'Tunai' ? 0 : po.total_minor
         }
 
-        const updated = await purchaseRepository.updateDraft(
-          client,
-          request.business_id,
-          purchaseId,
-          request.expected_server_version,
-          {
-            branch_id: request.branch_id,
-            supplier_id: request.supplier_id,
-            supplier_term: supplierTermChanged ? effectiveSupplierTerm : undefined,
-            date: request.date,
-            due_date: calculatedDueDate,
-            total_minor: request.items ? newTotalMinor : undefined,
-            outstanding_minor: request.items || supplierTermChanged ? newOutstandingMinor : undefined,
-            note: request.note,
-          }
-        )
+        const updated = await purchaseRepository.updateDraft(client, request.business_id, purchaseId, request.expected_server_version, {
+          branch_id: request.branch_id,
+          supplier_id: request.supplier_id,
+          supplier_term: supplierTermChanged ? effectiveSupplierTerm : undefined,
+          date: request.date,
+          due_date: calculatedDueDate,
+          total_minor: request.items ? newTotalMinor : undefined,
+          outstanding_minor: request.items || supplierTermChanged ? newOutstandingMinor : undefined,
+          note: request.note
+        })
 
         if (!updated) {
-          throw new ConflictError(
-            'PURCHASE_VERSION_CONFLICT',
-            'Concurrent modification detected'
-          )
+          throw new ConflictError('PURCHASE_VERSION_CONFLICT', 'Concurrent modification detected')
         }
 
         updated.items = await purchaseRepository.getItems(client, purchaseId)
@@ -524,13 +445,7 @@ export function createPurchaseService(pool: Pool) {
       })
     },
 
-    async send(
-      purchaseId: string,
-      body: unknown,
-      idempotencyKey: string,
-      requestHash: string,
-      tenantId: string
-    ): Promise<PurchaseDto> {
+    async send(purchaseId: string, body: unknown, idempotencyKey: string, requestHash: string, tenantId: string): Promise<PurchaseDto> {
       if (!isUuid(purchaseId)) {
         throw new ValidationError('Purchase id must be a valid UUID')
       }
@@ -539,90 +454,45 @@ export function createPurchaseService(pool: Pool) {
       assertTenant(request.business_id, tenantId)
 
       return withTransaction(pool, async (client) => {
-        const existing = await idempotencyRepository.findActive(
-          client,
-          request.business_id,
-          idempotencyKey
-        )
+        const existing = await idempotencyRepository.findActive(client, request.business_id, idempotencyKey)
         if (existing) {
           if (existing.request_hash !== requestHash) {
-            throw new ConflictError(
-              'IDEMPOTENCY_KEY_REUSE',
-              'Idempotency key was already used with a different request hash',
-              { idempotency_key: idempotencyKey }
-            )
+            throw new ConflictError('IDEMPOTENCY_KEY_REUSE', 'Idempotency key was already used with a different request hash', { idempotency_key: idempotencyKey })
           }
           return existing.response_body as PurchaseDto
         }
 
-        const po = await purchaseRepository.findByIdForUpdate(
-          client,
-          request.business_id,
-          purchaseId
-        )
+        const po = await purchaseRepository.findByIdForUpdate(client, request.business_id, purchaseId)
         if (!po) {
           throw new ApiError(404, 'NOT_FOUND', 'Purchase order not found')
         }
 
         if (po.status !== 'draft') {
-          throw new ValidationError(
-            `Cannot send purchase order in '${po.status}' status. Only draft orders can be sent.`
-          )
+          throw new ValidationError(`Cannot send purchase order in '${po.status}' status. Only draft orders can be sent.`)
         }
 
         if (po.server_version !== request.expected_server_version) {
-          throw new ConflictError(
-            'PURCHASE_VERSION_CONFLICT',
-            'Purchase order was modified by another device',
-            {
-              expected_server_version: request.expected_server_version,
-              current_server_version: po.server_version,
-            }
-          )
+          throw new ConflictError('PURCHASE_VERSION_CONFLICT', 'Purchase order was modified by another device', {
+            expected_server_version: request.expected_server_version,
+            current_server_version: po.server_version
+          })
         }
 
-        const updated = await purchaseRepository.updateStatus(
-          client,
-          request.business_id,
-          purchaseId,
-          request.expected_server_version,
-          'sent'
-        )
+        const updated = await purchaseRepository.updateStatus(client, request.business_id, purchaseId, request.expected_server_version, 'sent')
 
         if (!updated) {
-          throw new ConflictError(
-            'PURCHASE_VERSION_CONFLICT',
-            'Concurrent modification detected'
-          )
+          throw new ConflictError('PURCHASE_VERSION_CONFLICT', 'Concurrent modification detected')
         }
 
         updated.items = await purchaseRepository.getItems(client, purchaseId)
-        updated.payments = await purchaseRepository.getPayments(
-          client,
-          request.business_id,
-          purchaseId
-        )
+        updated.payments = await purchaseRepository.getPayments(client, request.business_id, purchaseId)
 
-        await idempotencyRepository.insert(
-          client,
-          request.business_id,
-          idempotencyKey,
-          requestHash,
-          200,
-          updated
-        )
+        await idempotencyRepository.insert(client, request.business_id, idempotencyKey, requestHash, 200, updated)
 
         return updated
       })
     },
-    async receive(
-      purchaseId: string,
-      body: unknown,
-      idempotencyKey: string,
-      requestHash: string,
-      tenantId: string,
-      actor: string
-    ): Promise<PurchaseDto> {
+    async receive(purchaseId: string, body: unknown, idempotencyKey: string, requestHash: string, tenantId: string, actor: string): Promise<PurchaseDto> {
       if (!isUuid(purchaseId)) {
         throw new ValidationError('Purchase id must be a valid UUID')
       }
@@ -631,50 +501,32 @@ export function createPurchaseService(pool: Pool) {
       assertTenant(request.business_id, tenantId)
 
       return withTransaction(pool, async (client) => {
-        const existing = await idempotencyRepository.findActive(
-          client,
-          request.business_id,
-          idempotencyKey
-        )
+        const existing = await idempotencyRepository.findActive(client, request.business_id, idempotencyKey)
         if (existing) {
           if (existing.request_hash !== requestHash) {
-            throw new ConflictError(
-              'IDEMPOTENCY_KEY_REUSE',
-              'Idempotency key was already used with a different request hash',
-              { idempotency_key: idempotencyKey }
-            )
+            throw new ConflictError('IDEMPOTENCY_KEY_REUSE', 'Idempotency key was already used with a different request hash', { idempotency_key: idempotencyKey })
           }
           return existing.response_body as PurchaseDto
         }
 
-        const po = await purchaseRepository.findByIdForUpdate(
-          client,
-          request.business_id,
-          purchaseId
-        )
+        const po = await purchaseRepository.findByIdForUpdate(client, request.business_id, purchaseId)
         if (!po) {
           throw new ApiError(404, 'NOT_FOUND', 'Purchase order not found')
         }
 
         if (po.status !== 'sent' && po.status !== 'partial') {
-          throw new ValidationError(
-            `Cannot receive purchase order in '${po.status}' status. Only sent or partial orders can be received.`
-          )
+          throw new ValidationError(`Cannot receive purchase order in '${po.status}' status. Only sent or partial orders can be received.`)
         }
 
         if (po.server_version !== request.expected_server_version) {
-          throw new ConflictError(
-            'PURCHASE_VERSION_CONFLICT',
-            'Purchase order was modified by another device',
-            {
-              expected_server_version: request.expected_server_version,
-              current_server_version: po.server_version,
-            }
-          )
+          throw new ConflictError('PURCHASE_VERSION_CONFLICT', 'Purchase order was modified by another device', {
+            expected_server_version: request.expected_server_version,
+            current_server_version: po.server_version
+          })
         }
 
         const items = await purchaseRepository.getItems(client, purchaseId)
-        const itemsMap = new Map<string, typeof items[0]>()
+        const itemsMap = new Map<string, (typeof items)[0]>()
         for (const it of items) {
           itemsMap.set(it.id, it)
         }
@@ -685,9 +537,7 @@ export function createPurchaseService(pool: Pool) {
             throw new ValidationError(`Item ${line.item_id} not found on purchase order`)
           }
           if (item.received_qty + line.receive_qty > item.ordered_qty) {
-            throw new ValidationError(
-              `Receive quantity (${line.receive_qty}) exceeds remaining ordered quantity (${item.ordered_qty - item.received_qty}) for item "${item.product_name}"`
-            )
+            throw new ValidationError(`Receive quantity (${line.receive_qty}) exceeds remaining ordered quantity (${item.ordered_qty - item.received_qty}) for item "${item.product_name}"`)
           }
         }
 
@@ -697,144 +547,86 @@ export function createPurchaseService(pool: Pool) {
           const item = itemsMap.get(line.item_id)!
 
           if (item.product_id) {
-            let stock = await inventoryRepository.getStock(
-              client,
-              request.business_id,
-              po.branch_id,
-              item.product_id
-            )
+            let stock = await inventoryRepository.getStock(client, request.business_id, po.branch_id, item.product_id)
 
             if (!stock) {
-              stock = await inventoryRepository.createStock(
-                client,
-                randomUUID(),
-                request.business_id,
-                po.branch_id,
-                item.product_id,
-                0
-              )
+              stock = await inventoryRepository.createStock(client, randomUUID(), request.business_id, po.branch_id, item.product_id, 0)
             }
 
-            const updatedStock = await inventoryRepository.updateStockAtomic(
-              client,
-              stock.id,
-              line.receive_qty,
-              stock.server_version
-            )
+            const updatedStock = await inventoryRepository.updateStockAtomic(client, stock.id, line.receive_qty, stock.server_version)
 
             if (!updatedStock) {
-              throw new ConflictError(
-                'STOCK_VERSION_CONFLICT',
-                'Stock was modified concurrently during receiving'
-              )
+              throw new ConflictError('STOCK_VERSION_CONFLICT', 'Stock was modified concurrently during receiving')
             }
 
-            await inventoryRepository.createMovement(
-              client,
-              randomUUID(),
-              request.business_id,
-              po.branch_id,
-              item.product_id,
-              line.receive_qty,
-              'STOCK_IN',
-              po.code,
-              actor
-            )
+            await inventoryRepository.createMovement(client, randomUUID(), request.business_id, po.branch_id, item.product_id, line.receive_qty, 'STOCK_IN', po.code, actor)
           }
 
-          await purchaseRepository.updateItemReceivedQty(
-            client,
-            line.item_id,
-            purchaseId,
-            line.receive_qty
-          )
+          await purchaseRepository.updateItemReceivedQty(client, line.item_id, purchaseId, line.receive_qty)
 
           receivedValueThis += line.receive_qty * item.unit_cost_minor
         }
 
         const updatedItems = await purchaseRepository.getItems(client, purchaseId)
-        const totalReceivedMinor = updatedItems.reduce(
-          (sum, it) => sum + it.received_qty * it.unit_cost_minor,
-          0
-        )
-
-        const isFullyReceived = updatedItems.every(
-          (it) => it.received_qty >= it.ordered_qty
-        )
+        const totalReceivedMinor = updatedItems.reduce((sum, it) => sum + it.received_qty * it.unit_cost_minor, 0)
+        const isFullyReceived = updatedItems.every((it) => it.received_qty >= it.ordered_qty)
         const newStatus: PurchaseStatus = isFullyReceived ? 'received' : 'partial'
 
         let newPaidMinor = po.paid_minor
         let newOutstandingMinor = po.outstanding_minor
 
         if (po.supplier_term === 'Tunai') {
-          const paymentRef = `RECEIVE_TUNAI:${po.id}:${createHash('md5')
-            .update(idempotencyKey)
-            .digest('hex')
-            .slice(0, 8)}`
+          const paymentId = randomUUID()
+          const paymentRef = `RECEIVE_TUNAI:${po.id}:${createHash('md5').update(idempotencyKey).digest('hex').slice(0, 8)}`
 
           await purchaseRepository.insertPayment(client, {
-            id: randomUUID(),
+            id: paymentId,
             business_id: request.business_id,
             purchase_id: po.id,
             branch_id: po.branch_id,
             amount_minor: receivedValueThis,
             method: 'cash',
             reference: paymentRef,
-            idempotency_key: idempotencyKey,
+            idempotency_key: idempotencyKey
           })
 
           newPaidMinor = po.paid_minor + receivedValueThis
           newOutstandingMinor = Math.max(0, totalReceivedMinor - newPaidMinor)
+
+          const financeService = createFinanceService(pool)
+          await financeService.postCashPurchase(
+            client,
+            paymentId,
+            request.business_id,
+            receivedValueThis,
+            po.branch_id,
+            paymentRef,
+            `Pembelian tunai ${po.code}`
+          )
         } else {
           newOutstandingMinor = Math.max(0, po.total_minor - newPaidMinor)
         }
 
-        const updatedPo = await purchaseRepository.updateReceiveProgress(
-          client,
-          request.business_id,
-          purchaseId,
-          request.expected_server_version,
-          {
-            status: newStatus,
-            received_minor: totalReceivedMinor,
-            paid_minor: newPaidMinor,
-            outstanding_minor: newOutstandingMinor,
-          }
-        )
+        const updatedPo = await purchaseRepository.updateReceiveProgress(client, request.business_id, purchaseId, request.expected_server_version, {
+          status: newStatus,
+          received_minor: totalReceivedMinor,
+          paid_minor: newPaidMinor,
+          outstanding_minor: newOutstandingMinor
+        })
 
         if (!updatedPo) {
-          throw new ConflictError(
-            'PURCHASE_VERSION_CONFLICT',
-            'Concurrent modification detected during receive'
-          )
+          throw new ConflictError('PURCHASE_VERSION_CONFLICT', 'Concurrent modification detected during receive')
         }
 
         updatedPo.items = updatedItems
-        updatedPo.payments = await purchaseRepository.getPayments(
-          client,
-          request.business_id,
-          purchaseId
-        )
+        updatedPo.payments = await purchaseRepository.getPayments(client, request.business_id, purchaseId)
 
-        await idempotencyRepository.insert(
-          client,
-          request.business_id,
-          idempotencyKey,
-          requestHash,
-          200,
-          updatedPo
-        )
+        await idempotencyRepository.insert(client, request.business_id, idempotencyKey, requestHash, 200, updatedPo)
 
         return updatedPo
       })
     },
-    async pay(
-      purchaseId: string,
-      body: unknown,
-      idempotencyKey: string,
-      requestHash: string,
-      tenantId: string
-    ): Promise<PurchaseDto> {
+    async pay(purchaseId: string, body: unknown, idempotencyKey: string, requestHash: string, tenantId: string): Promise<PurchaseDto> {
       if (!isUuid(purchaseId)) {
         throw new ValidationError('Purchase id must be a valid UUID')
       }
@@ -843,60 +635,38 @@ export function createPurchaseService(pool: Pool) {
       assertTenant(request.business_id, tenantId)
 
       return withTransaction(pool, async (client) => {
-        const existing = await idempotencyRepository.findActive(
-          client,
-          request.business_id,
-          idempotencyKey
-        )
+        const existing = await idempotencyRepository.findActive(client, request.business_id, idempotencyKey)
         if (existing) {
           if (existing.request_hash !== requestHash) {
-            throw new ConflictError(
-              'IDEMPOTENCY_KEY_REUSE',
-              'Idempotency key was already used with a different request hash',
-              { idempotency_key: idempotencyKey }
-            )
+            throw new ConflictError('IDEMPOTENCY_KEY_REUSE', 'Idempotency key was already used with a different request hash', { idempotency_key: idempotencyKey })
           }
           return existing.response_body as PurchaseDto
         }
 
-        const po = await purchaseRepository.findByIdForUpdate(
-          client,
-          request.business_id,
-          purchaseId
-        )
+        const po = await purchaseRepository.findByIdForUpdate(client, request.business_id, purchaseId)
         if (!po) {
           throw new ApiError(404, 'NOT_FOUND', 'Purchase order not found')
         }
 
         if (po.status !== 'partial' && po.status !== 'received') {
-          throw new ValidationError(
-            `Cannot make payment on purchase order in '${po.status}' status. Only partial or received orders can be paid.`
-          )
+          throw new ValidationError(`Cannot make payment on purchase order in '${po.status}' status. Only partial or received orders can be paid.`)
         }
 
         if (po.server_version !== request.expected_server_version) {
-          throw new ConflictError(
-            'PURCHASE_VERSION_CONFLICT',
-            'Purchase order was modified by another device',
-            {
-              expected_server_version: request.expected_server_version,
-              current_server_version: po.server_version,
-            }
-          )
+          throw new ConflictError('PURCHASE_VERSION_CONFLICT', 'Purchase order was modified by another device', {
+            expected_server_version: request.expected_server_version,
+            current_server_version: po.server_version
+          })
         }
 
         if (po.supplier_term === 'Tunai') {
           const maxPayable = po.received_minor - po.paid_minor
           if (request.amount_minor > maxPayable) {
-            throw new ValidationError(
-              `Payment amount (${request.amount_minor}) exceeds maximum payable amount (${maxPayable}) for Tunai purchase order`
-            )
+            throw new ValidationError(`Payment amount (${request.amount_minor}) exceeds maximum payable amount (${maxPayable}) for Tunai purchase order`)
           }
         } else {
           if (request.amount_minor > po.outstanding_minor) {
-            throw new ValidationError(
-              `Payment amount (${request.amount_minor}) exceeds outstanding balance (${po.outstanding_minor})`
-            )
+            throw new ValidationError(`Payment amount (${request.amount_minor}) exceeds outstanding balance (${po.outstanding_minor})`)
           }
         }
 
@@ -908,60 +678,31 @@ export function createPurchaseService(pool: Pool) {
           amount_minor: request.amount_minor,
           method: request.method,
           reference: request.reference ?? 'MANUAL_PAY',
-          idempotency_key: idempotencyKey,
+          idempotency_key: idempotencyKey
         })
 
         const newPaidMinor = po.paid_minor + request.amount_minor
-        const newOutstandingMinor =
-          po.supplier_term === 'Tunai'
-            ? Math.max(0, po.received_minor - newPaidMinor)
-            : Math.max(0, po.total_minor - newPaidMinor)
+        const newOutstandingMinor = po.supplier_term === 'Tunai' ? Math.max(0, po.received_minor - newPaidMinor) : Math.max(0, po.total_minor - newPaidMinor)
 
-        const updatedPo = await purchaseRepository.updatePaymentProgress(
-          client,
-          request.business_id,
-          purchaseId,
-          request.expected_server_version,
-          {
-            paid_minor: newPaidMinor,
-            outstanding_minor: newOutstandingMinor,
-          }
-        )
+        const updatedPo = await purchaseRepository.updatePaymentProgress(client, request.business_id, purchaseId, request.expected_server_version, {
+          paid_minor: newPaidMinor,
+          outstanding_minor: newOutstandingMinor
+        })
 
         if (!updatedPo) {
-          throw new ConflictError(
-            'PURCHASE_VERSION_CONFLICT',
-            'Concurrent modification detected during payment'
-          )
+          throw new ConflictError('PURCHASE_VERSION_CONFLICT', 'Concurrent modification detected during payment')
         }
 
         updatedPo.items = await purchaseRepository.getItems(client, purchaseId)
-        updatedPo.payments = await purchaseRepository.getPayments(
-          client,
-          request.business_id,
-          purchaseId
-        )
+        updatedPo.payments = await purchaseRepository.getPayments(client, request.business_id, purchaseId)
 
-        await idempotencyRepository.insert(
-          client,
-          request.business_id,
-          idempotencyKey,
-          requestHash,
-          200,
-          updatedPo
-        )
+        await idempotencyRepository.insert(client, request.business_id, idempotencyKey, requestHash, 200, updatedPo)
 
         return updatedPo
       })
     },
 
-    async cancel(
-      purchaseId: string,
-      body: unknown,
-      idempotencyKey: string,
-      requestHash: string,
-      tenantId: string
-    ): Promise<PurchaseDto> {
+    async cancel(purchaseId: string, body: unknown, idempotencyKey: string, requestHash: string, tenantId: string): Promise<PurchaseDto> {
       if (!isUuid(purchaseId)) {
         throw new ValidationError('Purchase id must be a valid UUID')
       }
@@ -970,78 +711,40 @@ export function createPurchaseService(pool: Pool) {
       assertTenant(request.business_id, tenantId)
 
       return withTransaction(pool, async (client) => {
-        const existing = await idempotencyRepository.findActive(
-          client,
-          request.business_id,
-          idempotencyKey
-        )
+        const existing = await idempotencyRepository.findActive(client, request.business_id, idempotencyKey)
         if (existing) {
           if (existing.request_hash !== requestHash) {
-            throw new ConflictError(
-              'IDEMPOTENCY_KEY_REUSE',
-              'Idempotency key was already used with a different request hash',
-              { idempotency_key: idempotencyKey }
-            )
+            throw new ConflictError('IDEMPOTENCY_KEY_REUSE', 'Idempotency key was already used with a different request hash', { idempotency_key: idempotencyKey })
           }
           return existing.response_body as PurchaseDto
         }
 
-        const po = await purchaseRepository.findByIdForUpdate(
-          client,
-          request.business_id,
-          purchaseId
-        )
+        const po = await purchaseRepository.findByIdForUpdate(client, request.business_id, purchaseId)
         if (!po) {
           throw new ApiError(404, 'NOT_FOUND', 'Purchase order not found')
         }
 
         if (po.status === 'received' || po.status === 'cancelled') {
-          throw new ValidationError(
-            `Cannot cancel purchase order in '${po.status}' status.`
-          )
+          throw new ValidationError(`Cannot cancel purchase order in '${po.status}' status.`)
         }
 
         if (po.server_version !== request.expected_server_version) {
-          throw new ConflictError(
-            'PURCHASE_VERSION_CONFLICT',
-            'Purchase order was modified by another device',
-            {
-              expected_server_version: request.expected_server_version,
-              current_server_version: po.server_version,
-            }
-          )
+          throw new ConflictError('PURCHASE_VERSION_CONFLICT', 'Purchase order was modified by another device', {
+            expected_server_version: request.expected_server_version,
+            current_server_version: po.server_version
+          })
         }
 
-        const updated = await purchaseRepository.updateStatus(
-          client,
-          request.business_id,
-          purchaseId,
-          request.expected_server_version,
-          'cancelled'
-        )
+        const updated = await purchaseRepository.updateStatus(client, request.business_id, purchaseId, request.expected_server_version, 'cancelled')
 
         if (!updated) {
-          throw new ConflictError(
-            'PURCHASE_VERSION_CONFLICT',
-            'Concurrent modification detected during cancellation'
-          )
+          throw new ConflictError('PURCHASE_VERSION_CONFLICT', 'Concurrent modification detected during cancellation')
         }
 
         updated.items = await purchaseRepository.getItems(client, purchaseId)
-        updated.payments = await purchaseRepository.getPayments(
-          client,
-          request.business_id,
-          purchaseId
-        )
+        updated.payments = await purchaseRepository.getPayments(client, request.business_id, purchaseId)
 
-        await idempotencyRepository.insert(
-          client,
-          request.business_id,
-          idempotencyKey,
-          requestHash,
-          200,
-          updated
-        )
+        await idempotencyRepository.insert(client, request.business_id, idempotencyKey, requestHash, 200, updated)
 
         return updated
       })
@@ -1059,20 +762,14 @@ export function createPurchaseService(pool: Pool) {
         }
 
         if (po.status !== 'draft') {
-          throw new ValidationError(
-            `Only draft purchase orders can be deleted. Use cancel for '${po.status}' orders.`
-          )
+          throw new ValidationError(`Only draft purchase orders can be deleted. Use cancel for '${po.status}' orders.`)
         }
 
-        const deleted = await purchaseRepository.softDeleteDraft(
-          client,
-          tenantId,
-          purchaseId
-        )
+        const deleted = await purchaseRepository.softDeleteDraft(client, tenantId, purchaseId)
         if (!deleted) {
           throw new ApiError(404, 'NOT_FOUND', 'Purchase order not found')
         }
       })
-    },
+    }
   }
 }

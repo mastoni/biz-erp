@@ -37,6 +37,8 @@ export interface SupplierSummaryKPI {
   total_suppliers: number;
   active_suppliers: number;
   inactive_suppliers: number;
+  total_outstanding_minor: number;
+  po_count_this_month: number;
 }
 
 export interface SupplierListResponse {
@@ -45,7 +47,20 @@ export interface SupplierListResponse {
   limit: number;
   offset: number;
   has_more: boolean;
-  summary?: SupplierSummaryKPI;
+  summary?: Partial<SupplierSummaryKPI>;
+}
+
+export interface LinkedPurchaseOrder {
+  id: string;
+  code: string;
+  date: string;
+  due_date: string;
+  status: 'draft' | 'sent' | 'partial' | 'received' | 'cancelled';
+  total_minor: number;
+  paid_minor: number;
+  outstanding_minor: number;
+  items_count: number;
+  items_summary: string;
 }
 
 export interface SupplierViewModel {
@@ -66,6 +81,8 @@ export interface SupplierViewModel {
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
+  outstanding_balance_minor: number;
+  purchase_orders: LinkedPurchaseOrder[];
 }
 
 export interface SuppliersListViewModel {
@@ -107,9 +124,9 @@ export interface SupplierUpdateInput {
 
 export interface SupplierCreateFormModel {
   name: string;
-  contact: string;
-  phone: string;
-  email: string;
+  contact?: string;
+  phone?: string;
+  email?: string;
   category: string;
   term: SupplierTerm;
 }

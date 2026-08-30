@@ -118,7 +118,19 @@ export async function fetchBranchStocks(
   productIds: string[],
 ): Promise<ProductStockViewModel[]> {
   const response = await api.get<{
-    items: Array<{ product_id: string; branch_id: string; quantity: number }>;
+    items: Array<{
+      product_id: string;
+      branch_id: string;
+      quantity: number;
+      product_name: string;
+      sku: string | null;
+      category: string | null;
+      barcode: string | null;
+      price_minor: number;
+      cost_minor: number | null;
+      server_version: number;
+      updated_at: string;
+    }>;
   }>('/v1/inventory/stocks', {
     params: {
       business_id: tenantId,

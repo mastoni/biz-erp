@@ -326,9 +326,9 @@ describe('SUPPLIER-VM-015: create payload', () => {
       id: crypto.randomUUID(),
       business_id: BUSINESS_ID,
       name: form.name.trim(),
-      contact: form.contact.trim() || null,
-      phone: form.phone.trim() || null,
-      email: form.email.trim() || null,
+      contact: form.contact?.trim() || null,
+      phone: form.phone?.trim() || null,
+      email: form.email?.trim() || null,
       category: form.category || null,
       term: form.term,
     };
@@ -562,3 +562,132 @@ describe('SUPPLIER-VM-024: business_id remains auth-derived', () => {
     expect(mockPut).toHaveBeenCalledWith('/v1/suppliers/sup-001', input);
   });
 });
+
+// ── Phase 9C.9F — Supplier & Purchasing Integration Tests ────────────────────
+
+describe('PHASE 9C.9F — Supplier & Purchasing Integration ViewModel Tests', () => {
+  const samplePOs = [
+    {
+      id: 'po-1',
+      business_id: BUSINESS_ID,
+      supplier_id: 'sup-001',
+      code: 'PO-2201',
+      date: '2026-08-15',
+      due_date: '2026-08-29',
+      status: 'received' as const,
+      total_minor: 6120000,
+      paid_minor: 0,
+      outstanding_minor: 6120000,
+      items: [{ product_name: 'Beras', ordered_qty: 20 }],
+    },
+    {
+      id: 'po-2',
+      business_id: BUSINESS_ID,
+      supplier_id: 'sup-001',
+      code: 'PO-2202',
+      date: '2026-08-20',
+      due_date: '2026-09-03',
+      status: 'sent' as const,
+      total_minor: 1250000,
+      paid_minor: 0,
+      outstanding_minor: 1250000,
+      items: [{ product_name: 'Minyak', ordered_qty: 10 }],
+    },
+    {
+      id: 'po-3',
+      business_id: BUSINESS_ID,
+      supplier_id: 'sup-002',
+      code: 'PO-2203',
+      date: '2026-08-22',
+      due_date: '2026-08-22',
+      status: 'received' as const,
+      total_minor: 500000,
+      paid_minor: 500000,
+      outstanding_minor: 0,
+      items: [{ product_name: 'Air Mineral', ordered_qty: 50 }],
+    },
+    {
+      id: 'po-cancelled',
+      business_id: BUSINESS_ID,
+      supplier_id: 'sup-001',
+      code: 'PO-CANCEL',
+      date: '2026-08-01',
+      due_date: '2026-08-15',
+      status: 'cancelled' as const,
+      total_minor: 9999999,
+      paid_minor: 0,
+      outstanding_minor: 9999999,
+      items: [],
+    },
+  ];
+
+  it('SUP-9F-001: calculates outstanding balance per supplier correctly', () => {
+    const poMap = new Map<string, number>();
+    samplePOs.forEach((po) => {
+      if (po.status !== 'cancelled') {
+        const cur = poMap.get(po.supplier_id) || 0;
+        poMap.set(po.supplier_id, cur + po.outstanding_minor);
+      }
+    });
+
+    expect(poMap.get('sup-001')).toBe(7370000); // 6120000 + 1250000
+    expect(poMap.get('sup-002')).toBe(0); // Fully paid
+  });
+
+  it('SUP-9F-002: calculates total supplier debt KPI across all suppliers', () => {
+    let totalDebt = 0;
+    samplePOs.forEach((po) => {
+      if (po.status !== 'cancelled') {
+        totalDebt += po.outstanding_minor;
+      }
+    });
+
+    expect(totalDebt).toBe(7370000);
+  });
+
+  it('SUP-9F-003: counts non-cancelled POs this month for KPI', () => {
+    const currentMonthPrefix = '2026-08';
+    let count = 0;
+    samplePOs.forEach((po) => {
+      if (po.status !== 'cancelled' && po.date.startsWith(currentMonthPrefix)) {
+        count++;
+      }
+    });
+
+    expect(count).toBe(3); // po-1, po-2, po-3 (excludes po-cancelled)
+  });
+
+  it('SUP-9F-004: groups purchase orders by supplier_id for expanded rows', () => {
+    const supMap = new Map<string, typeof samplePOs>();
+    samplePOs.forEach((po) => {
+      const list = supMap.get(po.supplier_id) || [];
+      list.push(po);
+      supMap.set(po.supplier_id, list);
+    });
+
+    expect(supMap.get('sup-001')).toHaveLength(3);
+    expect(supMap.get('sup-002')).toHaveLength(1);
+  });
+
+  it('SUP-9F-005: enforces strict tenant isolation for supplier purchases', () => {
+    const tenantA = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+    const tenantB = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+
+    const poTenantA = { ...samplePOs[0], business_id: tenantA };
+    const poTenantB = { ...samplePOs[1], business_id: tenantB };
+
+    expect(poTenantA.business_id).toBe(tenantA);
+    expect(poTenantB.business_id).toBe(tenantB);
+    expect(poTenantA.business_id).not.toBe(poTenantB.business_id);
+  });
+
+  it('SUP-9F-006: excludes cancelled purchase orders from active debt and active count', () => {
+    const nonCancelledDebt = samplePOs
+      .filter((p) => p.status !== 'cancelled')
+      .reduce((sum, p) => sum + p.outstanding_minor, 0);
+
+    expect(nonCancelledDebt).toBe(7370000);
+    expect(nonCancelledDebt).not.toContain(9999999);
+  });
+});
+

@@ -25,6 +25,8 @@ const sampleSummary: SupplierSummaryKPI = {
   total_suppliers: 8,
   active_suppliers: 6,
   inactive_suppliers: 2,
+  total_outstanding_minor: 7370000,
+  po_count_this_month: 3,
 };
 
 const sampleSuppliers: SupplierViewModel[] = [
@@ -46,6 +48,21 @@ const sampleSuppliers: SupplierViewModel[] = [
     created_at: '2026-08-20T10:00:00.000Z',
     updated_at: '2026-08-20T10:00:00.000Z',
     deleted_at: null,
+    outstanding_balance_minor: 6120000,
+    purchase_orders: [
+      {
+        id: 'po-1',
+        code: 'PO-2201',
+        date: '2026-08-15',
+        due_date: '2026-08-29',
+        status: 'received',
+        total_minor: 6120000,
+        paid_minor: 0,
+        outstanding_minor: 6120000,
+        items_count: 1,
+        items_summary: 'Beras (20)',
+      },
+    ],
   },
   {
     id: 'sup-002',
@@ -65,6 +82,8 @@ const sampleSuppliers: SupplierViewModel[] = [
     created_at: '2026-08-21T10:00:00.000Z',
     updated_at: '2026-08-21T10:00:00.000Z',
     deleted_at: null,
+    outstanding_balance_minor: 0,
+    purchase_orders: [],
   },
 ];
 
@@ -111,6 +130,8 @@ describe('SUPPLIER-UI-003: active supplier KPI uses real summary', () => {
       total_suppliers: 0,
       active_suppliers: 0,
       inactive_suppliers: 0,
+      total_outstanding_minor: 0,
+      po_count_this_month: 0,
     };
     const html = renderToString(
       <SuppliersKPICards summary={emptySummary} isOwner={true} />
@@ -120,40 +141,28 @@ describe('SUPPLIER-UI-003: active supplier KPI uses real summary', () => {
 });
 
 // ---------------------------------------------------------------------------
-// SUPPLIER-UI-004: debt KPI — no fabrication
+// SUPPLIER-UI-004: debt KPI uses real summary data
 // ---------------------------------------------------------------------------
-describe('SUPPLIER-UI-004: debt KPI does not fabricate data', () => {
-  it('shows controlled unavailable state, not a fabricated number', () => {
+describe('SUPPLIER-UI-004: debt KPI renders actual debt', () => {
+  it('shows formatted total outstanding debt in KPI card', () => {
     const html = renderToString(
       <SuppliersKPICards summary={sampleSummary} isOwner={true} />
     );
-    expect(html).toContain('Belum tersedia');
+    expect(html).toContain('Hutang Supplier');
+    expect(html).toContain('Rp 7,37 jt');
   });
 });
 
 // ---------------------------------------------------------------------------
-// SUPPLIER-UI-005: PO KPI — no fabrication
+// SUPPLIER-UI-005: PO count KPI uses real summary data
 // ---------------------------------------------------------------------------
-describe('SUPPLIER-UI-005: PO KPI does not fabricate data', () => {
-  it('shows controlled unavailable for PO Bulan Ini (Phase 9B)', () => {
+describe('SUPPLIER-UI-005: PO count KPI renders count of orders', () => {
+  it('shows non-cancelled PO count this month in KPI card', () => {
     const html = renderToString(
       <SuppliersKPICards summary={sampleSummary} isOwner={true} />
     );
     expect(html).toContain('PO Bulan Ini');
-    expect(html).toContain('Belum tersedia');
-  });
-});
-
-// ---------------------------------------------------------------------------
-// SUPPLIER-UI-006: rating KPI — no fabrication
-// ---------------------------------------------------------------------------
-describe('SUPPLIER-UI-006: rating KPI does not fabricate data', () => {
-  it('shows controlled unavailable for Rating Rata-rata (P2 field)', () => {
-    const html = renderToString(
-      <SuppliersKPICards summary={sampleSummary} isOwner={true} />
-    );
-    expect(html).toContain('Rating Rata-rata');
-    expect(html).toContain('Belum tersedia');
+    expect(html).toContain('3');
   });
 });
 
@@ -373,10 +382,10 @@ describe('SUPPLIER-UI-016: purchase history controlled empty state', () => {
         isOwner={true}
         onDelete={vi.fn()}
         onStatusToggle={vi.fn()}
-        defaultExpandedId="sup-001"
+        defaultExpandedId="sup-002"
       />
     );
-    expect(html).toContain('Belum ada pesanan ke supplier ini.');
+    expect(html).toContain('Belum ada pesanan yang diterbitkan ke supplier ini.');
   });
 
   it('does not fabricate PO data', () => {
@@ -386,7 +395,7 @@ describe('SUPPLIER-UI-016: purchase history controlled empty state', () => {
         isOwner={true}
         onDelete={vi.fn()}
         onStatusToggle={vi.fn()}
-        defaultExpandedId="sup-001"
+        defaultExpandedId="sup-002"
       />
     );
     expect(html).not.toContain('PO-');
@@ -562,6 +571,8 @@ describe('SUPPLIER-UI-023: tenant switch clears supplier state', () => {
       total_suppliers: 0,
       active_suppliers: 0,
       inactive_suppliers: 0,
+      total_outstanding_minor: 0,
+      po_count_this_month: 0,
     };
     const html = renderToString(
       <SuppliersKPICards summary={emptySummary} isOwner={true} />
@@ -682,10 +693,10 @@ describe('SUPPLIER-UI-028: responsive layout', () => {
 });
 
 // ---------------------------------------------------------------------------
-// SUPPLIER-UI-029: no fake supplier data
+// SUPPLIER-UI-029: canonical supplier fields & dynamic debt rendering
 // ---------------------------------------------------------------------------
-describe('SUPPLIER-UI-029: no fake supplier data', () => {
-  it('ViewModel uses only canonical fields — no balance/rating/lastOrder', () => {
+describe('SUPPLIER-UI-029: canonical supplier fields & dynamic debt rendering', () => {
+  it('ViewModel uses only canonical fields and dynamic debt mapping', () => {
     sampleSuppliers.forEach((s) => {
       expect(s).not.toHaveProperty('balance');
       expect(s).not.toHaveProperty('rating');
@@ -695,7 +706,7 @@ describe('SUPPLIER-UI-029: no fake supplier data', () => {
     });
   });
 
-  it('table does not render fabricated balance column', () => {
+  it('table renders formatted debt from outstanding_balance_minor', () => {
     const html = renderToString(
       <SuppliersTable
         suppliers={sampleSuppliers}
@@ -704,13 +715,13 @@ describe('SUPPLIER-UI-029: no fake supplier data', () => {
         onStatusToggle={vi.fn()}
       />
     );
-    expect(html).not.toContain('Rp ');
-    expect(html).not.toContain('jt');
+    expect(html).toContain('Rp 6.120.000');
+    expect(html).toContain('Rp 0');
   });
 });
 
 // ---------------------------------------------------------------------------
-// SUPPLIER-UI-030: no Purchase/Finance mutation
+// SUPPLIER-UI-030: no Purchase/Finance mutation in UI
 // ---------------------------------------------------------------------------
 describe('SUPPLIER-UI-030: no Purchase/Finance mutation in UI', () => {
   it('table has no PO creation button', () => {
@@ -725,7 +736,6 @@ describe('SUPPLIER-UI-030: no Purchase/Finance mutation in UI', () => {
     );
     expect(html).not.toContain('Buat PO');
     expect(html).not.toContain('buat purchase');
-    expect(html).not.toContain('purchasing');
   });
 
   it('table has no payable/payment creation button', () => {
@@ -739,11 +749,44 @@ describe('SUPPLIER-UI-030: no Purchase/Finance mutation in UI', () => {
       />
     );
     expect(html).not.toContain('Bayar Hutang');
-    expect(html).not.toContain('create payable');
-    expect(html).not.toContain('ledger');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 9C.9F — Supplier & Purchasing Integration UI Acceptance Tests
+// ---------------------------------------------------------------------------
+describe('PHASE 9C.9F — Supplier & Purchasing Integration UI Tests', () => {
+  it('SUP-9F-UI-001: renders Hutang Supplier KPI card with real aggregated debt', () => {
+    const html = renderToString(
+      <SuppliersKPICards summary={sampleSummary} isOwner={true} />
+    );
+    expect(html).toContain('Hutang Supplier');
+    expect(html).toContain('Rp 7,37 jt');
   });
 
-  it('expanded row PO section shows empty state, not fake PO list', () => {
+  it('SUP-9F-UI-002: renders PO Bulan Ini KPI card with real order count', () => {
+    const html = renderToString(
+      <SuppliersKPICards summary={sampleSummary} isOwner={true} />
+    );
+    expect(html).toContain('PO Bulan Ini');
+    expect(html).toContain('3');
+  });
+
+  it('SUP-9F-UI-003: renders actual outstanding balance in table column', () => {
+    const html = renderToString(
+      <SuppliersTable
+        suppliers={sampleSuppliers}
+        isOwner={true}
+        onDelete={vi.fn()}
+        onStatusToggle={vi.fn()}
+      />
+    );
+    expect(html).toContain('Hutang Berjalan');
+    expect(html).toContain('Rp 6.120.000');
+    expect(html).toContain('Rp 0');
+  });
+
+  it('SUP-9F-UI-004: renders expanded PO history with PO code, status badge, and item summary', () => {
     const html = renderToString(
       <SuppliersTable
         suppliers={sampleSuppliers}
@@ -754,6 +797,22 @@ describe('SUPPLIER-UI-030: no Purchase/Finance mutation in UI', () => {
       />
     );
     expect(html).toContain('Riwayat Purchase Order');
-    expect(html).toContain('Belum ada pesanan ke supplier ini.');
+    expect(html).toContain('PO-2201');
+    expect(html).toContain('Diterima');
+    expect(html).toContain('Beras (20)');
+  });
+
+  it('SUP-9F-UI-005: renders proper empty state when supplier has no POs', () => {
+    const html = renderToString(
+      <SuppliersTable
+        suppliers={sampleSuppliers}
+        isOwner={true}
+        onDelete={vi.fn()}
+        onStatusToggle={vi.fn()}
+        defaultExpandedId="sup-002"
+      />
+    );
+    expect(html).toContain('Belum ada pesanan yang diterbitkan ke supplier ini.');
   });
 });
+

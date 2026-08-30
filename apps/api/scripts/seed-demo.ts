@@ -25,14 +25,14 @@ async function main() {
   const pool = new Pool({ connectionString: databaseUrl })
 
   // Canonical Business 1 (Multi-Branch Coffee Shop)
-  const BUSINESS_1_ID = 'd1111111-1111-4111-8111-111111111111'
+  const BUSINESS_1_ID = '11111111-1111-4111-8111-111111111111'
   const BUSINESS_1_NAME = 'Warung Kopi Nusantara'
 
   // Canonical Business 2 (Multi-Tenant Second Business - Restaurant)
-  const BUSINESS_2_ID = 'd2222222-2222-4222-8222-222222222222'
+  const BUSINESS_2_ID = '22222222-2222-4222-8222-222222222222'
   const BUSINESS_2_NAME = 'Resto Padang Nusantara'
 
-  const USER_ID_OWNER = 'd9999999-9999-4999-8999-999999999999'
+  const USER_ID_OWNER = '99999999-9999-4999-8999-999999999999'
   const USER_EMAIL_OWNER = 'owner@demo.local'
   
   const USER_ID_CASHIER = 'd8888888-8888-4888-8888-888888888888'

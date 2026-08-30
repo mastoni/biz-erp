@@ -1,4 +1,17 @@
-import { LayoutDashboard, Package, Boxes, ShoppingCart, Users, FileText, UserCog, Sliders, LucideIcon } from 'lucide-react';
+import {
+  LayoutDashboard,
+  Package,
+  Boxes,
+  ShoppingCart,
+  Users,
+  FileText,
+  UserCog,
+  Sliders,
+  BookOpen,
+  Truck,
+  Wallet,
+  LucideIcon,
+} from 'lucide-react';
 
 export type Role = 'OWNER' | 'CASHIER';
 
@@ -10,9 +23,12 @@ export const ROUTE_PERMISSIONS: Record<string, Role[]> = {
   '/inventory/movements': ['OWNER'],
   '/inventory/adjustment': ['OWNER'],
   '/sales': ['OWNER'],
+  '/purchases': ['OWNER', 'CASHIER'],
   '/customers': ['OWNER', 'CASHIER'],
   '/customers/new': ['OWNER'],
   '/suppliers': ['OWNER', 'CASHIER'],
+  '/finance/bookkeeping': ['OWNER', 'CASHIER'],
+  '/finance': ['OWNER', 'CASHIER'],
   '/users': ['OWNER'],
   '/reports': ['OWNER', 'CASHIER'],
   '/settings': ['OWNER', 'CASHIER'],
@@ -50,8 +66,11 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
   { name: 'Movement History', href: '/inventory/movements', icon: Boxes },
   { name: 'Stock Adjustment', href: '/inventory/adjustment', icon: Boxes },
   { name: 'Sales', href: '/sales', icon: ShoppingCart },
+  { name: 'Pembelian', href: '/purchases', icon: Truck },
   { name: 'Customers', href: '/customers', icon: Users },
   { name: 'Supplier', href: '/suppliers', icon: Users },
+  { name: 'Pembukuan', href: '/finance/bookkeeping', icon: BookOpen },
+  { name: 'Laporan Keuangan', href: '/finance', icon: Wallet },
   { name: 'Users', href: '/users', icon: UserCog },
   { name: 'Reports', href: '/reports', icon: FileText },
   { name: 'Pengaturan', href: '/settings', icon: Sliders },
