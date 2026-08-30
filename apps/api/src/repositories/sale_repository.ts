@@ -187,5 +187,53 @@ export const saleRepository = {
       }))
 
       return { sales, has_more: hasMore }
+    },
+
+    async findById(client: PoolClient, businessId: string, saleId: string): Promise<{
+      id: string
+      business_id: string
+      branch_id: string | null
+      receipt_number: string
+      subtotal_minor: number
+      discount_minor: number
+      tax_minor: number
+      total_minor: number
+      paid_minor: number
+      payment_method: string | null
+      cashier_id: string | null
+      customer_id: string | null
+      created_at: string
+      server_created_at: string
+    } | null> {
+      const result = await client.query(
+        `SELECT
+          id, business_id, branch_id, receipt_number,
+          subtotal_minor, discount_minor, tax_minor, total_minor,
+          paid_minor, payment_method, cashier_id, customer_id,
+          client_created_at, server_created_at
+        FROM sales
+        WHERE id = $1 AND business_id = $2`,
+        [saleId, businessId]
+      )
+
+      if (result.rows.length === 0) return null
+
+      const row = result.rows[0]
+      return {
+        id: row.id,
+        business_id: row.business_id,
+        branch_id: row.branch_id,
+        receipt_number: row.receipt_number,
+        subtotal_minor: Number(row.subtotal_minor || 0),
+        discount_minor: Number(row.discount_minor || 0),
+        tax_minor: Number(row.tax_minor || 0),
+        total_minor: Number(row.total_minor),
+        paid_minor: Number(row.paid_minor || 0),
+        payment_method: row.payment_method,
+        cashier_id: row.cashier_id,
+        customer_id: row.customer_id,
+        created_at: row.client_created_at || row.server_created_at,
+        server_created_at: row.server_created_at instanceof Date ? row.server_created_at.toISOString() : String(row.server_created_at)
+      }
     }
 }

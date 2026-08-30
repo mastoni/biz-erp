@@ -121,6 +121,29 @@ export const journalRepository = {
     return result.rows[0] || null
   },
 
+  async getJournalByIdWithLock(client: PoolClient, businessId: string, journalId: string): Promise<{ id: string; status: JournalStatus; reversed_by: string | null } | null> {
+    const result = await client.query(
+      `SELECT id, status, reversed_by FROM journal_entries WHERE id = $1 AND business_id = $2 FOR UPDATE`,
+      [journalId, businessId]
+    )
+    return result.rows[0] || null
+  },
+
+  async hasUnreversedPaymentJournals(client: PoolClient, businessId: string, receivableId: string): Promise<boolean> {
+    const result = await client.query(
+      `SELECT 1 FROM journal_entries je
+       JOIN customer_payments cp ON cp.id = je.source_id
+       WHERE je.business_id = $1
+         AND je.source_type = 'CUSTOMER_PAYMENT'
+         AND cp.receivable_id = $2
+         AND je.status = 'posted'
+         AND je.reversed_by IS NULL
+       LIMIT 1`,
+      [businessId, receivableId]
+    )
+    return result.rows.length > 0
+  },
+
   async listJournals(client: PoolClient, businessId: string, params: {
     limit?: number
     offset?: number
