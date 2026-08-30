@@ -1125,9 +1125,9 @@ export function createFinanceService(pool: Pool) {
       })
     },
 
-    async getCashflow(businessId: string, branchId: string | null = null) {
+    async getCashflow(businessId: string, branchId: string | null = null, fromDate: string | null = null, toDate: string | null = null) {
       return withTransaction(pool, async (client) => {
-        const entries = await accountRepository.getCashflow(client, businessId, branchId)
+        const entries = await accountRepository.getCashflow(client, businessId, branchId, fromDate, toDate)
         const summary = await accountRepository.getFinanceSummary(client, businessId)
 
         return { entries, summary }

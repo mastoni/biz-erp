@@ -113,8 +113,14 @@ export const accountRepository = {
     }
   },
 
-  async getCashflow(client: PoolClient, businessId: string, branchId: string | null = null): Promise<CashflowEntryDto[]> {
-    const branchCondition = branchId ? ` AND je.branch_id = $2` : ''
+  async getCashflow(
+    client: PoolClient,
+    businessId: string,
+    branchId: string | null = null,
+    fromDate: string | null = null,
+    toDate: string | null = null
+  ): Promise<CashflowEntryDto[]> {
+    const branchCondition = branchId ? ` AND je.branch_id = $4` : ' AND $4::uuid IS NULL'
 
     const result = await client.query(
       `SELECT
@@ -135,9 +141,11 @@ export const accountRepository = {
        WHERE je.business_id = $1
          AND je.status = 'posted'
          AND a.type IN ('cash', 'bank', 'mobile')
-       ${branchCondition}
+         AND ($2::date IS NULL OR je.date >= $2)
+         AND ($3::date IS NULL OR je.date <= $3)
+         AND ($4::uuid IS NULL OR je.branch_id = $4)
        ORDER BY je.date, jl.id`,
-      branchId ? [businessId, branchId] : [businessId]
+      [businessId, fromDate, toDate, branchId]
     )
 
     return result.rows.map(row => ({

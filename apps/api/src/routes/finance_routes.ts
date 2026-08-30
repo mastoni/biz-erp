@@ -50,6 +50,14 @@ export function createFinanceRoutes(pool: Pool): Router {
     return raw
   }
 
+  function parseDate(raw: unknown): string | null {
+    if (typeof raw !== 'string' || raw.trim().length === 0) return null
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(raw.trim())) {
+      throw new ValidationError('date must be in YYYY-MM-DD format')
+    }
+    return raw.trim()
+  }
+
   router.use(requireSyncAuth(jwtService) as RequestHandler)
 
   router.get(
@@ -95,7 +103,7 @@ export function createFinanceRoutes(pool: Pool): Router {
     '/cashflow',
     requireRole('OWNER', 'CASHIER') as RequestHandler,
     asyncHandler<SyncAuthenticatedRequest>(async (req, res) => {
-      const cashflow = await service.getCashflow(req.tenantId!, parseBranchId(req.query.branch_id))
+      const cashflow = await service.getCashflow(req.tenantId!, parseBranchId(req.query.branch_id), parseDate(req.query.from), parseDate(req.query.to))
       res.status(200).json(cashflow)
     })
   )
