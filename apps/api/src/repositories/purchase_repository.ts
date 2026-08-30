@@ -70,6 +70,7 @@ const PURCHASE_PAYMENT_COLUMNS = `
   id,
   business_id,
   purchase_id,
+  branch_id,
   amount_minor,
   method,
   reference,
@@ -130,6 +131,7 @@ export function mapRowToPurchasePaymentDto(row: any): PurchasePaymentDto {
     id: row.id,
     business_id: row.business_id,
     purchase_id: row.purchase_id,
+    branch_id: row.branch_id ?? null,
     amount_minor: Number(row.amount_minor),
     method: row.method as PaymentMethod,
     reference: row.reference ?? null,
@@ -507,6 +509,44 @@ export const purchaseRepository = {
   },
 
   /**
+   * Find payment by ID within a tenant.
+   */
+  async findPaymentById(
+    client: PoolClient,
+    businessId: string,
+    paymentId: string
+  ): Promise<PurchasePaymentDto | null> {
+    const sql = `
+      SELECT ${PURCHASE_PAYMENT_COLUMNS}
+      FROM purchase_payments
+      WHERE id = $1
+        AND business_id = $2
+    `
+    const result = await client.query(sql, [paymentId, businessId])
+    if (result.rows.length === 0) return null
+    return mapRowToPurchasePaymentDto(result.rows[0])
+  },
+
+  /**
+   * Find payment by idempotency key within a tenant.
+   */
+  async findByIdempotencyKey(
+    client: PoolClient,
+    businessId: string,
+    idempotencyKey: string
+  ): Promise<PurchasePaymentDto | null> {
+    const sql = `
+      SELECT ${PURCHASE_PAYMENT_COLUMNS}
+      FROM purchase_payments
+      WHERE business_id = $1
+        AND idempotency_key = $2
+    `
+    const result = await client.query(sql, [businessId, idempotencyKey])
+    if (result.rows.length === 0) return null
+    return mapRowToPurchasePaymentDto(result.rows[0])
+  },
+
+  /**
    * Insert a payment record for a purchase order.
    */
   async insertPayment(
@@ -515,6 +555,7 @@ export const purchaseRepository = {
       id: string
       business_id: string
       purchase_id: string
+      branch_id: string | null
       amount_minor: number
       method: PaymentMethod
       reference: string | null
@@ -523,15 +564,16 @@ export const purchaseRepository = {
   ): Promise<PurchasePaymentDto> {
     const sql = `
       INSERT INTO purchase_payments (
-        id, business_id, purchase_id, amount_minor, method, reference, idempotency_key, created_at
+        id, business_id, purchase_id, branch_id, amount_minor, method, reference, idempotency_key, created_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, now())
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, now())
       RETURNING ${PURCHASE_PAYMENT_COLUMNS}
     `
     const result = await client.query(sql, [
       data.id,
       data.business_id,
       data.purchase_id,
+      data.branch_id,
       data.amount_minor,
       data.method,
       data.reference,

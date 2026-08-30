@@ -136,6 +136,19 @@ export function createFinanceRoutes(pool: Pool): Router {
   )
 
   router.post(
+    '/postings/purchase',
+    requireRole('OWNER') as RequestHandler,
+    asyncHandler<SyncAuthenticatedRequest>(async (req, res) => {
+      const { purchase_id } = req.body as { purchase_id: string }
+      if (!purchase_id || typeof purchase_id !== 'string' || !isUuid(purchase_id)) {
+        throw new ValidationError('purchase_id must be a valid UUID')
+      }
+      const result = await service.postPurchaseInvoice(purchase_id, req.tenantId!)
+      res.status(201).json(result)
+    })
+  )
+
+  router.post(
     '/postings/expense',
     requireRole('OWNER') as RequestHandler,
     asyncHandler<SyncAuthenticatedRequest>(async (req, res) => {
@@ -170,6 +183,19 @@ export function createFinanceRoutes(pool: Pool): Router {
         throw new ValidationError('journal_id must be a valid UUID')
       }
       const result = await service.createReversal(journal_id, req.tenantId!)
+      res.status(201).json(result)
+    })
+  )
+
+  router.post(
+    '/reversals/purchase-payment',
+    requireRole('OWNER') as RequestHandler,
+    asyncHandler<SyncAuthenticatedRequest>(async (req, res) => {
+      const { payment_id } = req.body as { payment_id: string }
+      if (!payment_id || typeof payment_id !== 'string' || !isUuid(payment_id)) {
+        throw new ValidationError('payment_id must be a valid UUID')
+      }
+      const result = await service.reversePurchasePayment(payment_id, req.tenantId!)
       res.status(201).json(result)
     })
   )

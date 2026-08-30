@@ -48,6 +48,7 @@ export interface PurchasePaymentDto {
   id: string
   business_id: string
   purchase_id: string
+  branch_id: string | null
   amount_minor: number
   method: PaymentMethod
   reference: string | null

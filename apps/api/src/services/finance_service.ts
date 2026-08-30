@@ -399,6 +399,84 @@ export function createFinanceService(pool: Pool) {
     })
   },
 
+  async postPurchaseInvoice(purchaseId: string, businessId: string): Promise<{ journalId: string; sourceId: string }> {
+    return withTransaction(pool, async (client) => {
+      const purchase = await purchaseRepository.findById(client, businessId, purchaseId)
+      if (!purchase) {
+        throw new ApiError(404, 'NOT_FOUND', 'Purchase not found')
+      }
+
+      if (purchase.status !== 'received' && purchase.status !== 'partial') {
+        throw new ApiError(400, 'INVALID_STATE', `Purchase status must be received or partial, got: ${purchase.status}`)
+      }
+
+      const existing = await journalRepository.getJournalBySource(client, businessId, 'PAYABLE', purchaseId)
+      if (existing) {
+        if (existing.status === 'posted') {
+          return { journalId: existing.id, sourceId: purchaseId }
+        }
+        throw new ApiError(409, 'SOURCE_CONFLICT', 'PAYABLE journal for this purchase exists but is not posted')
+      }
+
+      const idemKey = `purchase_invoice_${purchaseId}`
+      const existingIdem = await idempotencyRepository.findActive(client, businessId, idemKey)
+      if (existingIdem) {
+        const stored = existingIdem.response_body as { journal_id: string }
+        return { journalId: stored.journal_id, sourceId: purchaseId }
+      }
+
+      const inventoryAccount = await accountRepository.findByType(client, businessId, 'inventory')
+      if (!inventoryAccount) {
+        throw new ApiError(500, 'CONFIG_ERROR', 'Inventory account not configured')
+      }
+
+      const payableAccount = await accountRepository.findByType(client, businessId, 'payable')
+      if (!payableAccount) {
+        throw new ApiError(500, 'CONFIG_ERROR', 'Payable account not configured')
+      }
+
+      const journalId = randomUUID()
+
+      const invoiceDate = typeof purchase.updated_at === 'string'
+        ? purchase.updated_at.slice(0, 10)
+        : new Date(purchase.updated_at).toISOString().slice(0, 10)
+
+      await journalRepository.createDraftJournal(client, businessId, {
+        id: journalId,
+        date: invoiceDate,
+        source_type: 'PAYABLE',
+        source_id: purchaseId,
+        reference: purchase.code,
+        description: `Accounts payable for purchase ${purchase.code}`,
+        branch_id: purchase.branch_id
+      })
+
+      await journalRepository.addJournalLine(client, {
+        id: randomUUID(),
+        journal_entry_id: journalId,
+        account_id: inventoryAccount.id,
+        debit_minor: purchase.total_minor,
+        credit_minor: 0,
+        description: 'Inventory from purchase'
+      })
+
+      await journalRepository.addJournalLine(client, {
+        id: randomUUID(),
+        journal_entry_id: journalId,
+        account_id: payableAccount.id,
+        debit_minor: 0,
+        credit_minor: purchase.total_minor,
+        description: 'Accounts payable liability'
+      })
+
+      await journalRepository.postJournal(client, journalId)
+
+      await idempotencyRepository.insert(client, businessId, idemKey, '', 201, { journal_id: journalId })
+
+      return { journalId, sourceId: purchaseId }
+    })
+  },
+
   async postExpense(expenseId: string, businessId: string): Promise<{ journalId: string; sourceId: string }> {
     return withTransaction(pool, async (client) => {
       const expense = await expenseRepository.findById(client, businessId, expenseId)
@@ -842,6 +920,57 @@ export function createFinanceService(pool: Pool) {
         )
         if (!updated) {
           throw new ConflictError('VERSION_CONFLICT', 'Receivable version conflict during payment reversal')
+        }
+
+        return { reversalId: reversal.reversal_id }
+      })
+    },
+
+    async reversePurchasePayment(paymentId: string, businessId: string): Promise<{ reversalId: string }> {
+      return withTransaction(pool, async (client) => {
+        const payment = await purchaseRepository.findPaymentById(client, businessId, paymentId)
+        if (!payment) {
+          throw new ApiError(404, 'NOT_FOUND', 'Purchase payment not found')
+        }
+
+        const purchase = await purchaseRepository.findByIdForUpdate(client, businessId, payment.purchase_id)
+        if (!purchase) {
+          throw new ApiError(404, 'NOT_FOUND', 'Purchase not found for payment')
+        }
+
+        const paymentJournal = await journalRepository.getJournalBySource(client, businessId, 'PURCHASE_PAYMENT', paymentId)
+        if (!paymentJournal) {
+          throw new ApiError(404, 'NOT_FOUND', 'PURCHASE_PAYMENT journal not found')
+        }
+
+        if (paymentJournal.status === 'reversed') {
+          throw new ApiError(400, 'ALREADY_REVERSED', 'Payment journal has already been reversed')
+        }
+
+        const reversal = await journalRepository.createReversal(client, paymentJournal.id)
+
+        const newPaidMinor = purchase.paid_minor - payment.amount_minor
+        const newOutstandingMinor = purchase.outstanding_minor + payment.amount_minor
+
+        if (newPaidMinor < 0) {
+          throw new ApiError(400, 'INVALID_STATE', 'Reversal would make paid_minor negative')
+        }
+        if (newOutstandingMinor > purchase.total_minor) {
+          throw new ApiError(400, 'INVALID_STATE', 'Reversal would make outstanding exceed total')
+        }
+
+        const updated = await purchaseRepository.updatePaymentProgress(
+          client,
+          businessId,
+          payment.purchase_id,
+          purchase.server_version,
+          {
+            paid_minor: newPaidMinor,
+            outstanding_minor: newOutstandingMinor,
+          }
+        )
+        if (!updated) {
+          throw new ConflictError('VERSION_CONFLICT', 'Purchase version conflict during payment reversal')
         }
 
         return { reversalId: reversal.reversal_id }
