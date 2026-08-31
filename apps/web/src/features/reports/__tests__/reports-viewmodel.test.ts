@@ -270,7 +270,7 @@ describe('PHASE 7C — Reports ViewModel Unit Tests', () => {
 
     expect(csv.startsWith('\uFEFF')).toBe(true);
     expect(csv).toContain('"No. Struk";"Waktu";"Kasir";"Metode";"Total";"Status"');
-    expect(csv).toContain('"TRX-1001";"2026-08-26 10:15:00";"Rani";"CASH";"48000";"Selesai"');
+    expect(csv).toContain('"TRX-1001";"2026-08-26 10:15:00";"Rani";"CASH";"4800000";"Selesai"');
   });
 
   // ---------------------------------------------------------------------------
@@ -286,6 +286,6 @@ describe('PHASE 7C — Reports ViewModel Unit Tests', () => {
     };
     const kpi = mapExecutiveKPI(dynamicSummary);
     expect(kpi.revenue_minor).toBe(125000000);
-    expect(idrShort(kpi.revenue_minor)).toBe('Rp 1,25 jt');
+    expect(idrShort(kpi.revenue_minor)).toBe('Rp 125 jt');
   });
 });

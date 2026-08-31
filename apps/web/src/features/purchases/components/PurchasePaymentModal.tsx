@@ -34,7 +34,7 @@ export function PurchasePaymentModal({
   useEffect(() => {
     if (purchase && open) {
       // Default to full remaining outstanding balance
-      setAmountMajor(purchase.outstanding_minor / 100);
+      setAmountMajor(purchase.outstanding_minor);
       setMethod('bank_transfer');
       setReference('');
       setError(null);
@@ -43,13 +43,13 @@ export function PurchasePaymentModal({
 
   if (!purchase) return null;
 
-  const maxMajor = purchase.outstanding_minor / 100;
+  const maxMajor = purchase.outstanding_minor;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    const amount_minor = Math.round(amountMajor * 100);
+    const amount_minor = Math.round(amountMajor);
 
     if (amount_minor <= 0) {
       setError('Nominal pembayaran harus lebih dari Rp 0.');

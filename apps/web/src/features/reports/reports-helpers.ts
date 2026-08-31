@@ -50,9 +50,8 @@ export function idr(n: number | undefined | null): string {
  */
 export function idrShort(minor: number | undefined | null): string {
   if (minor === undefined || minor === null) return 'Rp 0';
-  const major = minor / 100;
-  const abs = Math.abs(major);
-  const sign = major < 0 ? '-' : '';
+  const abs = Math.abs(minor);
+  const sign = minor < 0 ? '-' : '';
   const f = (v: number) =>
     v.toLocaleString('id-ID', { maximumFractionDigits: v >= 100 ? 0 : v >= 10 ? 1 : 2 });
   if (abs >= 1_000_000_000) return `Rp ${sign}${f(abs / 1_000_000_000)} M`;
@@ -340,7 +339,7 @@ export function generateReportsCsv(
           s.created_at,
           s.cashier_id || 'Kasir',
           s.payment_method || 'CASH',
-          Math.round(s.total_minor / 100),
+          s.total_minor,
           'Selesai',
         ]);
       }
@@ -348,11 +347,11 @@ export function generateReportsCsv(
   } else if (tab === 'labarugi') {
     const pnl = data.profitLoss;
     rows.push(['Komponen', 'Nilai (Rp)']);
-    rows.push(['Pendapatan Penjualan', Math.round((pnl?.revenue_minor ?? 0) / 100)]);
-    rows.push(['Harga Pokok Penjualan (HPP)', pnl?.hpp_minor !== null && pnl?.hpp_minor !== undefined ? -Math.round(pnl.hpp_minor / 100) : 'Tidak Tersedia']);
-    rows.push(['Laba Kotor', pnl?.gross_profit_minor !== null && pnl?.gross_profit_minor !== undefined ? Math.round(pnl.gross_profit_minor / 100) : 'Tidak Tersedia']);
-    rows.push(['Beban Operasional', pnl?.operating_expense_minor !== null && pnl?.operating_expense_minor !== undefined ? -Math.round(pnl.operating_expense_minor / 100) : 'Tidak Tersedia']);
-    rows.push(['Laba Bersih', pnl?.net_profit_minor !== null && pnl?.net_profit_minor !== undefined ? Math.round(pnl.net_profit_minor / 100) : 'Tidak Tersedia']);
+    rows.push(['Pendapatan Penjualan', (pnl?.revenue_minor ?? 0)]);
+    rows.push(['Harga Pokok Penjualan (HPP)', pnl?.hpp_minor !== null && pnl?.hpp_minor !== undefined ? -pnl.hpp_minor : 'Tidak Tersedia']);
+    rows.push(['Laba Kotor', pnl?.gross_profit_minor !== null && pnl?.gross_profit_minor !== undefined ? pnl.gross_profit_minor : 'Tidak Tersedia']);
+    rows.push(['Beban Operasional', pnl?.operating_expense_minor !== null && pnl?.operating_expense_minor !== undefined ? -pnl.operating_expense_minor : 'Tidak Tersedia']);
+    rows.push(['Laba Bersih', pnl?.net_profit_minor !== null && pnl?.net_profit_minor !== undefined ? pnl.net_profit_minor : 'Tidak Tersedia']);
   } else if (tab === 'stok') {
     rows.push(['SKU', 'Produk', 'Kategori', 'Stok', 'Harga (Rp)', 'Nilai Stok (Rp)']);
     if (data.items) {
@@ -368,7 +367,7 @@ export function generateReportsCsv(
       }
     }
     rows.push([]);
-    rows.push(['Total Nilai Stok', '', '', '', '', Math.round((data.inventory?.valuation_minor ?? 0) / 100)]);
+    rows.push(['Total Nilai Stok', '', '', '', '', (data.inventory?.valuation_minor ?? 0)]);
   } else if (tab === 'pembelian') {
     rows.push(['No. PO', 'Supplier', 'Tanggal', 'Jatuh Tempo', 'Item', 'Total', 'Status']);
   } else if (tab === 'hutangpiutang') {

@@ -524,8 +524,8 @@ describe('PRODUCT-UI-016: inactive badge renders correctly', () => {
 
 describe('PRODUCT-UI-017: numeric formatting uses .num', () => {
   it('formatMinor produces correct IDR currency', () => {
-    expect(formatMinor(15000)).toBe('Rp\u00a0150');
-    expect(formatMinor(150000)).toBe('Rp\u00a01.500');
+    expect(formatMinor(15000)).toBe('Rp\u00a015.000');
+    expect(formatMinor(150000)).toBe('Rp\u00a0150.000');
     expect(formatMinor(0)).toBe('Rp\u00a00');
   });
 
@@ -541,9 +541,9 @@ describe('PRODUCT-UI-017: numeric formatting uses .num', () => {
     );
 
     expect(html).toContain('num');
-    expect(html).toContain('Rp\u00a0150');
-    expect(html).toContain('Rp\u00a080');
-    expect(html).toContain('Rp\u00a070');
+    expect(html).toContain('Rp\u00a015.000');
+    expect(html).toContain('Rp\u00a08.000');
+    expect(html).toContain('Rp\u00a07.000');
     expect(html).toContain('87.5');
   });
 

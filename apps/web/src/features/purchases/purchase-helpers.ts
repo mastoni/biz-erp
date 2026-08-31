@@ -34,20 +34,18 @@ export function num(n: number | string | undefined | null): string {
 
 export function idr(minor: number | undefined | null): string {
   if (minor === undefined || minor === null) return 'Rp 0';
-  const major = minor / 100;
   return new Intl.NumberFormat('id-ID', {
     style: 'currency',
     currency: 'IDR',
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(major);
+  }).format(minor);
 }
 
 export function idrShort(minor: number | undefined | null): string {
   if (minor === undefined || minor === null) return 'Rp 0';
-  const major = minor / 100;
-  const abs = Math.abs(major);
-  const sign = major < 0 ? '-' : '';
+  const abs = Math.abs(minor);
+  const sign = minor < 0 ? '-' : '';
   const f = (v: number) =>
     v.toLocaleString('id-ID', { maximumFractionDigits: v >= 100 ? 0 : v >= 10 ? 1 : 2 });
   if (abs >= 1_000_000_000) return `Rp ${sign}${f(abs / 1_000_000_000)} M`;

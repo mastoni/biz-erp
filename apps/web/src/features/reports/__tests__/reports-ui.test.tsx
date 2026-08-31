@@ -146,7 +146,7 @@ describe('PHASE 7D — Reports UI Acceptance Tests', () => {
   it('REPORTS-UI-003: renders Omzet KPI card with currency formatting', () => {
     const html = renderToString(<ReportsExecutiveKPICards kpi={sampleKPI} />);
     expect(html).toContain('Omzet');
-    expect(html).toContain('Rp 73,3 jt');
+    expect(html).toContain('Rp 7,33 M');
   });
 
   // ---------------------------------------------------------------------------
@@ -155,7 +155,7 @@ describe('PHASE 7D — Reports UI Acceptance Tests', () => {
   it('REPORTS-UI-004: renders Laba Kotor KPI card with gross margin percent', () => {
     const html = renderToString(<ReportsExecutiveKPICards kpi={sampleKPI} />);
     expect(html).toContain('Laba Kotor');
-    expect(html).toContain('Rp 28,3 jt');
+    expect(html).toContain('Rp 2,83 M');
     expect(html).toContain('margin 39%');
   });
 
@@ -266,7 +266,7 @@ describe('PHASE 7D — Reports UI Acceptance Tests', () => {
     );
     expect(html).toContain('Produk Terlaris');
     expect(html).toContain('Kopi Susu Gula Aren');
-    expect(html).toContain('Rp 27 jt');
+    expect(html).toContain('Rp 2,7 M');
   });
 
   // ---------------------------------------------------------------------------
@@ -431,8 +431,8 @@ describe('PHASE 7D — Reports UI Acceptance Tests', () => {
       net_profit_minor: null,
     };
     const html = renderToString(<ReportsExecutiveKPICards kpi={dynamicKPI} />);
-    expect(html).toContain('Rp 999 rb');
-    expect(html).toContain('Rp 450 rb');
+    expect(html).toContain('Rp 99,9 jt');
+    expect(html).toContain('Rp 45 jt');
     expect(html).toContain('margin 45%');
   });
 });

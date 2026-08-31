@@ -83,8 +83,8 @@ describe('PHASE 2E — Dashboard UI Presentation & Mapping Suite', () => {
       const revenueFormatted = formatMinor(sampleViewModel.kpis.total_revenue_minor);
       const avgOrderFormatted = formatMinor(sampleViewModel.kpis.average_order_value_minor);
 
-      expect(revenueFormatted).toBe('Rp\u00a0125.000');
-      expect(avgOrderFormatted).toBe('Rp\u00a08.333');
+expect(revenueFormatted).toBe('Rp\u00a012.500.000');
+expect(avgOrderFormatted).toBe('Rp\u00a0833.333');
       expect(sampleViewModel.kpis.total_sales).toBe(15);
       expect(sampleViewModel.kpis.total_products).toBe(50);
       expect(sampleViewModel.stock_alerts.out_of_stock_count).toBe(2);

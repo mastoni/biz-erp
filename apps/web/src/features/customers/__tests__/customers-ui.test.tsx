@@ -27,7 +27,7 @@ describe('PHASE 6D — Customers UI Acceptance Tests', () => {
     gold_members: 3,
     silver_members: 3,
     regular_members: 2,
-    monthly_spend_minor: 7328000000,
+    monthly_spend_minor: 73280000,
   };
 
   const sampleCustomers: CustomerViewModel[] = [
@@ -39,7 +39,7 @@ describe('PHASE 6D — Customers UI Acceptance Tests', () => {
       email: 'dewi@gmail.com',
       tier: 'Gold',
       points: 2450,
-      spend_minor: 1245000000,
+      spend_minor: 12450000,
       last_visit: 'Hari ini',
       last_visit_epoch: 1787740800000,
       initials: 'DL',
@@ -53,7 +53,7 @@ describe('PHASE 6D — Customers UI Acceptance Tests', () => {
       email: null,
       tier: 'Silver',
       points: 980,
-      spend_minor: 486000000,
+      spend_minor: 4860000,
       last_visit: 'Kemarin',
       last_visit_epoch: 1787654400000,
       initials: 'AP',
@@ -67,7 +67,7 @@ describe('PHASE 6D — Customers UI Acceptance Tests', () => {
       email: 'yoga@gmail.com',
       tier: 'Reguler',
       points: 140,
-      spend_minor: 89000000,
+      spend_minor: 890000,
       last_visit: '4 hari lalu',
       last_visit_epoch: 1787395200000,
       initials: 'YO',

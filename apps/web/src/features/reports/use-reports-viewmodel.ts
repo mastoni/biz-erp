@@ -266,7 +266,7 @@ export function useReportsViewModel({
         name: it.name || it.product_name || '—',
         category: it.category || 'Lainnya',
         stock: it.quantity ?? 0,
-        price: Math.round((it.price_minor ?? 0) / 100),
+        price: it.price_minor ?? 0,
       })),
     });
   }, [activeTab, range, recentSales, profitLoss, inventoryReport, inventoryItems]);
