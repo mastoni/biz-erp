@@ -29,6 +29,28 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+export const bootstrapSession = async (): Promise<string | null> => {
+  try {
+    const response = await axios.post<{ access_token: string }>(
+      `${process.env.NEXT_PUBLIC_API_URL}/v1/auth/refresh`,
+      {},
+      {
+        withCredentials: true,
+        headers: {
+          'X-Client-Type': 'web',
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    const newAccessToken = response.data.access_token;
+    setAccessToken(newAccessToken);
+    return newAccessToken;
+  } catch {
+    setAccessToken(null);
+    return null;
+  }
+};
+
 let isRefreshing = false;
 let refreshSubscribers: ((token: string) => void)[] = [];
 

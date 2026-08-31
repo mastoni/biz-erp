@@ -36,7 +36,7 @@ export interface PlatformAuthenticatedRequest extends Request {
 export function createJwtAuthMiddleware(jwtService: JwtService) {
   return (req: AuthenticatedJwtRequest, _res: Response, next: NextFunction): void => {
     const authHeader = req.headers['authorization']
-    
+
     if (!authHeader || typeof authHeader !== 'string') {
       next(new ApiError(401, 'UNAUTHORIZED', 'Missing Authorization header'))
       return
@@ -48,7 +48,7 @@ export function createJwtAuthMiddleware(jwtService: JwtService) {
     }
 
     const token = authHeader.substring(7)
-    
+
     try {
       const claims = jwtService.verifyAccessToken(token)
 
@@ -59,7 +59,7 @@ export function createJwtAuthMiddleware(jwtService: JwtService) {
       }
 
       const bodyBusinessId = (req.body as Record<string, unknown> | undefined)?.business_id
-      
+
       if (bodyBusinessId && typeof bodyBusinessId === 'string' && bodyBusinessId.trim() !== '') {
         if (bodyBusinessId.trim() !== claims.business_id) {
           next(new ApiError(403, 'BUSINESS_ACCESS_DENIED', 'Business identity mismatch'))
@@ -75,7 +75,7 @@ export function createJwtAuthMiddleware(jwtService: JwtService) {
         jti: claims.jti
       }
       req.businessId = claims.business_id as string
-      
+
       next()
     } catch (err: any) {
       if (err instanceof ApiError) {
@@ -221,5 +221,57 @@ export function requirePlatformRole(...roles: PlatformRole[]): RequestHandler {
     }
 
     next()
+  }
+}
+
+export interface UniversalAuthenticatedUser {
+  userId: string
+  scope: 'tenant' | 'platform'
+  sessionId: string
+  jti: string
+  businessId?: string
+  role?: string
+}
+
+export interface UniversalAuthenticatedRequest extends Request {
+  universalUser?: UniversalAuthenticatedUser
+}
+
+export function createUniversalJwtAuthMiddleware(jwtService: JwtService) {
+  return (req: UniversalAuthenticatedRequest, _res: Response, next: NextFunction): void => {
+    const authHeader = req.headers['authorization']
+
+    if (!authHeader || typeof authHeader !== 'string') {
+      next(new ApiError(401, 'UNAUTHORIZED', 'Missing Authorization header'))
+      return
+    }
+
+    if (!authHeader.startsWith('Bearer ')) {
+      next(new ApiError(401, 'INVALID_TOKEN', 'Unsupported auth scheme'))
+      return
+    }
+
+    const token = authHeader.substring(7)
+
+    try {
+      const claims = jwtService.verifyAccessToken(token)
+
+      req.universalUser = {
+        userId: claims.sub,
+        scope: claims.scope || 'tenant',
+        sessionId: claims.session_id,
+        jti: claims.jti,
+        businessId: claims.business_id as string | undefined,
+        role: claims.role
+      }
+
+      next()
+    } catch (err: any) {
+      if (err instanceof ApiError) {
+        next(err)
+      } else {
+        next(new ApiError(401, 'INVALID_TOKEN', 'Invalid or malformed token'))
+      }
+    }
   }
 }

@@ -11,7 +11,7 @@ import { validateRegistrationRequest } from '../dto/registration_dto'
 import { ApiError } from '../errors/api_error'
 import { ValidationError } from '../errors/validation_error'
 import { randomUUID } from 'crypto'
-import { createJwtAuthMiddleware, AuthenticatedJwtRequest } from '../middleware/auth'
+import { createJwtAuthMiddleware, AuthenticatedJwtRequest, createUniversalJwtAuthMiddleware, UniversalAuthenticatedRequest } from '../middleware/auth'
 import { RequestHandler } from 'express'
 
 let rateLimitTestActive = false
@@ -23,7 +23,7 @@ export function createAuthRouter(pool: Pool): Router {
   const userBusinessRepo = createUserBusinessRepository(pool)
   const authService = createAuthService(userRepo, userBusinessRepo)
   const refreshTokenService = createRefreshTokenService(pool)
-  
+
   // Use environment variables for JWT secret
   const jwtSecret = process.env.JWT_SECRET || 'insecure-test-secret-that-is-at-least-32-chars-long'
   const jwtIssuer = process.env.JWT_ISSUER || 'biz-erp-api'
@@ -351,19 +351,19 @@ export function createAuthRouter(pool: Pool): Router {
     }
   })
 
-  const jwtAuth = createJwtAuthMiddleware(jwtService)
-  
-  router.post('/logout', jwtAuth as RequestHandler, async (req: Request, res: Response, next: NextFunction) => {
+  const universalJwtAuth = createUniversalJwtAuthMiddleware(jwtService)
+
+  router.post('/logout', universalJwtAuth as RequestHandler, async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const authReq = req as AuthenticatedJwtRequest
-      if (!authReq.user) {
+      const authReq = req as UniversalAuthenticatedRequest
+      if (!authReq.universalUser) {
         throw new ApiError(401, 'UNAUTHORIZED', 'Unauthorized')
       }
 
       await refreshTokenService.revokeSession(
-        authReq.user.sessionId,
-        authReq.user.userId,
-        authReq.user.businessId
+        authReq.universalUser.sessionId,
+        authReq.universalUser.userId,
+        authReq.universalUser.businessId ?? null
       )
 
       const isWebClient = req.headers['x-client-type'] === 'web'
@@ -380,22 +380,45 @@ export function createAuthRouter(pool: Pool): Router {
     }
   })
 
-  router.get('/me', jwtAuth as RequestHandler, async (req: Request, res: Response, next: NextFunction) => {
+  router.get('/me', universalJwtAuth as RequestHandler, async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const authReq = req as AuthenticatedJwtRequest
-      if (!authReq.user) {
+      const authReq = req as UniversalAuthenticatedRequest
+      if (!authReq.universalUser) {
         throw new ApiError(401, 'UNAUTHORIZED', 'Unauthorized')
       }
 
-      const user = await userRepo.findById(pool, authReq.user.userId)
+      const user = await userRepo.findById(pool, authReq.universalUser.userId)
       if (!user) {
         throw new ApiError(401, 'UNAUTHORIZED', 'User not found')
       }
 
-      const membership = await userBusinessRepo.findActiveMembership(authReq.user.userId, authReq.user.businessId)
+      // Platform scope
+      if (authReq.universalUser.scope === 'platform') {
+        const roleResult = await pool.query('SELECT platform_role FROM users WHERE id = $1', [authReq.universalUser.userId])
+        const platformRole = roleResult.rows[0]?.platform_role
+        if (!platformRole || (platformRole !== 'PLATFORM_ADMIN' && platformRole !== 'SUPER_ADMIN')) {
+          throw new ApiError(403, 'PLATFORM_ACCESS_DENIED', 'User does not hold a platform role')
+        }
+
+        res.status(200).json({
+          user: {
+            id: user.id,
+            email: user.email,
+            status: user.status
+          },
+          role: platformRole,
+          scope: 'platform'
+        })
+        return
+      }
+
+      // Tenant scope
+      const membership = await userBusinessRepo.findActiveMembership(authReq.universalUser.userId, authReq.universalUser.businessId as string)
       if (!membership) {
         throw new ApiError(403, 'BUSINESS_ACCESS_DENIED', 'Access denied to this business')
       }
+
+      const allActiveBusinesses = await userBusinessRepo.listActiveBusinesses(authReq.universalUser.userId)
 
       res.status(200).json({
         user: {
@@ -404,10 +427,16 @@ export function createAuthRouter(pool: Pool): Router {
           status: user.status
         },
         business: {
-          id: authReq.user.businessId,
+          id: authReq.universalUser.businessId,
           name: membership.business_name
         },
-        role: membership.role
+        available_businesses: allActiveBusinesses.map((b) => ({
+          id: b.business_id,
+          name: b.business_name,
+          role: b.role
+        })),
+        role: membership.role,
+        scope: 'tenant'
       })
     } catch (err) {
       next(err)

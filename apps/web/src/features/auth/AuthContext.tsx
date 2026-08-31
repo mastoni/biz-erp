@@ -1,7 +1,7 @@
 'use client'
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
-import { api, setAccessToken, getAccessToken, setSessionExpiredCallback } from '@/lib/api';
+import { api, setAccessToken, getAccessToken, setSessionExpiredCallback, bootstrapSession } from '@/lib/api';
 import {
   type AuthScope,
   type TenantRole,
@@ -119,19 +119,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const restoreSession = async () => {
       try {
-        const token = getAccessToken();
+        let token = getAccessToken();
 
-        // Access token is memory-only.
+        // Access token is memory-only. Attempt silent refresh if missing.
         if (!token) {
-          setState(UNAUTHENTICATED_STATE);
-          return;
+          token = await bootstrapSession();
+          if (!token) {
+            setState(UNAUTHENTICATED_STATE);
+            return;
+          }
         }
+
+        // Fetch canonical state from server
+        const response = await api.get('/v1/auth/me');
+        const payload = response.data as Record<string, unknown>;
+
+        const scope = (payload['scope'] as AuthScope) ?? 'tenant';
+        const user = (payload['user'] as User | undefined) ?? null;
+        const business = scope === 'tenant' ? ((payload['business'] as Business | undefined) ?? null) : null;
+        const backendRole = payload['role'] as TenantRole | PlatformRole | undefined;
+        const availableBusinesses = (payload['available_businesses'] as Business[] | undefined) ?? (business ? [business] : []);
 
         setState((current) => ({
           ...current,
           status: 'authenticated',
-          tenantStatus: current.business ? 'active' : 'loading',
-          accessToken: token,
+          tenantStatus: scope === 'tenant' && business ? 'active' : (scope === 'platform' ? 'empty' : 'loading'),
+          user,
+          business,
+          availableBusinesses,
+          role: scope === 'tenant' ? ((backendRole as TenantRole) ?? null) : null,
+          scope,
+          platformRole: scope === 'platform' ? ((backendRole as PlatformRole) ?? null) : null,
+          accessToken: getAccessToken(),
         }));
       } catch {
         setAccessToken(null);
