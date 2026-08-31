@@ -121,9 +121,9 @@ void main() {
   });
 
   group('MIG-002: schemaVersion is correct', () {
-    test('schemaVersion is 6', () async {
+    test('schemaVersion is 11', () async {
       final db = AppDatabase.memory();
-      expect(db.schemaVersion, equals(6));
+      expect(db.schemaVersion, equals(11));
       await db.close();
     });
 
@@ -132,7 +132,7 @@ void main() {
       await db.customSelect('SELECT 1').get(); // Trigger creation
 
       final result = await db.customSelect('PRAGMA user_version').get();
-      expect(result.first.read<int>('user_version'), equals(6));
+      expect(result.first.read<int>('user_version'), equals(11));
 
       await db.close();
     });
@@ -357,7 +357,7 @@ void main() {
   });
 
   group('MIG-009: Opening current-version DB does not migrate', () {
-    test('user_version remains 6 after reopen', () async {
+    test('user_version remains 11 after reopen', () async {
       final tempDir = Directory.systemTemp.createTempSync('mig_test_');
       final dbFile = File('${tempDir.path}/test.db');
 
@@ -370,7 +370,7 @@ void main() {
         // Reopen and verify version unchanged
         final db2 = AppDatabase(NativeDatabase(dbFile));
         final result = await db2.customSelect('PRAGMA user_version').get();
-        expect(result.first.read<int>('user_version'), equals(6));
+        expect(result.first.read<int>('user_version'), equals(11));
 
         await db2.close();
       } finally {
@@ -427,7 +427,7 @@ void main() {
       // Buka ulang - migration tidak harus dijalankan lagi
       final db2 = AppDatabase(NativeDatabase.memory());
       final version = await db2.customSelect('PRAGMA user_version').getSingle();
-      expect(version.read<int>('user_version'), 6);
+      expect(version.read<int>('user_version'), 11);
       await db2.close();
     });
   });

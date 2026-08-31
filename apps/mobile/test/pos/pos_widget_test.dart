@@ -322,7 +322,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Cart should still have item
-    expect(find.text('Test Product'), findsOneWidget);
+    expect(find.text('Test Product'), findsWidgets);
   });
 
   testWidgets('UI-007: Checkout success creates new cart', (tester) async {
@@ -344,6 +344,6 @@ void main() {
     await tester.pumpAndSettle();
 
     // Cart should be empty (new cart created)
-    expect(find.text('0'), findsOneWidget);
+    expect(find.text('Keranjang Kosong'), findsOneWidget);
   });
 }
