@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { useBranchContext } from '@/features/branches/BranchContext';
@@ -107,11 +107,13 @@ export default function ProductsPage() {
 
   // ── Fetch branch stocks ─────────────────────────────────────
 
-  const loadBranchStocks = useCallback(async () => {
-    if (!tenantId || !branchId || products.length === 0) return;
+  const productIdsStr = useMemo(() => products.map(p => p.id).join(','), [products]);
+
+  const loadBranchStocks = useCallback(async (idsStr: string) => {
+    if (!tenantId || !branchId || !idsStr) return;
 
     try {
-      const productIds = products.map((p) => p.id);
+      const productIds = idsStr.split(',');
       const stocks = await fetchBranchStocks(tenantId, branchId, productIds);
 
       const stockMap = new Map(stocks.map((s) => [s.product_id, s.quantity]));
@@ -132,7 +134,7 @@ export default function ProductsPage() {
     } catch {
       // Non-blocking — products still render without stock
     }
-  }, [tenantId, branchId, products]);
+  }, [tenantId, branchId]);
 
   // ── Initial load ────────────────────────────────────────────
 
@@ -143,7 +145,7 @@ export default function ProductsPage() {
   // ── Branch reactivity ───────────────────────────────────────
 
   useEffect(() => {
-    if (branchStatus === 'active' && branchId && dataState === 'ready') {
+    if (branchStatus === 'active' && branchId && dataState === 'ready' && productIdsStr) {
       setProducts((prev) =>
         prev.map((p) => ({
           ...p,
@@ -151,9 +153,9 @@ export default function ProductsPage() {
           stock_status: 'unknown',
         })),
       );
-      loadBranchStocks();
+      loadBranchStocks(productIdsStr);
     }
-  }, [branchId, branchStatus, dataState, loadBranchStocks]);
+  }, [branchId, branchStatus, dataState, loadBranchStocks, productIdsStr]);
 
   // ── Tenant reactivity ───────────────────────────────────────
 
