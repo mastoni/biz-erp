@@ -107,7 +107,7 @@ describe('Phase 4.1.41B-3 Platform/Tenant middleware boundary', () => {
 
   it('PLAT-006 platform token -> tenant route -> 403 WRONG_SCOPE', async () => {
     const res = await request(app)
-      .post('/v1/auth/logout')
+      .get(`/v1/subscriptions?business_id=${randomUUID()}`)
       .set('Authorization', `Bearer ${platformToken('PLATFORM_ADMIN')}`)
     expect(res.status).toBe(403)
     expect(res.body.error.code).toBe('WRONG_SCOPE')

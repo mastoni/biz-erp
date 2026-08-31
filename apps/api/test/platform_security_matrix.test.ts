@@ -158,7 +158,7 @@ describe('Phase 4.1.41B-6 Platform Security Matrix', () => {
   it('D. PLATFORM_ADMIN token rejected on tenant route (WRONG_SCOPE)', async () => {
     await seedUser('padm2@test.com', 'PLATFORM_ADMIN')
     const token = await platformLogin('padm2@test.com')
-    const res = await request(app).get('/v1/auth/me').set(auth(token))
+    const res = await request(app).get(`/v1/subscriptions?business_id=${BUSINESS_A}`).set(auth(token))
     expect(res.status).toBe(403)
     expect(res.body.error.code).toBe('WRONG_SCOPE')
   })
@@ -166,7 +166,7 @@ describe('Phase 4.1.41B-6 Platform Security Matrix', () => {
   it('D. SUPER_ADMIN token rejected on tenant route (WRONG_SCOPE)', async () => {
     await seedUser('psup2@test.com', 'SUPER_ADMIN')
     const token = await platformLogin('psup2@test.com')
-    const res = await request(app).get('/v1/auth/me').set(auth(token))
+    const res = await request(app).get(`/v1/subscriptions?business_id=${BUSINESS_A}`).set(auth(token))
     expect(res.status).toBe(403)
     expect(res.body.error.code).toBe('WRONG_SCOPE')
   })
