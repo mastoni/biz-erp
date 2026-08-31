@@ -85,7 +85,7 @@ describe('PHASE 9C.9D — Bookkeeping ViewModel Unit Tests', () => {
       api.getFinanceSummary(),
       api.getFinanceCashflow(),
       api.getReceivables(),
-      api.getPayables(),
+      api.getPayables('biz-1'),
     ]);
 
     expect(sumRes.total_assets).toBe(50000000);

@@ -32,8 +32,11 @@ export async function getReceivables(branchId?: string): Promise<{ items: Receiv
   return response.data;
 }
 
-export async function getPayables(branchId?: string): Promise<{ items: PayableItem[]; total: number }> {
-  const params: Record<string, string | number> = { limit: 100 };
+export async function getPayables(businessId: string, branchId?: string): Promise<{ items: PayableItem[]; total: number }> {
+  const params: Record<string, string | number> = {
+    business_id: businessId,
+    limit: 100,
+  };
   if (branchId) params.branch_id = branchId;
   const response = await api.get<{ items: PayableItem[]; total: number }>('/v1/purchases', { params });
   return response.data;

@@ -57,7 +57,7 @@ export function useBookkeepingViewModel({
         getFinanceSummary(),
         getFinanceCashflow({ branch_id: branchId }),
         getReceivables(branchId),
-        getPayables(branchId),
+        businessId ? getPayables(businessId, branchId) : { items: [], total: 0 },
       ]);
       setSummary(sumData);
       setCashflow(cfData);
