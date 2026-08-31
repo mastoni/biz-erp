@@ -22,16 +22,35 @@ let tokenBOwner!: string
 
 async function resetDatabase(): Promise<void> {
   await pool.query(`
-    TRUNCATE TABLE
-      stock_movements,
-      stocks,
-      branches,
-      sale_items,
-      sales,
-      idempotency_keys,
-      products,
-      businesses
-    RESTART IDENTITY CASCADE
+    SET session_replication_role = 'replica';
+
+    DELETE FROM journal_lines;
+    DELETE FROM journal_entries;
+    DELETE FROM accounts;
+    DELETE FROM customer_payments;
+    DELETE FROM receivables;
+    DELETE FROM purchase_payments;
+    DELETE FROM purchase_items;
+    DELETE FROM purchases;
+    DELETE FROM sale_items;
+    DELETE FROM sales;
+    DELETE FROM expenses;
+    DELETE FROM incomes;
+    DELETE FROM suppliers;
+    DELETE FROM stock_movements;
+    DELETE FROM stocks;
+    DELETE FROM branches;
+    DELETE FROM products;
+    DELETE FROM store_settings;
+    DELETE FROM subscriptions;
+    DELETE FROM customers;
+    DELETE FROM user_businesses;
+    DELETE FROM refresh_tokens;
+    DELETE FROM users;
+    DELETE FROM idempotency_keys;
+    DELETE FROM businesses;
+
+    SET session_replication_role = 'origin';
   `)
 
   await pool.query(
@@ -226,7 +245,7 @@ describe('Inventory MVP V1 API', () => {
         .post('/v1/branches')
         .set('Authorization', `Bearer ${tokenAOwner}`)
         .send({ id: branchId, business_id: BUSINESS_A, name: 'Store A' })
-        
+
       productId = await seedProduct(BUSINESS_A)
     })
 
@@ -279,7 +298,7 @@ describe('Inventory MVP V1 API', () => {
         .post('/v1/branches')
         .set('Authorization', `Bearer ${tokenAOwner}`)
         .send({ id: branchId, business_id: BUSINESS_A, name: 'Store A' })
-        
+
       productId = await seedProduct(BUSINESS_A)
     })
 
@@ -311,7 +330,7 @@ describe('Inventory MVP V1 API', () => {
           expected_server_version: 0
         })
         .expect(201)
-      
+
       expect(res.body.stock.quantity).toBe(10)
       expect(res.body.stock.server_version).toBe(1)
       expect(res.body.movement.quantity).toBe(10)
@@ -434,7 +453,7 @@ describe('Inventory MVP V1 API', () => {
         .set('Authorization', `Bearer ${tokenAOwner}`)
         .set('Idempotency-Key', randomUUID())
         .send({ business_id: BUSINESS_A, branch_id: branchId, product_id: productId, quantity_change: 10, expected_server_version: 0 })
-        
+
       const p2 = request(app)
         .post('/v1/inventory/adjustment')
         .set('Authorization', `Bearer ${tokenAOwner}`)
@@ -461,9 +480,9 @@ describe('Inventory MVP V1 API', () => {
           expected_server_version: 0
         })
         .expect(201)
-        
+
       const movementId = res.body.movement.id
-      
+
       // Attempt manual UPDATE on db
       await expect(
         pool.query(`UPDATE stock_movements SET quantity = 99 WHERE id = $1`, [movementId])

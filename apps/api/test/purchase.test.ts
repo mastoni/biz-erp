@@ -36,6 +36,7 @@ async function resetDatabase(): Promise<void> {
   await pool.query(`
     TRUNCATE TABLE
       idempotency_keys,
+      accounts,
       purchase_payments,
       purchase_items,
       purchases,
@@ -66,6 +67,26 @@ async function resetDatabase(): Promise<void> {
      ON CONFLICT (id) DO NOTHING`,
     [BRANCH_A, BUSINESS_A, BRANCH_B, BUSINESS_B]
   )
+
+  await seedDefaultAccounts(BUSINESS_A)
+  await seedDefaultAccounts(BUSINESS_B)
+}
+
+async function seedDefaultAccounts(businessId: string): Promise<void> {
+  const defaultAccounts = [
+    { type: 'cash', code: '100', name: 'Cash', active: true },
+    { type: 'inventory', code: '150', name: 'Inventory', active: true },
+  ]
+
+  for (const acc of defaultAccounts) {
+    const accId = randomUUID()
+    await pool.query(
+      `INSERT INTO accounts (id, business_id, code, name, type, currency, active, created_at, server_version)
+       VALUES ($1, $2, $3, $4, $5, 'IDR', $6, now(), 1)
+       ON CONFLICT (business_id, code) DO NOTHING`,
+      [accId, businessId, acc.code, acc.name, acc.type, acc.active]
+    )
+  }
 }
 
 async function seedSupplier(
@@ -122,6 +143,8 @@ async function seedProduct(
 
 beforeAll(async () => {
   const dbUrl =
+    process.env.TEST_DATABASE_URL ||
+    process.env.DATABASE_URL ||
     process.env.PURCHASE_DATABASE_URL ||
     'postgresql://bizerp:bizerp@localhost:5432/biz_erp_purchase_test'
   process.env.DATABASE_URL = dbUrl

@@ -1,3 +1,4 @@
+import 'dotenv/config'
 import { Client } from 'pg'
 
 // Creates the per-suite isolated test databases used by the integration tests.

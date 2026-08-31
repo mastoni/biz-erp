@@ -14,6 +14,8 @@ let branchId!: string
 
 beforeAll(async () => {
   const dbUrl =
+    process.env.TEST_DATABASE_URL ||
+    process.env.DATABASE_URL ||
     process.env.INCOME_DATABASE_URL ||
     'postgresql://bizerp:bizerp@localhost:5432/biz_erp_finance_test'
   process.env.DATABASE_URL = dbUrl
