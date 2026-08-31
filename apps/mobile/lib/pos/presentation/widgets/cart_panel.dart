@@ -239,10 +239,10 @@ class CartPanel extends StatelessWidget {
 
     if (result != null) {
       final success = await controller.performCheckout(
-        result.method,
-        result.cashReceived,
+        paymentMethod: result.method,
+        cashReceivedMinor: result.cashReceived,
       );
-      if (success && context.mounted) {
+      if (success != null && context.mounted) {
         showDialog(
           context: context,
           builder: (_) => ReceiptDialog(

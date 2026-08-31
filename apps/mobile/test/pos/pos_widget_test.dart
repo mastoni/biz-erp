@@ -135,6 +135,71 @@ class _MockSyncApi implements SyncApiClient {
     required String branchId,
   }) async =>
       null;
+
+  @override
+  Future<PullPurchasesResponse> pullPurchases({
+    required String businessId,
+    required String branchId,
+    required int sinceVersion,
+    int limit = 500,
+  }) async => const PullPurchasesResponse([], false, 0);
+
+  @override
+  Future<PurchasePushResult> createPurchaseDraft(
+    PurchaseDto purchase, {
+    required String idempotencyKey,
+  }) async => PurchasePushResult(ok: true);
+
+  @override
+  Future<PurchasePushResult> updatePurchaseDraft(
+    PurchaseDto purchase, {
+    int? ifMatchVersion,
+    required String idempotencyKey,
+  }) async => PurchasePushResult(ok: true);
+
+  @override
+  Future<PurchaseDto> getPurchase({
+    required String id,
+  }) async => throw UnimplementedError();
+
+  @override
+  Future<PurchasePushResult> sendPurchase({
+    required String id,
+    int? ifMatchVersion,
+    required String idempotencyKey,
+  }) async => PurchasePushResult(ok: true);
+
+  @override
+  Future<PurchasePushResult> receivePurchase({
+    required String id,
+    required String businessId,
+    required List<Map<String, dynamic>> items,
+    int? ifMatchVersion,
+    required String idempotencyKey,
+  }) async => PurchasePushResult(ok: true);
+
+  @override
+  Future<PurchasePushResult> payPurchase({
+    required String id,
+    required String businessId,
+    required int amountMinor,
+    required String method,
+    String? reference,
+    int? ifMatchVersion,
+    required String idempotencyKey,
+  }) async => PurchasePushResult(ok: true);
+
+  @override
+  Future<PurchasePushResult> cancelPurchase({
+    required String id,
+    int? ifMatchVersion,
+    required String idempotencyKey,
+  }) async => PurchasePushResult(ok: true);
+
+  @override
+  Future<PurchasePushResult> deleteDraftPurchase({
+    required String id,
+  }) async => PurchasePushResult(ok: true);
 }
 
 void main() {

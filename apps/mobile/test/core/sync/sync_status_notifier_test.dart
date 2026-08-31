@@ -11,6 +11,7 @@ import 'package:biz_erp_mobile/products/domain/product.dart';
 import 'package:biz_erp_mobile/core/auth/auth_state_notifier.dart';
 import 'package:biz_erp_mobile/core/auth/auth_models.dart';
 import 'package:biz_erp_mobile/core/auth/auth_repository.dart';
+import 'package:biz_erp_mobile/purchases/data/purchase_repository.dart';
 
 class FakeAuthRepository implements AuthRepository {
   @override
@@ -84,6 +85,12 @@ class FakeSyncOutboxRepository implements SyncOutboxRepository {
   Future<void> markRetry(String id, int now, String error) async {}
   @override
   Future<void> markSynced(String id) async {}
+
+  @override
+  Future<String> enqueuePurchaseCreate(PurchaseDto purchase, {String? idempotencyKey}) async => 'id';
+
+  @override
+  Future<String> enqueuePurchaseUpsert(PurchaseDto purchase, {String? idempotencyKey}) async => 'id';
 }
 
 class FakeProductRepository implements ProductRepository {
@@ -103,6 +110,12 @@ class FakeSyncEngine extends ChangeNotifier implements SyncEngine {
     notifyListeners();
     return SyncSummary(reachable: true, pushed: 0, pulledProducts: 0, pulledCustomers: 0, pulledSuppliers: 0, pulledSales: 0, counts: SyncCounts(0,0,0));
   }
+
+  @override
+  String get branchId => '';
+
+  @override
+  PurchaseRepository? get purchases => throw UnimplementedError();
 }
 
 void main() {

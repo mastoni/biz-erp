@@ -141,14 +141,16 @@ class TenantCompositionRoot {
       }
     }
 
+    final resolvedBranchId = branchId ?? '';
+
     // 5. Store Settings — server is authoritative for resolved config.
     //    Fetch after branch is resolved; persist locally for offline use.
     final storeSettingsRepo = StoreSettingsRepository(db, apiClient);
-    if (branchId != null) {
+    if (resolvedBranchId.isNotEmpty) {
       try {
         await storeSettingsRepo.fetchAndCache(
           businessId: businessId,
-          branchId: branchId,
+          branchId: resolvedBranchId,
         );
       } catch (_) {
         // Offline-first: cached settings from a prior sync will be
@@ -165,7 +167,7 @@ class TenantCompositionRoot {
     // 6. Presentation Controller
     final controller = PosController(
       businessId: businessId,
-      branchId: branchId,
+      branchId: resolvedBranchId,
       branchRepo: branchRepo,
       storeSettingsRepo: storeSettingsRepo,
       productRepo: productRepo,
