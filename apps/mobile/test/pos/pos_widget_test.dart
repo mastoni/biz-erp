@@ -340,7 +340,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Close receipt dialog
-    await tester.tap(find.text('TUTUP'));
+    await tester.tap(find.text('SELESAI'));
     await tester.pumpAndSettle();
 
     // Cart should be empty (new cart created)
