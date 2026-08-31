@@ -28,7 +28,7 @@ export async function getFinanceCashflow(params?: {
 export async function getReceivables(branchId?: string): Promise<{ items: ReceivableItem[]; total: number }> {
   const params: Record<string, string | number> = { limit: 100 };
   if (branchId) params.branch_id = branchId;
-  const response = await api.get<{ items: ReceivableItem[]; total: number }>('/v1/finance/receivables', { params });
+  const response = await api.get<{ items: ReceivableItem[]; total: number }>('/v1/receivables', { params });
   return response.data;
 }
 
@@ -40,7 +40,7 @@ export async function getPayables(branchId?: string): Promise<{ items: PayableIt
 }
 
 export async function createAndPostExpense(input: CreateExpenseInput): Promise<void> {
-  const createRes = await api.post<{ id: string }>('/v1/finance/expenses', input);
+  const createRes = await api.post<{ id: string }>('/v1/expenses', input);
   const expenseId = createRes.data.id;
   await api.post('/v1/finance/postings/expense', { expense_id: expenseId });
 }
@@ -55,7 +55,7 @@ export async function collectReceivablePayment(
   receivableId: string,
   input: SettleReceivableInput
 ): Promise<void> {
-  await api.post(`/v1/finance/receivables/${receivableId}/collections`, input);
+  await api.post(`/v1/receivables/${receivableId}/collections`, input);
 }
 
 export async function payPurchaseOrder(
@@ -75,7 +75,7 @@ export async function getRecentExpenses(
 ): Promise<RecentExpenseItem[]> {
   const params: Record<string, string | number> = { limit };
   if (branchId) params.branch_id = branchId;
-  const response = await api.get<{ items: RecentExpenseItem[] } | RecentExpenseItem[]>('/v1/finance/expenses', { params });
+  const response = await api.get<{ items: RecentExpenseItem[] } | RecentExpenseItem[]>('/v1/expenses', { params });
   if (Array.isArray(response.data)) {
     return response.data;
   }
