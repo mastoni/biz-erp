@@ -62,21 +62,21 @@ export default function AuthenticatedLayout({ children }: { children: React.Reac
     <TenantGuard fallback={<TenantAccessDenied />}>
       <BranchProvider>
         <div className="flex min-h-screen bg-paper">
-          {/* Desktop Sidebar */}
-          <Sidebar />
+           {/* Desktop Sidebar */}
+           <Sidebar className="no-print" />
 
-          {/* Main Content Area */}
-          <div className="flex w-full flex-col md:pl-64">
-            {/* Header */}
-            <Header />
+           {/* Main Content Area */}
+           <div className="flex w-full flex-col md:pl-64">
+             {/* Header */}
+             <Header className="no-print" />
 
-            {/* Page Content */}
-            <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
-              <div className="mx-auto max-w-7xl">
-                {children}
-              </div>
-            </main>
-          </div>
+             {/* Page Content */}
+             <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
+               <div className="mx-auto max-w-7xl">
+                 {children}
+               </div>
+             </main>
+           </div>
         </div>
       </BranchProvider>
     </TenantGuard>

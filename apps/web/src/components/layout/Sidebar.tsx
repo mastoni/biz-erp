@@ -7,7 +7,11 @@ import { getAuthorizedNavigation, Role } from '@/lib/rbac';
 import { useAuth } from '@/features/auth/AuthContext';
 import { SKMNetworkLogo } from '@/components/brand/SKMNetworkLogo';
 
-export function Sidebar() {
+export interface SidebarProps {
+  className?: string;
+}
+
+export function Sidebar({ className }: SidebarProps = {}) {
   const { role } = useAuth();
   const pathname = usePathname();
 
@@ -16,7 +20,7 @@ export function Sidebar() {
   const navigation = getAuthorizedNavigation(role as Role);
 
   return (
-    <aside className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 bg-[#0c2018] text-[#f0efe7] border-r border-[#1a2620] z-30">
+    <aside className={`hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 bg-[#0c2018] text-[#f0efe7] border-r border-[#1a2620] z-30 ${className || ''}`}>
       {/* Brand Header */}
       <div className="flex h-16 items-center px-6 border-b border-[#f0efe7]/10 bg-[#0c2018]">
         <SKMNetworkLogo dark size={32} />

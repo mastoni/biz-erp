@@ -27,7 +27,7 @@ const DAY_NAMES = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
  * Format minor-unit integers to abbreviated IDR (e.g. "Rp 8,45 jt" / "Rp 845 rb").
  */
 export function idrShort(minor: number): string {
-  const major = minor / 100;
+  const major = minor;  // _minor stores Rupiah directly, not cents
   const abs = Math.abs(major);
   const sign = major < 0 ? '-' : '';
   const f = (v: number) =>

@@ -544,12 +544,19 @@ export function usePOSViewModel({
     drawerTimerRef.current = setTimeout(() => setDrawerOpen(false), drawerPreferences.delayMs);
   }, [drawerPreferences.delayMs]);
 
-  const triggerPrint = useCallback(() => {
-    // Browser-native print is presentation only (no WebUSB/WebSerial driver).
-    if (typeof window !== 'undefined' && typeof window.print === 'function') {
-      window.print();
-    }
-  }, []);
+  const triggerPrint = useCallback(
+    (element?: Element | null) => {
+      // Browser-native print is presentation only (no WebUSB/WebSerial driver).
+      // Skip printing if element has .no-print class (sidebar, navbar, buttons, etc.)
+      if (element && element.classList.contains('no-print')) {
+        return;
+      }
+      if (typeof window !== 'undefined' && typeof window.print === 'function') {
+        window.print();
+      }
+    },
+    []
+  );
 
   const runDeviceOrchestration = useCallback(() => {
     const outcome = orchestratePostSaleDevices({

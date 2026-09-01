@@ -21,7 +21,11 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
-export function Header() {
+export interface HeaderProps {
+  className?: string;
+}
+
+export function Header({ className }: HeaderProps = {}) {
   const { user, business, role, logout } = useAuth();
   const { branches, activeBranch, selectBranch, isLoading: isBranchLoading } = useBranchContext();
   const pathname = usePathname();
@@ -37,7 +41,7 @@ export function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-20 flex h-16 w-full items-center justify-between border-b border-line bg-surface/85 backdrop-blur-md px-4 md:px-6 shadow-[0_1px_2px_rgba(26,29,26,0.03)]">
+    <header className={`sticky top-0 z-20 flex h-16 w-full items-center justify-between border-b border-line bg-surface/85 backdrop-blur-md px-4 md:px-6 shadow-[0_1px_2px_rgba(26,29,26,0.03)] ${className || ''}`}>
       {/* Left Section: Mobile Menu + Tenant Switcher + Branch Selector */}
       <div className="flex items-center gap-3">
         {/* Mobile Navigation Drawer */}

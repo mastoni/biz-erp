@@ -66,8 +66,8 @@ export function BookkeepingPage({ businessId, branchId, role }: BookkeepingPageP
   const netFlow = totalMasuk - totalKeluar;
   const saldoKas = summary ? summary.total_assets : netFlow;
 
-  const totalPiutangAktif = filteredReceivables.reduce((sum, r) => sum + r.outstanding_minor, 0);
-  const totalHutangAktif = filteredPayables.reduce((sum, p) => sum + p.outstanding_minor, 0);
+  const totalPiutangAktif = filteredReceivables.reduce((sum, r) => sum + (r.outstanding_minor || 0), 0);
+  const totalHutangAktif = filteredPayables.reduce((sum, p) => sum + (p.outstanding_minor || 0), 0);
 
   const tabs: { id: BookkeepingTab; label: string; badge?: number }[] = [
     { id: 'jurnal', label: 'Jurnal Kas' },
