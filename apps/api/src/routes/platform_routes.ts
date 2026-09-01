@@ -352,7 +352,54 @@ export function createPlatformRoutes(pool: Pool): Router {
   )
 
   // =========================================================================
-  // 6. SUBSCRIPTIONS (List)
+  // 6. SERVICE REGISTRY (SA-2.5)
+  // =========================================================================
+  router.get(
+    '/services',
+    requirePlatformRole() as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const result = await platformService.listServices(req.query as Record<string, unknown>)
+      res.status(200).json(result)
+    })
+  )
+
+  router.post(
+    '/services',
+    requirePlatformRole() as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const actorUserId = req.platformUser!.userId
+      const result = await platformService.createService(req.body || {}, actorUserId)
+      res.status(201).json({
+        message: 'Service created successfully',
+        service: result
+      })
+    })
+  )
+
+  router.get(
+    '/services/:code',
+    requirePlatformRole() as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const result = await platformService.getServiceByCode(req.params.code)
+      res.status(200).json(result)
+    })
+  )
+
+  router.patch(
+    '/services/:code',
+    requirePlatformRole() as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const actorUserId = req.platformUser!.userId
+      const result = await platformService.updateService(req.params.code, req.body || {}, actorUserId)
+      res.status(200).json({
+        message: 'Service updated successfully',
+        service: result
+      })
+    })
+  )
+
+  // =========================================================================
+  // 7. SUBSCRIPTIONS (List)
   // =========================================================================
   router.get(
     '/subscriptions',

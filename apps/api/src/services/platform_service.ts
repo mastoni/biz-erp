@@ -1457,7 +1457,233 @@ export function createPlatformService(pool: Pool) {
     },
 
     // =========================================================================
-    // 7. SUBSCRIPTIONS (List)
+    // 7. SERVICE REGISTRY (SA-2.5)
+    // =========================================================================
+    async listServices(query?: Record<string, unknown>): Promise<PlatformPaginated<Record<string, unknown>>> {
+      const { limit, offset } = parsePagination(query)
+      return listPage(
+        'code, name, category, service_type, owner, lifecycle_status, public_visibility, created_at, updated_at',
+        'services',
+        'created_at DESC',
+        limit,
+        offset
+      )
+    },
+
+    async getServiceByCode(code: string): Promise<Record<string, unknown>> {
+      if (!code || typeof code !== 'string') {
+        throw new ValidationError('Service code is required')
+      }
+
+      const sql = `
+        SELECT
+          s.code,
+          s.name,
+          s.description,
+          s.category,
+          s.service_type,
+          s.owner,
+          s.lifecycle_status,
+          s.public_visibility,
+          s.base_capability,
+          s.provisioning_capability,
+          s.support_capability,
+          s.created_at,
+          s.updated_at
+        FROM services s
+        WHERE s.code = $1
+      `
+      const res = await pool.query(sql, [code])
+      if (res.rows.length === 0) {
+        throw new ApiError(404, 'NOT_FOUND', `Service with code '${code}' not found`)
+      }
+
+      const service = res.rows[0]
+
+      const depSql = `
+        SELECT depends_on_service_code, dependency_type
+        FROM service_dependencies
+        WHERE service_code = $1
+      `
+      const depRes = await pool.query(depSql, [code])
+      service.dependencies = depRes.rows
+
+      return service
+    },
+
+    async createService(input: Record<string, any>, actorUserId: string): Promise<Record<string, unknown>> {
+      const code = String(input.code || '').trim().toUpperCase()
+      const name = String(input.name || '').trim()
+      const description = input.description ? String(input.description).trim() : null
+      const category = String(input.category || '').trim()
+      const service_type = String(input.service_type || 'INTERNAL').trim().toUpperCase()
+      const lifecycle_status = String(input.lifecycle_status || 'DRAFT').trim().toUpperCase()
+      const public_visibility = Boolean(input.public_visibility)
+      const base_capability = typeof input.base_capability === 'object' && input.base_capability !== null ? input.base_capability : {}
+      const provisioning_capability = typeof input.provisioning_capability === 'object' && input.provisioning_capability !== null ? input.provisioning_capability : {}
+      const support_capability = typeof input.support_capability === 'object' && input.support_capability !== null ? input.support_capability : {}
+
+      if (!code || !/^[A-Z0-9_]{3,50}$/.test(code)) {
+        throw new ValidationError('Service code must be 3-50 uppercase alphanumeric characters with underscores')
+      }
+      if (!name) {
+        throw new ValidationError('Service name is required')
+      }
+      if (!category) {
+        throw new ValidationError('Service category is required')
+      }
+
+      const allowedTypes = ['INTERNAL', 'EXTERNAL', 'HYBRID']
+      if (!allowedTypes.includes(service_type)) {
+        throw new ValidationError(`Invalid service_type. Allowed: ${allowedTypes.join(', ')}`)
+      }
+
+      const allowedStatuses = ['DRAFT', 'ACTIVE', 'SUSPENDED', 'DEPRECATED', 'RETIRED']
+      if (!allowedStatuses.includes(lifecycle_status)) {
+        throw new ValidationError(`Invalid lifecycle_status. Allowed: ${allowedStatuses.join(', ')}`)
+      }
+
+      const dependencies = Array.isArray(input.dependencies) ? input.dependencies : []
+
+      return withTransaction(pool, async (client) => {
+        const sql = `
+          INSERT INTO services (
+            code, name, description, category, service_type, owner, lifecycle_status, public_visibility, base_capability, provisioning_capability, support_capability, created_at, updated_at
+          ) VALUES (
+            $1, $2, $3, $4, $5, 'PLATFORM', $6, $7, $8, $9, $10, now(), now()
+          ) RETURNING *
+        `
+        let service
+        try {
+          const res = await client.query(sql, [
+            code, name, description, category, service_type, lifecycle_status, public_visibility, JSON.stringify(base_capability), JSON.stringify(provisioning_capability), JSON.stringify(support_capability)
+          ])
+          service = res.rows[0]
+        } catch (err: any) {
+          if (err.code === '23505') {
+            throw new ApiError(409, 'CONFLICT', `Service with code '${code}' already exists`)
+          }
+          throw err
+        }
+
+        // Insert dependencies
+        if (dependencies.length > 0) {
+          for (const dep of dependencies) {
+            if (dep.depends_on === code) {
+              throw new ValidationError('Self dependency is not allowed')
+            }
+            const depType = dep.type === 'OPTIONAL' ? 'OPTIONAL' : 'REQUIRED'
+            try {
+              await client.query(
+                'INSERT INTO service_dependencies (service_code, depends_on_service_code, dependency_type, created_at) VALUES ($1, $2, $3, now())',
+                [code, dep.depends_on, depType]
+              )
+            } catch (err: any) {
+              if (err.code === '23505') {
+                 throw new ValidationError(`Duplicate dependency on ${dep.depends_on}`)
+              }
+              if (err.code === '23503') {
+                 throw new ValidationError(`Dependency service ${dep.depends_on} not found`)
+              }
+              throw err
+            }
+          }
+        }
+
+        return service
+      })
+    },
+
+    async updateService(code: string, input: Record<string, any>, actorUserId: string): Promise<Record<string, unknown>> {
+      return withTransaction(pool, async (client) => {
+        const checkRes = await client.query('SELECT code FROM services WHERE code = $1 FOR UPDATE', [code])
+        if (checkRes.rows.length === 0) {
+          throw new ApiError(404, 'NOT_FOUND', `Service with code '${code}' not found`)
+        }
+
+        const name = input.name !== undefined ? String(input.name).trim() : undefined
+        const description = input.description !== undefined ? (input.description ? String(input.description).trim() : null) : undefined
+        const category = input.category !== undefined ? String(input.category).trim() : undefined
+        const service_type = input.service_type !== undefined ? String(input.service_type).trim().toUpperCase() : undefined
+        const lifecycle_status = input.lifecycle_status !== undefined ? String(input.lifecycle_status).trim().toUpperCase() : undefined
+        const public_visibility = input.public_visibility !== undefined ? Boolean(input.public_visibility) : undefined
+        const base_capability = input.base_capability !== undefined ? JSON.stringify(input.base_capability) : undefined
+        const provisioning_capability = input.provisioning_capability !== undefined ? JSON.stringify(input.provisioning_capability) : undefined
+        const support_capability = input.support_capability !== undefined ? JSON.stringify(input.support_capability) : undefined
+
+        if (service_type) {
+           const allowedTypes = ['INTERNAL', 'EXTERNAL', 'HYBRID']
+           if (!allowedTypes.includes(service_type)) {
+             throw new ValidationError(`Invalid service_type. Allowed: ${allowedTypes.join(', ')}`)
+           }
+        }
+        if (lifecycle_status) {
+           const allowedStatuses = ['DRAFT', 'ACTIVE', 'SUSPENDED', 'DEPRECATED', 'RETIRED']
+           if (!allowedStatuses.includes(lifecycle_status)) {
+             throw new ValidationError(`Invalid lifecycle_status. Allowed: ${allowedStatuses.join(', ')}`)
+           }
+        }
+
+        const sql = `
+          UPDATE services
+          SET
+            name = COALESCE($1, name),
+            description = COALESCE($2, description),
+            category = COALESCE($3, category),
+            service_type = COALESCE($4, service_type),
+            lifecycle_status = COALESCE($5, lifecycle_status),
+            public_visibility = COALESCE($6, public_visibility),
+            base_capability = COALESCE($7::jsonb, base_capability),
+            provisioning_capability = COALESCE($8::jsonb, provisioning_capability),
+            support_capability = COALESCE($9::jsonb, support_capability),
+            updated_at = now()
+          WHERE code = $10
+          RETURNING *
+        `
+        const res = await client.query(sql, [
+          name, description, category, service_type, lifecycle_status, public_visibility, base_capability, provisioning_capability, support_capability, code
+        ])
+
+        // Handle dependencies if provided
+        if (input.dependencies && Array.isArray(input.dependencies)) {
+            await client.query('DELETE FROM service_dependencies WHERE service_code = $1', [code])
+            for (const dep of input.dependencies) {
+               if (dep.depends_on === code) {
+                 throw new ValidationError('Self dependency is not allowed')
+               }
+               const depType = dep.type === 'OPTIONAL' ? 'OPTIONAL' : 'REQUIRED'
+
+               // Check circular dependency (very basic direct cycle for now, ideally full DAG check)
+               if (dep.depends_on) {
+                  const circRes = await client.query('SELECT 1 FROM service_dependencies WHERE service_code = $1 AND depends_on_service_code = $2', [dep.depends_on, code])
+                  if (circRes.rows.length > 0) {
+                     throw new ValidationError('Circular dependency detected')
+                  }
+               }
+
+               try {
+                 await client.query(
+                   'INSERT INTO service_dependencies (service_code, depends_on_service_code, dependency_type, created_at) VALUES ($1, $2, $3, now())',
+                   [code, dep.depends_on, depType]
+                 )
+               } catch (err: any) {
+                 if (err.code === '23505') {
+                    throw new ValidationError(`Duplicate dependency on ${dep.depends_on}`)
+                 }
+                 if (err.code === '23503') {
+                    throw new ValidationError(`Dependency service ${dep.depends_on} not found`)
+                 }
+                 throw err
+               }
+            }
+        }
+
+        return res.rows[0]
+      })
+    },
+
+    // =========================================================================
+    // 8. SUBSCRIPTIONS (List)
     // =========================================================================
     async listSubscriptions(query?: Record<string, unknown>): Promise<PlatformPaginated<Record<string, unknown>>> {
       const { limit, offset } = parsePagination(query)
