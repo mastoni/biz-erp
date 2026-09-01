@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { PlatformGuard } from '@/features/auth/guards';
 import { PlatformSidebar } from '@/components/platform/PlatformSidebar';
@@ -24,12 +24,18 @@ function PlatformAccessDenied() {
 export default function PlatformLayout({ children }: { children: React.ReactNode }) {
   const { status } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
+  const isLoginPage = pathname === '/platform/login';
 
   useEffect(() => {
-    if (status === 'unauthenticated' || status === 'sessionExpired') {
-      router.push('/login');
+    if (!isLoginPage && (status === 'unauthenticated' || status === 'sessionExpired')) {
+      router.push('/platform/login');
     }
-  }, [status, router]);
+  }, [status, router, isLoginPage]);
+
+  if (isLoginPage) {
+    return <>{children}</>;
+  }
 
   if (status !== 'authenticated') {
     return (
