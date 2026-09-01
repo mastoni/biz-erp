@@ -135,8 +135,8 @@ export function requireRole(...roles: Array<'OWNER' | 'CASHIER'>) {
 
 export function createRequireActiveTenant(jwtService: JwtService, pool: Pool) {
   return async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
-    // Skip public and platform routes
-    if (req.path.startsWith('/auth') || req.path.startsWith('/platform') || req.path.startsWith('/health')) {
+    // Skip public, auth, and platform routes
+    if (req.path.startsWith('/auth') || req.path.startsWith('/platform') || req.path.startsWith('/public') || req.path.startsWith('/health')) {
       next()
       return
     }

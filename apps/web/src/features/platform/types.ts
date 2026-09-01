@@ -11,6 +11,7 @@ export interface PlatformPaginated<T> {
   limit: number;
   offset: number;
   has_more: boolean;
+  summary?: any;
 }
 
 export type BusinessLifecycleStatus = 'PENDING_REVIEW' | 'ACTIVE' | 'REJECTED' | 'SUSPENDED' | 'TERMINATED';
@@ -21,6 +22,7 @@ export interface BusinessListSummary {
   suspended_count: number;
   rejected_count: number;
   total: number;
+  [key: string]: unknown;
 }
 
 export interface PlatformBusiness {
@@ -67,27 +69,134 @@ export interface PlatformModule {
   updated_at: string;
 }
 
+export interface PlanPricing {
+  base_price: number;
+  discount?: number;
+  tax?: number;
+  final_price: number;
+  currency?: string;
+}
+
+export interface PlanLimits {
+  max_branches?: number;
+  max_users?: number;
+  [key: string]: unknown;
+}
+
+export interface PlanModuleAssignment {
+  code: string;
+  name: string;
+  pillar?: string | null;
+  category?: string | null;
+  is_core?: boolean;
+  feature_overrides?: Record<string, any>;
+}
+
 export interface PlatformPlan {
   code: string;
   name: string;
   family: string | null;
   tier: string | null;
   billing_cycle: string | null;
+  pricing: PlanPricing;
   type: string | null;
-  status: string | null;
+  status: 'DRAFT' | 'ACTIVE' | 'DEPRECATED';
+  limits: PlanLimits;
+  trial_days: number;
+  is_published: boolean;
+  display_order: number;
+  version: number;
+  module_count?: number;
+  modules?: PlanModuleAssignment[];
+  showcase_items?: PlatformShowcaseItem[];
   created_at: string;
   updated_at: string;
+}
+
+export interface PlanListSummary {
+  total: number;
+  active_count: number;
+  draft_count: number;
+  deprecated_count: number;
+  [key: string]: unknown;
+}
+
+export interface PlatformPlansResponse extends PlatformPaginated<PlatformPlan> {
+  summary?: PlanListSummary;
+}
+
+export interface BundlePricing {
+  one_time: number;
+  monthly: number;
+  commitment_months: number;
+}
+
+export interface BundleItem {
+  id?: number;
+  bundle_code?: string;
+  item_type: 'PLAN' | 'PRODUCT' | 'SERVICE' | 'HARDWARE';
+  item_code: string;
+  quantity: number;
+  required: boolean;
 }
 
 export interface PlatformBundle {
   code: string;
   name: string;
+  pricing: BundlePricing;
   target_segment: string | null;
   installation_required: boolean;
-  status: string | null;
+  installation_service_code?: string | null;
+  presentation_metadata?: Record<string, unknown>;
+  status: 'DRAFT' | 'ACTIVE' | 'DEPRECATED';
+  is_published: boolean;
+  display_order: number;
+  version: number;
+  item_count?: number;
+  items?: BundleItem[];
+  showcase_items?: PlatformShowcaseItem[];
   created_at: string;
   updated_at: string;
 }
+
+export interface BundleListSummary {
+  total: number;
+  active_count: number;
+  draft_count: number;
+  deprecated_count: number;
+  [key: string]: unknown;
+}
+
+export interface PlatformBundlesResponse extends PlatformPaginated<PlatformBundle> {
+  summary?: BundleListSummary;
+}
+
+export interface PlatformShowcaseItem {
+  id: string;
+  section: 'HERO_FEATURED' | 'ERP_PLANS' | 'ISP_PLANS' | 'BUNDLES' | 'HARDWARE' | 'PROMOS';
+  item_type: 'PLAN' | 'BUNDLE' | 'CATALOG_PRODUCT' | 'CUSTOM';
+  plan_code?: string | null;
+  bundle_code?: string | null;
+  catalog_product_code?: string | null;
+  custom_item_code?: string | null;
+  display_name: string;
+  headline?: string | null;
+  description?: string | null;
+  marketing_badge?: string | null;
+  features_list: string[];
+  display_order: number;
+  is_featured: boolean;
+  is_published: boolean;
+  cta_text: string;
+  cta_url: string;
+  version?: number;
+  pricing?: Record<string, unknown> | null;
+  target_details?: Record<string, unknown> | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface PlatformShowcaseResponse extends PlatformPaginated<PlatformShowcaseItem> {}
 
 export interface PlatformSubscription {
   id: string;
@@ -101,11 +210,12 @@ export interface PlatformSubscription {
   starts_at: string | null;
   ends_at: string | null;
   billing_cycle: string | null;
-  final_price: number | null;
-  currency: string | null;
+  final_price: number;
+  currency: string;
   created_at: string;
 }
 
+// ── Overview View-Model Types ────────────────────────────────────────────────
 export interface PlatformOverviewKPIs {
   total_businesses: number;
   active_subscriptions: number;

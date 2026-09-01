@@ -9,3 +9,10 @@ export class ApiError extends Error {
     this.name = 'ApiError'
   }
 }
+
+export class ValidationError extends ApiError {
+  constructor(message: string, details: Record<string, unknown> = {}) {
+    super(400, 'VALIDATION_ERROR', message, details)
+    this.name = 'ValidationError'
+  }
+}

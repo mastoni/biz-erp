@@ -135,8 +135,9 @@ export interface PlatformNavItem {
 export const PLATFORM_NAVIGATION: PlatformNavItem[] = [
   { name: 'Overview', href: '/platform' },
   { name: 'Businesses', href: '/platform/businesses' },
+  { name: 'Plans & Pricing', href: '/platform/plans' },
+  { name: 'Bundle Composer', href: '/platform/bundles' },
+  { name: 'Landing Showcase', href: '/platform/showcase' },
   { name: 'Modules', href: '/platform/modules' },
-  { name: 'Plans', href: '/platform/plans' },
-  { name: 'Bundles', href: '/platform/bundles' },
   { name: 'Subscriptions', href: '/platform/subscriptions' },
 ];

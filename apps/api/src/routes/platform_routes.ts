@@ -31,24 +31,19 @@ export function createPlatformRoutes(pool: Pool): Router {
 
   // -------------------------------------------------------------------------
   // GET /v1/platform/context
-  // Safe, non-sensitive authenticated platform context. Does NOT expose any
-  // tenant/business scope (platform tokens carry none).
   // -------------------------------------------------------------------------
   router.get(
     '/context',
     requirePlatformRole() as any,
     asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
       const user = req.platformUser!
-      // businessId is explicitly null: platform tokens carry no tenant/business
-      // scope. It is a static literal, never derived from req.businessId.
       res.status(200).json({ ...platformService.getContext(user.role, user.userId), businessId: null })
     })
   )
 
-  // -------------------------------------------------------------------------
-  // GET /v1/platform/businesses
-  // Canonical: businesses. Platform-wide. Filterable by status and search.
-  // -------------------------------------------------------------------------
+  // =========================================================================
+  // 1. BUSINESSES LIFECYCLE (SA-1)
+  // =========================================================================
   router.get(
     '/businesses',
     requirePlatformRole() as any,
@@ -58,10 +53,6 @@ export function createPlatformRoutes(pool: Pool): Router {
     })
   )
 
-  // -------------------------------------------------------------------------
-  // GET /v1/platform/businesses/:id
-  // Canonical: single business detail with owner, branch, subscription stats.
-  // -------------------------------------------------------------------------
   router.get(
     '/businesses/:id',
     requirePlatformRole() as any,
@@ -71,10 +62,6 @@ export function createPlatformRoutes(pool: Pool): Router {
     })
   )
 
-  // -------------------------------------------------------------------------
-  // POST /v1/platform/businesses/:id/approve
-  // Lifecycle transition: PENDING_REVIEW -> ACTIVE
-  // -------------------------------------------------------------------------
   router.post(
     '/businesses/:id/approve',
     requirePlatformRole() as any,
@@ -88,10 +75,6 @@ export function createPlatformRoutes(pool: Pool): Router {
     })
   )
 
-  // -------------------------------------------------------------------------
-  // POST /v1/platform/businesses/:id/reject
-  // Lifecycle transition: PENDING_REVIEW -> REJECTED
-  // -------------------------------------------------------------------------
   router.post(
     '/businesses/:id/reject',
     requirePlatformRole() as any,
@@ -106,10 +89,6 @@ export function createPlatformRoutes(pool: Pool): Router {
     })
   )
 
-  // -------------------------------------------------------------------------
-  // POST /v1/platform/businesses/:id/suspend
-  // Lifecycle transition: ACTIVE -> SUSPENDED
-  // -------------------------------------------------------------------------
   router.post(
     '/businesses/:id/suspend',
     requirePlatformRole() as any,
@@ -124,10 +103,6 @@ export function createPlatformRoutes(pool: Pool): Router {
     })
   )
 
-  // -------------------------------------------------------------------------
-  // POST /v1/platform/businesses/:id/reactivate
-  // Lifecycle transition: SUSPENDED -> ACTIVE
-  // -------------------------------------------------------------------------
   router.post(
     '/businesses/:id/reactivate',
     requirePlatformRole() as any,
@@ -141,10 +116,9 @@ export function createPlatformRoutes(pool: Pool): Router {
     })
   )
 
-  // -------------------------------------------------------------------------
-  // GET /v1/platform/modules
-  // Canonical: modules (40B). Platform-wide. Paginated.
-  // -------------------------------------------------------------------------
+  // =========================================================================
+  // 2. MODULES
+  // =========================================================================
   router.get(
     '/modules',
     requirePlatformRole() as any,
@@ -154,10 +128,9 @@ export function createPlatformRoutes(pool: Pool): Router {
     })
   )
 
-  // -------------------------------------------------------------------------
-  // GET /v1/platform/plans
-  // Canonical: plans (40B). Platform-wide. Paginated.
-  // -------------------------------------------------------------------------
+  // =========================================================================
+  // 3. PLANS & PRICING GOVERNANCE (SA-2)
+  // =========================================================================
   router.get(
     '/plans',
     requirePlatformRole() as any,
@@ -167,10 +140,72 @@ export function createPlatformRoutes(pool: Pool): Router {
     })
   )
 
-  // -------------------------------------------------------------------------
-  // GET /v1/platform/bundles
-  // Canonical: bundles (40B). Platform-wide. Paginated.
-  // -------------------------------------------------------------------------
+  router.get(
+    '/plans/:code',
+    requirePlatformRole() as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const result = await platformService.getPlanByCode(req.params.code)
+      res.status(200).json(result)
+    })
+  )
+
+  router.post(
+    '/plans',
+    requirePlatformRole() as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const actorUserId = req.platformUser!.userId
+      const result = await platformService.createPlan(req.body || {}, actorUserId)
+      res.status(201).json({
+        message: 'Plan created successfully',
+        plan: result
+      })
+    })
+  )
+
+  router.put(
+    '/plans/:code',
+    requirePlatformRole() as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const actorUserId = req.platformUser!.userId
+      const result = await platformService.updatePlan(req.params.code, req.body || {}, actorUserId)
+      res.status(200).json({
+        message: 'Plan updated successfully',
+        plan: result
+      })
+    })
+  )
+
+  router.patch(
+    '/plans/:code/status',
+    requirePlatformRole() as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const actorUserId = req.platformUser!.userId
+      const { status } = req.body || {}
+      const result = await platformService.setPlanStatus(req.params.code, status, actorUserId)
+      res.status(200).json({
+        message: `Plan status updated to ${status}`,
+        plan: result
+      })
+    })
+  )
+
+  router.put(
+    '/plans/:code/modules',
+    requirePlatformRole() as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const actorUserId = req.platformUser!.userId
+      const { modules } = req.body || {}
+      const result = await platformService.setPlanModules(req.params.code, modules || [], actorUserId)
+      res.status(200).json({
+        message: 'Plan modules updated successfully',
+        ...result
+      })
+    })
+  )
+
+  // =========================================================================
+  // 4. BUNDLES GOVERNANCE (SA-2)
+  // =========================================================================
   router.get(
     '/bundles',
     requirePlatformRole() as any,
@@ -180,11 +215,145 @@ export function createPlatformRoutes(pool: Pool): Router {
     })
   )
 
-  // -------------------------------------------------------------------------
-  // GET /v1/platform/subscriptions
-  // Canonical: subscriptions (40C). Platform-wide (all businesses). Paginated.
-  // Read-only overview; no entitlement logic.
-  // -------------------------------------------------------------------------
+  router.get(
+    '/bundles/:code',
+    requirePlatformRole() as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const result = await platformService.getBundleByCode(req.params.code)
+      res.status(200).json(result)
+    })
+  )
+
+  router.post(
+    '/bundles',
+    requirePlatformRole() as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const actorUserId = req.platformUser!.userId
+      const result = await platformService.createBundle(req.body || {}, actorUserId)
+      res.status(201).json({
+        message: 'Bundle created successfully',
+        bundle: result
+      })
+    })
+  )
+
+  router.put(
+    '/bundles/:code',
+    requirePlatformRole() as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const actorUserId = req.platformUser!.userId
+      const result = await platformService.updateBundle(req.params.code, req.body || {}, actorUserId)
+      res.status(200).json({
+        message: 'Bundle updated successfully',
+        bundle: result
+      })
+    })
+  )
+
+  router.patch(
+    '/bundles/:code/status',
+    requirePlatformRole() as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const actorUserId = req.platformUser!.userId
+      const { status } = req.body || {}
+      const result = await platformService.setBundleStatus(req.params.code, status, actorUserId)
+      res.status(200).json({
+        message: `Bundle status updated to ${status}`,
+        bundle: result
+      })
+    })
+  )
+
+  router.put(
+    '/bundles/:code/items',
+    requirePlatformRole() as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const actorUserId = req.platformUser!.userId
+      const { items } = req.body || {}
+      const result = await platformService.setBundleItems(req.params.code, items || [], actorUserId)
+      res.status(200).json({
+        message: 'Bundle items updated successfully',
+        ...result
+      })
+    })
+  )
+
+  // =========================================================================
+  // 5. SHOWCASE GOVERNANCE (SA-2)
+  // =========================================================================
+  router.get(
+    '/showcase',
+    requirePlatformRole() as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const result = await platformService.listShowcaseItems(req.query as Record<string, unknown>)
+      res.status(200).json(result)
+    })
+  )
+
+  router.get(
+    '/showcase/:id',
+    requirePlatformRole() as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const result = await platformService.getShowcaseItemById(req.params.id)
+      res.status(200).json(result)
+    })
+  )
+
+  router.post(
+    '/showcase',
+    requirePlatformRole() as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const actorUserId = req.platformUser!.userId
+      const result = await platformService.createShowcaseItem(req.body || {}, actorUserId)
+      res.status(201).json({
+        message: 'Showcase item created successfully',
+        item: result
+      })
+    })
+  )
+
+  router.put(
+    '/showcase/:id',
+    requirePlatformRole() as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const actorUserId = req.platformUser!.userId
+      const result = await platformService.updateShowcaseItem(req.params.id, req.body || {}, actorUserId)
+      res.status(200).json({
+        message: 'Showcase item updated successfully',
+        item: result
+      })
+    })
+  )
+
+  router.patch(
+    '/showcase/:id/publish',
+    requirePlatformRole() as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const actorUserId = req.platformUser!.userId
+      const { is_published } = req.body || {}
+      const result = await platformService.setShowcasePublish(req.params.id, Boolean(is_published), actorUserId)
+      res.status(200).json({
+        message: `Showcase item publish status updated to ${Boolean(is_published)}`,
+        item: result
+      })
+    })
+  )
+
+  router.delete(
+    '/showcase/:id',
+    requirePlatformRole() as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const actorUserId = req.platformUser!.userId
+      await platformService.deleteShowcaseItem(req.params.id, actorUserId)
+      res.status(200).json({
+        message: 'Showcase item deleted successfully'
+      })
+    })
+  )
+
+  // =========================================================================
+  // 6. SUBSCRIPTIONS (List)
+  // =========================================================================
   router.get(
     '/subscriptions',
     requirePlatformRole() as any,

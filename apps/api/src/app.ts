@@ -22,6 +22,7 @@ import { createReportsRoutes } from './routes/reports_routes'
 import { createCustomerSyncRouter } from './routes/customer_sync_routes'
 import { createSubscriptionRoutes } from './routes/subscription_routes'
 import { createPlatformRoutes } from './routes/platform_routes'
+import { createPublicRoutes } from './routes/public_routes'
 import { createMediaRoutes } from './routes/media_routes'
 import { createStoreSettingsRoutes } from './routes/store_settings_routes'
 import { createSupplierRoutes } from './routes/supplier_routes'
@@ -121,6 +122,7 @@ export function createApp(pool: Pool): Express {
   app.use('/v1/incomes', createIncomeRoutes(pool))
 
   app.use('/v1/platform', createPlatformRoutes(pool))
+  app.use('/v1/public', createPublicRoutes(pool))
 
   app.use(notFound)
   app.use(errorHandler)
