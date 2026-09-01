@@ -1,0 +1,131 @@
+name: Staging Superadmin Bootstrap
+
+on:
+  workflow_dispatch:
+
+jobs:
+  bootstrap-superadmin:
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Bootstrap Superadmin on Staging VPS
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          SUPERADMIN_EMAIL: ${{ secrets.SUPERADMIN_EMAIL }}
+          SUPERADMIN_PASSWORD: ${{ secrets.SUPERADMIN_PASSWORD }}
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.STAGING_USERNAME }}
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          envs: SUPERADMIN_EMAIL,SUPERADMIN_PASSWORD
+          script: |
+            set -e
+            echo "== Staging Safety & Environment Verification =="
+            RUNNING_CONTAINER=$(docker ps -q -f name=bizerp_staging_api)
+            if [ -z "$RUNNING_CONTAINER" ]; then
+              echo "Error: bizerp_staging_api container not found!"
+              exit 1
+            fi
+
+            ENV_CHECK=$(docker exec bizerp_staging_api env | grep NODE_ENV || true)
+            if [[ "$ENV_CHECK" != *"NODE_ENV=staging"* ]]; then
+              echo "Error: Target container is not in staging environment! Found: $ENV_CHECK"
+              exit 1
+            fi
+
+            if [[ "$ENV_CHECK" == *"NODE_ENV=production"* ]]; then
+              echo "Error: Production environment detected! Aborting bootstrap."
+              exit 1
+            fi
+
+            if [ -z "$SUPERADMIN_EMAIL" ] || [ -z "$SUPERADMIN_PASSWORD" ]; then
+              echo "Error: SUPERADMIN_EMAIL and SUPERADMIN_PASSWORD secrets must be set in staging environment"
+              exit 1
+            fi
+
+            echo "== Executing Idempotent Superadmin Bootstrap =="
+            docker exec \
+              -e SUPERADMIN_EMAIL="$SUPERADMIN_EMAIL" \
+              -e SUPERADMIN_PASSWORD="$SUPERADMIN_PASSWORD" \
+              bizerp_staging_api node -e '
+            const { Pool } = require("pg");
+            const { randomUUID } = require("crypto");
+            const { hashPassword } = require("./dist/services/password_service");
+
+            async function run() {
+              const databaseUrl = process.env.DATABASE_URL;
+              const nodeEnv = process.env.NODE_ENV;
+              
+              if (!databaseUrl || nodeEnv !== "staging") {
+                console.error("Safety check failed: databaseUrl missing or environment is not staging");
+                process.exit(1);
+              }
+
+              const parsedUrl = new URL(databaseUrl.replace(/^postgres(ql)?:\/\//, "http://"));
+              console.log("[DB SAFETY CHECK] Environment:", nodeEnv, "| DB Host:", parsedUrl.host, "| DB Name:", parsedUrl.pathname.replace(/^\//, ""));
+
+              const email = process.env.SUPERADMIN_EMAIL ? process.env.SUPERADMIN_EMAIL.toLowerCase().trim() : "";
+              const password = process.env.SUPERADMIN_PASSWORD || "";
+
+              if (!email || !password) {
+                console.error("Error: SUPERADMIN_EMAIL and SUPERADMIN_PASSWORD environment variables are required");
+                process.exit(1);
+              }
+
+              const pool = new Pool({ connectionString: databaseUrl });
+              try {
+                const existing = await pool.query(
+                  "SELECT id, email, status, platform_role FROM users WHERE platform_role = \x27SUPER_ADMIN\x27 LIMIT 1"
+                );
+
+                if (existing.rows.length > 0) {
+                  const u = existing.rows[0];
+                  console.log("[BOOTSTRAP] SUPER_ADMIN already exists: id=" + u.id + ", email=" + u.email + ", status=" + u.status + ", role=" + u.platform_role + ". No changes made.");
+                  return;
+                }
+
+                const hash = await hashPassword(password);
+                const userId = randomUUID();
+
+                await pool.query(
+                  "INSERT INTO users (id, email, password_hash, status, platform_role) VALUES ($1, $2, $3, \x27ACTIVE\x27, \x27SUPER_ADMIN\x27) ON CONFLICT (email) DO UPDATE SET platform_role = \x27SUPER_ADMIN\x27, password_hash = EXCLUDED.password_hash, status = \x27ACTIVE\x27",
+                  [userId, email, hash]
+                );
+
+                console.log("[BOOTSTRAP SUCCESS] Created/Updated SUPER_ADMIN:", email, "(platform_role: SUPER_ADMIN, zero tenant binding)");
+              } finally {
+                await pool.end();
+              }
+            }
+            run().catch(e => { console.error("Bootstrap error:", e.message); process.exit(1); });
+            '
+
+            echo "== Verifying Authentication with Platform Context =="
+            docker exec \
+              -e SUPERADMIN_EMAIL="$SUPERADMIN_EMAIL" \
+              -e SUPERADMIN_PASSWORD="$SUPERADMIN_PASSWORD" \
+              bizerp_staging_api node -e '
+            async function verify() {
+              const email = process.env.SUPERADMIN_EMAIL ? process.env.SUPERADMIN_EMAIL.toLowerCase().trim() : "";
+              const password = process.env.SUPERADMIN_PASSWORD || "";
+
+              if (!email || !password) {
+                console.error("Error: Credentials missing for verification");
+                process.exit(1);
+              }
+
+              const res = await fetch("http://127.0.0.1:8080/v1/auth/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "x-auth-context": "platform" },
+                body: JSON.stringify({ email, password })
+              });
+              const data = await res.json();
+              if (res.ok && data.scope === "platform" && data.role === "SUPER_ADMIN" && data.access_token) {
+                console.log("[LOGIN VERIFICATION SUCCESS] HTTP 200, scope: " + data.scope + ", role: " + data.role + ", user_id: " + data.user.id);
+              } else {
+                console.error("[LOGIN VERIFICATION FAILED] Status: " + res.status, data);
+                process.exit(1);
+              }
+            }
+            verify().catch(e => { console.error("Verification error:", e.message); process.exit(1); });
+            '
