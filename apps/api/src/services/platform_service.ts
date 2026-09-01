@@ -58,19 +58,23 @@ const MAX_LIMIT = 200
 
 function parsePagination(query?: Record<string, unknown>): { limit: number; offset: number } {
   const q = query ?? {}
-  const rawLimit = Number(q.limit)
-  const rawOffset = Number(q.offset)
-
   let limit = DEFAULT_LIMIT
-  if (Number.isInteger(rawLimit) && rawLimit >= 1 && rawLimit <= MAX_LIMIT) {
-    limit = rawLimit
-  } else if (Number.isInteger(rawLimit) && rawLimit > MAX_LIMIT) {
-    limit = MAX_LIMIT
+  let offset = 0
+
+  if (q.limit !== undefined && q.limit !== '') {
+    const n = Number(q.limit)
+    if (!Number.isInteger(n) || n < 1 || n > MAX_LIMIT) {
+      throw new ApiError(400, 'VALIDATION_ERROR', `limit must be an integer between 1 and ${MAX_LIMIT}`)
+    }
+    limit = n
   }
 
-  let offset = 0
-  if (Number.isInteger(rawOffset) && rawOffset >= 0) {
-    offset = rawOffset
+  if (q.offset !== undefined && q.offset !== '') {
+    const n = Number(q.offset)
+    if (!Number.isInteger(n) || n < 0) {
+      throw new ApiError(400, 'VALIDATION_ERROR', 'offset must be a non-negative integer')
+    }
+    offset = n
   }
 
   return { limit, offset }
