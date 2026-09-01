@@ -68,7 +68,7 @@ export function useBookkeepingViewModel({
     } finally {
       setIsLoading(false);
     }
-  }, [branchId]);
+  }, [branchId, businessId]);
 
   useEffect(() => {
     loadData();

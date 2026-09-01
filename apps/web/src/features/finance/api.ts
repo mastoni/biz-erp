@@ -21,15 +21,22 @@ export async function getFinanceCashflow(params?: {
   to?: string;
   branch_id?: string;
 }): Promise<CashflowEntry[]> {
-  const response = await api.get<CashflowEntry[]>('/v1/finance/cashflow', { params });
-  return response.data;
+  const response = await api.get<{ entries: CashflowEntry[]; summary?: unknown } | CashflowEntry[]>('/v1/finance/cashflow', { params });
+  if (Array.isArray(response.data)) {
+    return response.data;
+  }
+  return response.data?.entries || [];
 }
 
 export async function getReceivables(branchId?: string): Promise<{ items: ReceivableItem[]; total: number }> {
   const params: Record<string, string | number> = { limit: 100 };
   if (branchId) params.branch_id = branchId;
-  const response = await api.get<{ items: ReceivableItem[]; total: number }>('/v1/receivables', { params });
-  return response.data;
+  const response = await api.get<{ rows?: ReceivableItem[]; items?: ReceivableItem[]; total: number }>('/v1/receivables', { params });
+  const items = response.data?.rows || response.data?.items || [];
+  return {
+    items,
+    total: response.data?.total ?? items.length,
+  };
 }
 
 export async function getPayables(businessId: string, branchId?: string): Promise<{ items: PayableItem[]; total: number }> {
@@ -49,7 +56,7 @@ export async function createAndPostExpense(input: CreateExpenseInput): Promise<v
 }
 
 export async function createAndPostIncome(input: CreateIncomeInput): Promise<void> {
-  const createRes = await api.post<{ id: string }>('/v1/finance/incomes', input);
+  const createRes = await api.post<{ id: string }>('/v1/incomes', input);
   const incomeId = createRes.data.id;
   await api.post('/v1/finance/postings/income', { income_id: incomeId });
 }
@@ -65,7 +72,12 @@ export async function payPurchaseOrder(
   purchaseId: string,
   input: SettlePayableInput
 ): Promise<void> {
-  await api.post(`/v1/purchases/${purchaseId}/pay`, input);
+  const idempotencyKey = crypto.randomUUID();
+  await api.post(`/v1/purchases/${purchaseId}/pay`, input, {
+    headers: {
+      'Idempotency-Key': idempotencyKey,
+    },
+  });
 }
 
 // ----------------------------------------------------
