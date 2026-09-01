@@ -9,6 +9,8 @@ import { canAccessRoute, Role } from '@/lib/rbac';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
 
+import { TenantStatusScreen } from '@/features/auth/components/TenantStatusScreen';
+
 function TenantAccessDenied() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-paper p-6">
@@ -26,7 +28,7 @@ function TenantAccessDenied() {
 }
 
 export default function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
-  const { status, role } = useAuth();
+  const { status, role, business } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -49,6 +51,10 @@ export default function AuthenticatedLayout({ children }: { children: React.Reac
         </div>
       </div>
     );
+  }
+
+  if (status === 'authenticated' && business && business.status && business.status !== 'ACTIVE') {
+    return <TenantStatusScreen status={business.status} businessName={business.name} />;
   }
 
   if (status === 'authenticated' && role && !canAccessRoute(role as Role, pathname)) {

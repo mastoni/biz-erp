@@ -13,10 +13,47 @@ export interface PlatformPaginated<T> {
   has_more: boolean;
 }
 
+export type BusinessLifecycleStatus = 'PENDING_REVIEW' | 'ACTIVE' | 'REJECTED' | 'SUSPENDED' | 'TERMINATED';
+
+export interface BusinessListSummary {
+  pending_count: number;
+  active_count: number;
+  suspended_count: number;
+  rejected_count: number;
+  total: number;
+}
+
 export interface PlatformBusiness {
   id: string;
   name: string;
+  status: BusinessLifecycleStatus;
+  owner_user_id?: string | null;
+  owner_email?: string | null;
+  approved_at?: string | null;
+  approved_by?: string | null;
+  rejected_reason?: string | null;
+  rejected_at?: string | null;
+  suspended_reason?: string | null;
+  suspended_at?: string | null;
   created_at: string;
+  updated_at: string;
+}
+
+export interface PlatformBusinessesResponse extends PlatformPaginated<PlatformBusiness> {
+  summary: BusinessListSummary;
+}
+
+export interface PlatformBusinessDetail extends PlatformBusiness {
+  owner_name?: string | null;
+  approver_email?: string | null;
+  rejector_email?: string | null;
+  suspender_email?: string | null;
+  reactivated_at?: string | null;
+  reactivated_by?: string | null;
+  reactivator_email?: string | null;
+  branch_count: number;
+  active_subscription_count: number;
+  user_count: number;
 }
 
 export interface PlatformModule {

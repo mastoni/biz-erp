@@ -6,6 +6,8 @@ import { Pool } from 'pg'
 import { errorHandler } from './middleware/error_handler'
 import { notFound } from './middleware/not_found'
 import { requestId } from './middleware/request_id'
+import { createRequireActiveTenant } from './middleware/auth'
+import { createJwtService } from './services/jwt_service'
 import { createHealthRouter } from './routes/health_routes'
 import { createAuthRouter } from './routes/auth_routes'
 import { createProductSyncRouter } from './routes/product_sync_routes'
@@ -86,7 +88,13 @@ export function createApp(pool: Pool): Express {
   app.use(requestId)
   app.use(httpLogger)
 
+  const jwtSecret = process.env.JWT_SECRET || 'insecure-test-secret-that-is-at-least-32-chars-long'
+  const jwtIssuer = process.env.JWT_ISSUER || 'biz-erp-api'
+  const jwtAudience = process.env.JWT_AUDIENCE || 'biz-erp-client'
+  const jwtService = createJwtService(jwtSecret, jwtIssuer, jwtAudience)
+
   app.use('/health', createHealthRouter(pool))
+  app.use('/v1', createRequireActiveTenant(jwtService, pool))
   app.use('/v1/auth', createAuthRouter(pool))
   app.use('/v1/sync/products', createProductSyncRouter(pool))
   app.use('/v1/products', createProductRoutes(pool))

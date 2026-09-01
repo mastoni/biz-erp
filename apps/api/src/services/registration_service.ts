@@ -50,9 +50,9 @@ export function createRegistrationService(pool: Pool) {
           )
 
           await client.query(
-            `INSERT INTO businesses (id, name, created_at)
-             VALUES ($1, $2, now())`,
-            [businessId, businessName]
+            `INSERT INTO businesses (id, name, status, owner_user_id, created_at, updated_at)
+             VALUES ($1, $2, 'PENDING_REVIEW', $3, now(), now())`,
+            [businessId, businessName, userId]
           )
 
           await client.query(

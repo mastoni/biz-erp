@@ -263,12 +263,14 @@ export function createAuthRouter(pool: Pool): Router {
         },
         business: {
           id: businessId,
-          name: businessName
+          name: businessName,
+          status: membership.business_status || 'ACTIVE'
         },
         available_businesses: allActiveBusinesses.map((b) => ({
           id: b.business_id,
           name: b.business_name,
-          role: b.role
+          role: b.role,
+          status: b.business_status || 'ACTIVE'
         })),
         role,
         scope: 'tenant',
@@ -428,12 +430,14 @@ export function createAuthRouter(pool: Pool): Router {
         },
         business: {
           id: authReq.universalUser.businessId,
-          name: membership.business_name
+          name: membership.business_name,
+          status: membership.business_status || 'ACTIVE'
         },
         available_businesses: allActiveBusinesses.map((b) => ({
           id: b.business_id,
           name: b.business_name,
-          role: b.role
+          role: b.role,
+          status: b.business_status || 'ACTIVE'
         })),
         role: membership.role,
         scope: 'tenant'

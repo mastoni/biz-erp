@@ -1,8 +1,8 @@
 import { NextFunction, Request, RequestHandler, Response } from 'express'
+import { Pool } from 'pg'
 import { ApiError } from '../errors/api_error'
 import { isUuid } from '../utils/uuid'
 import { JwtService, PlatformRole } from '../services/jwt_service'
-
 
 export interface AuthenticatedUser {
   userId: string
@@ -33,8 +33,8 @@ export interface PlatformAuthenticatedRequest extends Request {
   platformUser?: PlatformUser
 }
 
-export function createJwtAuthMiddleware(jwtService: JwtService) {
-  return (req: AuthenticatedJwtRequest, _res: Response, next: NextFunction): void => {
+export function createJwtAuthMiddleware(jwtService: JwtService, pool?: Pool) {
+  return async (req: AuthenticatedJwtRequest, _res: Response, next: NextFunction): Promise<void> => {
     const authHeader = req.headers['authorization']
 
     if (!authHeader || typeof authHeader !== 'string') {
@@ -67,14 +67,42 @@ export function createJwtAuthMiddleware(jwtService: JwtService) {
         }
       }
 
+      const businessId = claims.business_id as string
+
+      // If pool is provided, enforce active tenant lifecycle status
+      if (pool && businessId) {
+        const bizRes = await pool.query('SELECT status FROM businesses WHERE id = $1', [businessId])
+        if (bizRes.rows.length === 0) {
+          next(new ApiError(403, 'BUSINESS_ACCESS_DENIED', 'Business not found'))
+          return
+        }
+        const status = bizRes.rows[0].status || 'ACTIVE'
+        if (status === 'PENDING_REVIEW') {
+          next(new ApiError(403, 'BUSINESS_PENDING_APPROVAL', 'Business registration is pending approval by platform administrator'))
+          return
+        }
+        if (status === 'SUSPENDED') {
+          next(new ApiError(403, 'BUSINESS_SUSPENDED', 'Business account is suspended'))
+          return
+        }
+        if (status === 'REJECTED') {
+          next(new ApiError(403, 'BUSINESS_REJECTED', 'Business registration was rejected'))
+          return
+        }
+        if (status === 'TERMINATED') {
+          next(new ApiError(403, 'BUSINESS_TERMINATED', 'Business account has been terminated'))
+          return
+        }
+      }
+
       req.user = {
         userId: claims.sub,
-        businessId: claims.business_id as string,
+        businessId: businessId,
         role: claims.role as 'OWNER' | 'CASHIER',
         sessionId: claims.session_id,
         jti: claims.jti
       }
-      req.businessId = claims.business_id as string
+      req.businessId = businessId
 
       next()
     } catch (err: any) {
@@ -105,8 +133,61 @@ export function requireRole(...roles: Array<'OWNER' | 'CASHIER'>) {
   }
 }
 
-export function requireSyncAuth(jwtService: JwtService) {
-  return (req: SyncAuthenticatedRequest, _res: Response, next: NextFunction): void => {
+export function createRequireActiveTenant(jwtService: JwtService, pool: Pool) {
+  return async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
+    // Skip public and platform routes
+    if (req.path.startsWith('/auth') || req.path.startsWith('/platform') || req.path.startsWith('/health')) {
+      next()
+      return
+    }
+
+    const authHeader = req.headers['authorization']
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      next()
+      return
+    }
+
+    try {
+      const token = authHeader.substring(7)
+      const claims = jwtService.verifyAccessToken(token)
+      if (claims.scope === 'platform' || !claims.business_id) {
+        next()
+        return
+      }
+
+      const res = await pool.query('SELECT status FROM businesses WHERE id = $1', [claims.business_id])
+      if (res.rows.length === 0) {
+        next(new ApiError(403, 'BUSINESS_ACCESS_DENIED', 'Business not found'))
+        return
+      }
+
+      const status = res.rows[0].status || 'ACTIVE'
+      if (status === 'PENDING_REVIEW') {
+        next(new ApiError(403, 'BUSINESS_PENDING_APPROVAL', 'Business registration is pending approval by platform administrator'))
+        return
+      }
+      if (status === 'SUSPENDED') {
+        next(new ApiError(403, 'BUSINESS_SUSPENDED', 'Business account is suspended'))
+        return
+      }
+      if (status === 'REJECTED') {
+        next(new ApiError(403, 'BUSINESS_REJECTED', 'Business registration was rejected'))
+        return
+      }
+      if (status === 'TERMINATED') {
+        next(new ApiError(403, 'BUSINESS_TERMINATED', 'Business account has been terminated'))
+        return
+      }
+
+      next()
+    } catch {
+      next()
+    }
+  }
+}
+
+export function requireSyncAuth(jwtService: JwtService, pool?: Pool) {
+  return async (req: SyncAuthenticatedRequest, _res: Response, next: NextFunction): Promise<void> => {
     const authHeader = req.headers['authorization']
 
     if (!authHeader || typeof authHeader !== 'string' || !authHeader.startsWith('Bearer ')) {
@@ -137,14 +218,42 @@ export function requireSyncAuth(jwtService: JwtService) {
         return
       }
 
+      const businessId = claims.business_id as string
+
+      // If pool is provided, enforce active tenant lifecycle status
+      if (pool && businessId) {
+        const bizRes = await pool.query('SELECT status FROM businesses WHERE id = $1', [businessId])
+        if (bizRes.rows.length === 0) {
+          next(new ApiError(403, 'BUSINESS_ACCESS_DENIED', 'Business not found'))
+          return
+        }
+        const status = bizRes.rows[0].status || 'ACTIVE'
+        if (status === 'PENDING_REVIEW') {
+          next(new ApiError(403, 'BUSINESS_PENDING_APPROVAL', 'Business registration is pending approval by platform administrator'))
+          return
+        }
+        if (status === 'SUSPENDED') {
+          next(new ApiError(403, 'BUSINESS_SUSPENDED', 'Business account is suspended'))
+          return
+        }
+        if (status === 'REJECTED') {
+          next(new ApiError(403, 'BUSINESS_REJECTED', 'Business registration was rejected'))
+          return
+        }
+        if (status === 'TERMINATED') {
+          next(new ApiError(403, 'BUSINESS_TERMINATED', 'Business account has been terminated'))
+          return
+        }
+      }
+
       req.user = {
         userId: claims.sub,
-        businessId: claims.business_id as string,
+        businessId: businessId,
         role: claims.role as 'OWNER' | 'CASHIER',
         sessionId: claims.session_id,
         jti: claims.jti
       }
-      req.tenantId = claims.business_id as string
+      req.tenantId = businessId
       next()
     } catch (err: any) {
       if (err instanceof ApiError) {

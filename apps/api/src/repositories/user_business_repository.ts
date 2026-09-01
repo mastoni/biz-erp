@@ -8,6 +8,7 @@ export interface UserBusinessMembership {
   created_at: string
   updated_at: string
   business_name: string
+  business_status?: string
 }
 
 export interface UserBusinessRepository {
@@ -19,7 +20,7 @@ export function createUserBusinessRepository(pool: Pool): UserBusinessRepository
   return {
     async findActiveMembership(userId: string, businessId: string): Promise<UserBusinessMembership | null> {
       const result = await pool.query(
-        `SELECT ub.user_id, ub.business_id, ub.role, ub.status, ub.created_at, ub.updated_at, b.name as business_name
+        `SELECT ub.user_id, ub.business_id, ub.role, ub.status, ub.created_at, ub.updated_at, b.name as business_name, b.status as business_status
          FROM user_businesses ub
          JOIN users u ON u.id = ub.user_id
          JOIN businesses b ON b.id = ub.business_id
@@ -39,7 +40,7 @@ export function createUserBusinessRepository(pool: Pool): UserBusinessRepository
 
     async listActiveBusinesses(userId: string): Promise<UserBusinessMembership[]> {
       const result = await pool.query(
-        `SELECT ub.user_id, ub.business_id, ub.role, ub.status, ub.created_at, ub.updated_at, b.name as business_name
+        `SELECT ub.user_id, ub.business_id, ub.role, ub.status, ub.created_at, ub.updated_at, b.name as business_name, b.status as business_status
          FROM user_businesses ub
          JOIN users u ON u.id = ub.user_id
          JOIN businesses b ON b.id = ub.business_id

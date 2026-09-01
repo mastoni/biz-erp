@@ -47,7 +47,7 @@ export function createPlatformRoutes(pool: Pool): Router {
 
   // -------------------------------------------------------------------------
   // GET /v1/platform/businesses
-  // Canonical: businesses. Platform-wide (no tenant filter). Paginated.
+  // Canonical: businesses. Platform-wide. Filterable by status and search.
   // -------------------------------------------------------------------------
   router.get(
     '/businesses',
@@ -55,6 +55,89 @@ export function createPlatformRoutes(pool: Pool): Router {
     asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
       const result = await platformService.listBusinesses(req.query as Record<string, unknown>)
       res.status(200).json(result)
+    })
+  )
+
+  // -------------------------------------------------------------------------
+  // GET /v1/platform/businesses/:id
+  // Canonical: single business detail with owner, branch, subscription stats.
+  // -------------------------------------------------------------------------
+  router.get(
+    '/businesses/:id',
+    requirePlatformRole() as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const result = await platformService.getBusinessById(req.params.id)
+      res.status(200).json(result)
+    })
+  )
+
+  // -------------------------------------------------------------------------
+  // POST /v1/platform/businesses/:id/approve
+  // Lifecycle transition: PENDING_REVIEW -> ACTIVE
+  // -------------------------------------------------------------------------
+  router.post(
+    '/businesses/:id/approve',
+    requirePlatformRole() as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const actorUserId = req.platformUser!.userId
+      const result = await platformService.approveBusiness(req.params.id, actorUserId)
+      res.status(200).json({
+        message: 'Business approved successfully',
+        business: result
+      })
+    })
+  )
+
+  // -------------------------------------------------------------------------
+  // POST /v1/platform/businesses/:id/reject
+  // Lifecycle transition: PENDING_REVIEW -> REJECTED
+  // -------------------------------------------------------------------------
+  router.post(
+    '/businesses/:id/reject',
+    requirePlatformRole() as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const actorUserId = req.platformUser!.userId
+      const { reason } = req.body || {}
+      const result = await platformService.rejectBusiness(req.params.id, actorUserId, reason)
+      res.status(200).json({
+        message: 'Business registration rejected',
+        business: result
+      })
+    })
+  )
+
+  // -------------------------------------------------------------------------
+  // POST /v1/platform/businesses/:id/suspend
+  // Lifecycle transition: ACTIVE -> SUSPENDED
+  // -------------------------------------------------------------------------
+  router.post(
+    '/businesses/:id/suspend',
+    requirePlatformRole() as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const actorUserId = req.platformUser!.userId
+      const { reason } = req.body || {}
+      const result = await platformService.suspendBusiness(req.params.id, actorUserId, reason)
+      res.status(200).json({
+        message: 'Business account suspended',
+        business: result
+      })
+    })
+  )
+
+  // -------------------------------------------------------------------------
+  // POST /v1/platform/businesses/:id/reactivate
+  // Lifecycle transition: SUSPENDED -> ACTIVE
+  // -------------------------------------------------------------------------
+  router.post(
+    '/businesses/:id/reactivate',
+    requirePlatformRole() as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const actorUserId = req.platformUser!.userId
+      const result = await platformService.reactivateBusiness(req.params.id, actorUserId)
+      res.status(200).json({
+        message: 'Business reactivated successfully',
+        business: result
+      })
     })
   )
 
