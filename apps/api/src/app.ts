@@ -79,7 +79,8 @@ export function createApp(pool: Pool): Express {
       'Content-Type',
       'X-Client-Type',
       'X-Request-ID',
-      'Idempotency-Key'
+      'Idempotency-Key',
+      'X-Auth-Context'
     ],
     exposedHeaders: ['X-Request-Id'],
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']
