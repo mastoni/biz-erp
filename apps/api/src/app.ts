@@ -35,6 +35,7 @@ import { createPurchaseSyncRouter } from './routes/purchase_sync_routes'
 import { createFinanceRoutes } from './routes/finance_routes'
 import { createFinanceReportingRoutes } from './routes/finance_reporting_routes'
 import { createReceivableRoutes } from './routes/receivable_routes'
+import { createPayableRoutes } from './routes/payable_routes'
 import { createExpenseRoutes } from './routes/expense_routes'
 import { createIncomeRoutes } from './routes/income_routes'
 import { httpLogger } from './utils/logger'
@@ -124,6 +125,7 @@ export function createApp(pool: Pool): Express {
   app.use('/v1/finance', requireERP, createFinanceRoutes(pool))
   app.use('/v1/finance/reports', requireERP, createFinanceReportingRoutes(pool))
   app.use('/v1/receivables', requireERP, createReceivableRoutes(pool))
+  app.use('/v1/payables', requireERP, createPayableRoutes(pool))
   app.use('/v1/expenses', requireERP, createExpenseRoutes(pool))
   app.use('/v1/incomes', requireERP, createIncomeRoutes(pool))
 
