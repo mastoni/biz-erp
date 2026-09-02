@@ -9,6 +9,7 @@ import {
 import {
   filterSalesTransactions,
   generateSalesCsv,
+  idrShort,
   mapDailySalesToTrend,
   mapPaymentMethods,
   mapSalesSummaryToKPI,
@@ -423,6 +424,43 @@ describe('PHASE 5C — Sales ViewModel & Data Layer Unit Tests', () => {
       expect(vm.cashier).toBe('Siti');
       expect(vm.items_count).toBe(3);
       expect(vm.lines[0].line_total_minor).toBe(9900000);
+    });
+  });
+
+  // SALES-VM-018: idrShort regression — P0 BUG-001
+  // _minor stores Rupiah directly, NOT cents. The buggy implementation
+  // divided by 100 (minor / 100), causing 100x under-display.
+  describe('SALES-VM-018: idrShort money contract (BUG-001 regression)', () => {
+    it('438500 minor → "Rp 439 rb" (NOT "Rp 4,39 rb" from /100 bug)', () => {
+      const result = idrShort(438500);
+      expect(result).toBe('Rp 439 rb');
+      expect(result).not.toContain('4,39');
+    });
+
+    it('100000 minor → "Rp 100 rb" (NOT "Rp 1 rb" from /100 bug)', () => {
+      expect(idrShort(100000)).toBe('Rp 100 rb');
+    });
+
+    it('50000 minor → "Rp 50 rb" (NOT "Rp 50" from /100 bug)', () => {
+      expect(idrShort(50000)).toBe('Rp 50 rb');
+    });
+
+    it('1500000 minor → "Rp 1,5 jt" (NOT "Rp 15 rb" from /100 bug)', () => {
+      expect(idrShort(1500000)).toBe('Rp 1,5 jt');
+    });
+
+    it('4385 minor → "Rp 4,39 rb" (>= 1000 threshold; bug would show "Rp 43.85")', () => {
+      // With bug (minor/100 = 43.85 < 1000), output would be plain "Rp 43.85" (no rb suffix)
+      const result = idrShort(4385);
+      expect(result).toBe('Rp 4,39 rb');
+      expect(result).not.toBe('Rp 43.85');
+    });
+
+    it('never silently divides by 100 — large value stays in correct magnitude', () => {
+      // 43_850_000 (Rp 43.85 million) — with bug would show as Rp 439 rb
+      const result = idrShort(43_850_000);
+      expect(result).toBe('Rp 43,9 jt');
+      expect(result).not.toContain('439 rb');
     });
   });
 });
