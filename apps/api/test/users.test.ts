@@ -48,6 +48,30 @@ describe('Phase 4.1.38 User Management API', () => {
       [BUSINESS_A, 'Business A', BUSINESS_B, 'Business B']
     )
 
+    await pool.query(`
+      INSERT INTO services (code, name, category, service_type, owner, lifecycle_status, public_visibility)
+      VALUES
+        ('ERP', 'Enterprise Resource Planning', 'OPERATIONS', 'INTERNAL', 'PLATFORM', 'ACTIVE', FALSE),
+        ('ISP_MANAGEMENT', 'ISP Management System', 'OPERATIONS', 'INTERNAL', 'PLATFORM', 'ACTIVE', FALSE),
+        ('CCTV_MANAGEMENT', 'CCTV Management', 'PROTECTION', 'HYBRID', 'PLATFORM', 'ACTIVE', FALSE),
+        ('WA_GATEWAY', 'WhatsApp Gateway', 'COMMUNICATIONS', 'HYBRID', 'PLATFORM', 'DRAFT', FALSE),
+        ('AUTOPOST', 'AI AutoPost', 'MARKETING', 'EXTERNAL', 'PLATFORM', 'DRAFT', FALSE)
+      ON CONFLICT (code) DO NOTHING
+    `)
+
+    await pool.query(`
+      INSERT INTO plans (code, name, family, tier, billing_cycle, pricing, type, status, service_code)
+      VALUES ('test_users_erp_plan', 'ERP Plan', 'ERP_PLAN', 'PRO', 'MONTHLY', '{"base_price":100}', 'STANDALONE', 'ACTIVE', 'ERP')
+      ON CONFLICT (code) DO UPDATE SET service_code = 'ERP'
+    `)
+
+    await pool.query(`
+      INSERT INTO subscriptions (business_id, plan_code, family_code, source, status, unit_price, discount, tax, final_price, currency, billing_cycle)
+      VALUES ($1, 'test_users_erp_plan', 'ERP_PLAN', 'DIRECT', 'ACTIVE', 100000, 0, 0, 100000, 'IDR', 'MONTHLY'),
+             ($2, 'test_users_erp_plan', 'ERP_PLAN', 'DIRECT', 'ACTIVE', 100000, 0, 0, 100000, 'IDR', 'MONTHLY')
+      ON CONFLICT DO NOTHING
+    `, [BUSINESS_A, BUSINESS_B])
+
     const password = 'SecurePass123!'
     const hash = await hashPassword(password)
 

@@ -6,7 +6,7 @@ import { Pool } from 'pg'
 import { errorHandler } from './middleware/error_handler'
 import { notFound } from './middleware/not_found'
 import { requestId } from './middleware/request_id'
-import { createRequireActiveTenant } from './middleware/auth'
+import { createRequireActiveTenant, requireEntitlement } from './middleware/auth'
 import { createJwtService } from './services/jwt_service'
 import { createHealthRouter } from './routes/health_routes'
 import { createAuthRouter } from './routes/auth_routes'
@@ -98,30 +98,33 @@ export function createApp(pool: Pool): Express {
   app.use('/health', createHealthRouter(pool))
   app.use('/v1', createRequireActiveTenant(jwtService, pool))
   app.use('/v1/auth', createAuthRouter(pool))
-  app.use('/v1/sync/products', createProductSyncRouter(pool))
-  app.use('/v1/products', createProductRoutes(pool))
-  app.use('/v1/sync/sales', createSalesSyncRouter(pool))
-  app.use('/v1/branches', createBranchRoutes(pool))
-  app.use('/v1/inventory', createInventoryRoutes(pool))
-  app.use('/v1/customers', createCustomerRoutes(pool))
-  app.use('/v1/users', createUsersRoutes(pool))
-  app.use('/v1/dashboard', createDashboardRoutes(pool))
-  app.use('/v1/reports', createReportsRoutes(pool))
-  app.use('/v1/sync/customers', createCustomerSyncRouter(pool))
+
+  const requireERP = requireEntitlement(jwtService, pool, 'ERP')
+
+  app.use('/v1/sync/products', requireERP, createProductSyncRouter(pool))
+  app.use('/v1/products', requireERP, createProductRoutes(pool))
+  app.use('/v1/sync/sales', requireERP, createSalesSyncRouter(pool))
+  app.use('/v1/branches', requireERP, createBranchRoutes(pool))
+  app.use('/v1/inventory', requireERP, createInventoryRoutes(pool))
+  app.use('/v1/customers', requireERP, createCustomerRoutes(pool))
+  app.use('/v1/users', requireERP, createUsersRoutes(pool))
+  app.use('/v1/dashboard', requireERP, createDashboardRoutes(pool))
+  app.use('/v1/reports', requireERP, createReportsRoutes(pool))
+  app.use('/v1/sync/customers', requireERP, createCustomerSyncRouter(pool))
+  app.use('/v1/media', requireERP, createMediaRoutes(pool))
+  app.use('/v1/settings', requireERP, createStoreSettingsRoutes(pool))
+  app.use('/v1/suppliers', requireERP, createSupplierRoutes(pool))
+  app.use('/v1/sync/suppliers', requireERP, createSupplierSyncRouter(pool))
+  app.use('/v1/purchases', requireERP, createPurchaseRoutes(pool))
+  app.use('/v1/sync/purchases', requireERP, createPurchaseSyncRouter(pool))
+
+  app.use('/v1/finance', requireERP, createFinanceRoutes(pool))
+  app.use('/v1/finance/reports', requireERP, createFinanceReportingRoutes(pool))
+  app.use('/v1/receivables', requireERP, createReceivableRoutes(pool))
+  app.use('/v1/expenses', requireERP, createExpenseRoutes(pool))
+  app.use('/v1/incomes', requireERP, createIncomeRoutes(pool))
+
   app.use('/v1/subscriptions', createSubscriptionRoutes(pool))
-  app.use('/v1/media', createMediaRoutes(pool))
-  app.use('/v1/settings', createStoreSettingsRoutes(pool))
-  app.use('/v1/suppliers', createSupplierRoutes(pool))
-  app.use('/v1/sync/suppliers', createSupplierSyncRouter(pool))
-  app.use('/v1/purchases', createPurchaseRoutes(pool))
-  app.use('/v1/sync/purchases', createPurchaseSyncRouter(pool))
-
-  app.use('/v1/finance', createFinanceRoutes(pool))
-  app.use('/v1/finance/reports', createFinanceReportingRoutes(pool))
-  app.use('/v1/receivables', createReceivableRoutes(pool))
-  app.use('/v1/expenses', createExpenseRoutes(pool))
-  app.use('/v1/incomes', createIncomeRoutes(pool))
-
   app.use('/v1/platform', createPlatformRoutes(pool))
   app.use('/v1/public', createPublicRoutes(pool))
 

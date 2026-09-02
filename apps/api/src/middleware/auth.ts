@@ -384,3 +384,53 @@ export function createUniversalJwtAuthMiddleware(jwtService: JwtService) {
     }
   }
 }
+
+export function requireEntitlement(jwtService: JwtService, pool: Pool, serviceCode: string) {
+  return async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
+    const authHeader = req.headers['authorization']
+
+    if (!authHeader || typeof authHeader !== 'string' || !authHeader.startsWith('Bearer ')) {
+      next(new ApiError(401, 'INVALID_TOKEN', 'Missing or invalid Authorization header'))
+      return
+    }
+
+    try {
+      const token = authHeader.substring(7)
+      const claims = jwtService.verifyAccessToken(token)
+
+      if (claims.scope === 'platform') {
+        next()
+        return
+      }
+
+      const businessId = claims.business_id as string
+      if (!businessId) {
+        next(new ApiError(403, 'BUSINESS_ACCESS_DENIED', 'No business context in token'))
+        return
+      }
+
+      const query = `
+        SELECT s.id
+        FROM subscriptions s
+        JOIN plans p ON s.plan_code = p.code
+        WHERE s.business_id = $1
+          AND p.service_code = $2
+          AND s.status = 'ACTIVE'
+        LIMIT 1
+      `
+      const res = await pool.query(query, [businessId, serviceCode])
+      if (res.rows.length === 0) {
+        next(new ApiError(403, 'ENTITLEMENT_REQUIRED', `Active ${serviceCode} subscription required`))
+        return
+      }
+
+      next()
+    } catch (err: any) {
+      if (err instanceof ApiError) {
+        next(err)
+      } else {
+        next(new ApiError(401, 'INVALID_TOKEN', 'Invalid or malformed token'))
+      }
+    }
+  }
+}

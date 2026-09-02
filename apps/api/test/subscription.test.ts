@@ -116,7 +116,7 @@ beforeEach(async () => {
   await seedSubscriptionFamilies()
   await seedPlans()
 const authA = await (async () => {
-    const ownerA = await seedTestUser(pool, BUSINESS_A, { role: 'OWNER' })
+    const ownerA = await seedTestUser(pool, BUSINESS_A, { role: 'OWNER', withSubscription: false })
     console.log('Owner A created:', ownerA.email, ownerA.userId)
     const auth = await authenticateTestUser(app, ownerA.email, ownerA.password, BUSINESS_A)
     console.log('Owner A auth:', auth.accessToken ? 'success' : 'failed', auth.accessToken?.substring(0, 20), 'full token:', auth.accessToken)
@@ -124,7 +124,7 @@ const authA = await (async () => {
   })()
   ownerTokenA = authA.accessToken
   const authB = await (async () => {
-    const ownerB = await seedTestUser(pool, BUSINESS_B, { role: 'OWNER' })
+    const ownerB = await seedTestUser(pool, BUSINESS_B, { role: 'OWNER', withSubscription: false })
     console.log('Owner B created:', ownerB.email, ownerB.userId)
     const auth = await authenticateTestUser(app, ownerB.email, ownerB.password, BUSINESS_B)
     console.log('Owner B auth:', auth.accessToken ? 'success' : 'failed', auth.accessToken?.substring(0, 20))
