@@ -83,6 +83,9 @@ describe('Phase SA-2.8: Platform Audit & Observability Foundation', () => {
       jti: randomUUID(),
     })
 
+    // Ensure clean audit log fixture isolation
+    await pool.query('DELETE FROM platform_audit_logs')
+
     // Seed test audit log entries
     const log1 = await auditService.recordAudit({
       actor_id: SUPER_USER_ID,
@@ -119,7 +122,7 @@ describe('Phase SA-2.8: Platform Audit & Observability Foundation', () => {
   })
 
   afterAll(async () => {
-    await pool.query('DELETE FROM platform_audit_logs WHERE actor_id = $1', [SUPER_USER_ID])
+    await pool.query('DELETE FROM platform_audit_logs')
     await pool.query('DELETE FROM user_businesses WHERE user_id = $1', [TENANT_USER_ID])
     await pool.query('DELETE FROM businesses WHERE id = $1', [BUSINESS_ID])
     await pool.query('DELETE FROM users WHERE id IN ($1, $2)', [SUPER_USER_ID, TENANT_USER_ID])

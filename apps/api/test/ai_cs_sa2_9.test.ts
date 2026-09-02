@@ -44,6 +44,9 @@ describe('Phase SA-2.9: AI Customer Service Foundation', () => {
 
     const hashed = await hashPassword('password123')
 
+    // Clean up any stale records from interrupted runs
+    await pool.query('DELETE FROM platform_audit_logs WHERE actor_id IN ($1, $2)', [USER_A_ID, USER_B_ID])
+
     // 1. Seed Tenant A & User A
     await pool.query('INSERT INTO users (id, email, password_hash, status) VALUES ($1, $2, $3, $4)', [USER_A_ID, 'userA@aics.com', hashed, 'ACTIVE'])
     await pool.query("INSERT INTO businesses (id, name, status) VALUES ($1, 'Tenant A ISP', 'ACTIVE')", [TENANT_A_ID])
@@ -51,10 +54,10 @@ describe('Phase SA-2.9: AI Customer Service Foundation', () => {
 
     // 2. Seed Tenant B & User B
     await pool.query('INSERT INTO users (id, email, password_hash, status) VALUES ($1, $2, $3, $4)', [USER_B_ID, 'userB@aics.com', hashed, 'ACTIVE'])
-    await pool.query("INSERT INTO businesses (id, name, status) VALUES ($1, 'Tenant B Retail', 'ACTIVE')", [TENANT_B_ID])
+    await pool.query("INSERT INTO businesses (id, name, status) VALUES ($1, 'Tenant B CCTV', 'ACTIVE')", [TENANT_B_ID])
     await pool.query("INSERT INTO user_businesses (user_id, business_id, role, status) VALUES ($1, $2, 'OWNER', 'ACTIVE')", [USER_B_ID, TENANT_B_ID])
 
-    // 3. Ensure Canonical Services exist
+    // Ensure Canonical Services exist
     await pool.query(`
       INSERT INTO services (code, name, category, service_type, owner, lifecycle_status, public_visibility)
       VALUES
@@ -66,15 +69,6 @@ describe('Phase SA-2.9: AI Customer Service Foundation', () => {
       ON CONFLICT (code) DO NOTHING
     `)
 
-    // Seed Plans
-    await pool.query(`
-      INSERT INTO plans (code, name, family, tier, billing_cycle, pricing, type, status, service_code)
-      VALUES
-        ('PLAN_ISP_TEST_AICS', 'ISP Test Plan', 'INTERNET_PLAN', 'BASIC', 'MONTHLY', '{"final_price": 100000}', 'STANDALONE', 'ACTIVE', 'ISP_MANAGEMENT'),
-        ('PLAN_ERP_TEST_AICS', 'ERP Test Plan', 'ERP_PLAN', 'BASIC', 'MONTHLY', '{"final_price": 200000}', 'STANDALONE', 'ACTIVE', 'ERP')
-      ON CONFLICT (code) DO UPDATE SET service_code = EXCLUDED.service_code
-    `)
-
     // Ensure subscription families exist
     await pool.query(`
       INSERT INTO subscription_families (code, name, replacement_policy)
@@ -84,20 +78,20 @@ describe('Phase SA-2.9: AI Customer Service Foundation', () => {
       ON CONFLICT (code) DO NOTHING
     `)
 
-    // 4. Seed Subscriptions (Tenant A has ISP_MANAGEMENT, Tenant B has ERP)
+    // Ensure plans exist
     await pool.query(`
-      INSERT INTO subscriptions (id, business_id, plan_code, family_code, source, status, starts_at, ends_at, unit_price, final_price, billing_cycle)
+      INSERT INTO plans (code, name, family, tier, billing_cycle, pricing, type, status, service_code)
       VALUES
-        ('${randomUUID()}', '${TENANT_A_ID}', 'PLAN_ISP_TEST_AICS', 'INTERNET_PLAN', 'DIRECT', 'ACTIVE', NOW(), NOW() + interval '30 days', 100000, 100000, 'MONTHLY'),
-        ('${randomUUID()}', '${TENANT_B_ID}', 'PLAN_ERP_TEST_AICS', 'ERP_PLAN', 'DIRECT', 'ACTIVE', NOW(), NOW() + interval '30 days', 200000, 200000, 'MONTHLY')
+        ('PLAN_ISP_TEST_AICS', 'ISP Test Plan', 'INTERNET_PLAN', 'BASIC', 'MONTHLY', '{"final_price": 100000}', 'STANDALONE', 'ACTIVE', 'ISP_MANAGEMENT')
+      ON CONFLICT (code) DO UPDATE SET service_code = EXCLUDED.service_code
     `)
 
-    // 5. Seed a provisioning job for Tenant A ISP
+    // Seed Active Subscription for Tenant A to ISP_MANAGEMENT
     await pool.query(`
-      INSERT INTO provisioning_jobs (id, business_id, service_code, action, status, attempts, result)
+      INSERT INTO subscriptions (business_id, plan_code, family_code, source, status, starts_at, unit_price, final_price, billing_cycle)
       VALUES
-        ('${randomUUID()}', '${TENANT_A_ID}', 'ISP_MANAGEMENT', 'ACTIVATE', 'COMPLETED', 1, '{"status": "online", "onu_id": "ONT-1234"}')
-    `)
+        ($1, 'PLAN_ISP_TEST_AICS', 'INTERNET_PLAN', 'DIRECT', 'ACTIVE', NOW(), 100000, 100000, 'MONTHLY')
+    `, [TENANT_A_ID])
 
     tokenA = jwtService.signAccessToken({
       sub: USER_A_ID,
@@ -125,6 +119,7 @@ describe('Phase SA-2.9: AI Customer Service Foundation', () => {
   })
 
   afterAll(async () => {
+    await pool.query('DELETE FROM platform_audit_logs WHERE actor_id IN ($1, $2)', [USER_A_ID, USER_B_ID])
     await pool.query('DELETE FROM support_tickets WHERE business_id IN ($1, $2)', [TENANT_A_ID, TENANT_B_ID])
     await pool.query('DELETE FROM ai_conversation_messages WHERE conversation_id IN (SELECT id FROM ai_conversations WHERE business_id IN ($1, $2))', [TENANT_A_ID, TENANT_B_ID])
     await pool.query('DELETE FROM ai_conversations WHERE business_id IN ($1, $2)', [TENANT_A_ID, TENANT_B_ID])
