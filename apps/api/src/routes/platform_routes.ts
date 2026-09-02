@@ -7,6 +7,7 @@ import {
   requirePlatformRole
 } from '../middleware/auth'
 import { createPlatformService } from '../services/platform_service'
+import { createAuditService } from '../services/audit_service'
 import { asyncHandler } from '../utils/async_handler'
 
 export function createPlatformRoutes(pool: Pool): Router {
@@ -23,6 +24,7 @@ export function createPlatformRoutes(pool: Pool): Router {
   const jwtService = createJwtService(jwtSecret, jwtIssuer, jwtAudience)
   const platformAuth = createPlatformJwtAuthMiddleware(jwtService)
   const platformService = createPlatformService(pool)
+  const auditService = createAuditService(pool)
 
   // Every platform route is gated by the platform auth middleware. Tenant tokens
   // and legacy (no-scope) tokens are rejected with 403 WRONG_SCOPE before any
@@ -406,6 +408,45 @@ export function createPlatformRoutes(pool: Pool): Router {
     requirePlatformRole() as any,
     asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
       const result = await platformService.listSubscriptions(req.query as Record<string, unknown>)
+      res.status(200).json(result)
+    })
+  )
+
+  // =========================================================================
+  // 8. AUDIT LOGS & OBSERVABILITY (SA-2.8)
+  // =========================================================================
+  router.get(
+    '/audit-logs',
+    requirePlatformRole() as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const result = await auditService.listAuditLogs(req.query as Record<string, unknown>)
+      res.status(200).json(result)
+    })
+  )
+
+  router.get(
+    '/audit-logs/:id',
+    requirePlatformRole() as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const result = await auditService.getAuditLogById(req.params.id)
+      res.status(200).json(result)
+    })
+  )
+
+  router.get(
+    '/observability/health',
+    requirePlatformRole() as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (_req, res) => {
+      const result = await auditService.getEcosystemHealth()
+      res.status(200).json(result)
+    })
+  )
+
+  router.get(
+    '/observability/metrics',
+    requirePlatformRole() as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (_req, res) => {
+      const result = await auditService.getEcosystemMetrics()
       res.status(200).json(result)
     })
   )
