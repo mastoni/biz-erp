@@ -161,6 +161,158 @@ class HttpSyncApiClient implements SyncApiClient {
   }
 
   @override
+  Future<PullStocksResponse> pullStocks({
+    required String businessId,
+    required String branchId,
+  }) async {
+    final uri = Uri.parse('$baseUrl/v1/inventory/stocks').replace(
+      queryParameters: {
+        'business_id': businessId,
+        'branch_id': branchId,
+      },
+    );
+
+    http.Response? response;
+    for (int attempt = 1; attempt <= 2; attempt++) {
+      response = await _client.get(uri, headers: _headers).timeout(_timeout);
+
+      if (response.statusCode == 401 && attempt == 1 && _onRefresh != null) {
+        final result = await _onRefresh();
+        if (result == RefreshResult.success) {
+          continue;
+        } else {
+          break;
+        }
+      }
+      break;
+    }
+
+    if (response!.statusCode != 200) {
+      throw HttpException(
+        'Failed to pull stocks: HTTP ${response.statusCode}',
+        statusCode: response.statusCode,
+        requestId: response.headers['x-request-id'],
+      );
+    }
+
+    try {
+      final json = jsonDecode(response.body) as Map<String, dynamic>;
+      final items = json['items'] as List? ?? [];
+      final stocks = items
+          .map((item) => StockWithProductDto.fromJson(item as Map<String, dynamic>))
+          .toList();
+
+      return PullStocksResponse(stocks, false);
+    } catch (e) {
+      throw MalformedResponseException(
+        'Failed to parse pull stocks response',
+        e,
+      );
+    }
+  }
+
+  @override
+  Future<StockSummaryDto> pullStockSummary({
+    required String businessId,
+    required String branchId,
+  }) async {
+    final uri = Uri.parse('$baseUrl/v1/inventory/summary').replace(
+      queryParameters: {
+        'business_id': businessId,
+        'branch_id': branchId,
+      },
+    );
+
+    http.Response? response;
+    for (int attempt = 1; attempt <= 2; attempt++) {
+      response = await _client.get(uri, headers: _headers).timeout(_timeout);
+
+      if (response.statusCode == 401 && attempt == 1 && _onRefresh != null) {
+        final result = await _onRefresh();
+        if (result == RefreshResult.success) {
+          continue;
+        } else {
+          break;
+        }
+      }
+      break;
+    }
+
+    if (response!.statusCode != 200) {
+      throw HttpException(
+        'Failed to pull stock summary: HTTP ${response.statusCode}',
+        statusCode: response.statusCode,
+        requestId: response.headers['x-request-id'],
+      );
+    }
+
+    try {
+      final json = jsonDecode(response.body) as Map<String, dynamic>;
+      return StockSummaryDto.fromJson(json);
+    } catch (e) {
+      throw MalformedResponseException(
+        'Failed to parse stock summary response',
+        e,
+      );
+    }
+  }
+
+  @override
+  Future<StockMovementPaginatedResponse> pullStockMovements({
+    required String businessId,
+    required String branchId,
+    String? productId,
+    int? sinceMs,
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    final params = {
+      'business_id': businessId,
+      'branch_id': branchId,
+      'limit': limit.clamp(1, 500).toString(),
+      'offset': offset.toString(),
+    };
+    if (productId != null) params['product_id'] = productId;
+
+    final uri = Uri.parse('$baseUrl/v1/inventory/movements').replace(
+      queryParameters: params,
+    );
+
+    http.Response? response;
+    for (int attempt = 1; attempt <= 2; attempt++) {
+      response = await _client.get(uri, headers: _headers).timeout(_timeout);
+
+      if (response.statusCode == 401 && attempt == 1 && _onRefresh != null) {
+        final result = await _onRefresh();
+        if (result == RefreshResult.success) {
+          continue;
+        } else {
+          break;
+        }
+      }
+      break;
+    }
+
+    if (response!.statusCode != 200) {
+      throw HttpException(
+        'Failed to pull stock movements: HTTP ${response.statusCode}',
+        statusCode: response.statusCode,
+        requestId: response.headers['x-request-id'],
+      );
+    }
+
+    try {
+      final json = jsonDecode(response.body) as Map<String, dynamic>;
+      return StockMovementPaginatedResponse.fromJson(json);
+    } catch (e) {
+      throw MalformedResponseException(
+        'Failed to parse stock movements response',
+        e,
+      );
+    }
+  }
+
+  @override
   Future<StoreSettingsDto?> getStoreSettings({
     required String businessId,
     required String branchId,
@@ -1327,6 +1479,67 @@ Map<String, dynamic> _saleDtoToBatchItem(SaleDto sale) {
       return PurchasePushResult(ok: false, error: 'HTTP ${response.statusCode}');
     } catch (e) {
       return PurchasePushResult(ok: false, error: e.toString());
+    }
+  }
+
+  @override
+  Future<StockAdjustmentResult> adjustStock(
+    StockAdjustmentRequest request, {
+    required String idempotencyKey,
+  }) async {
+    final uri = Uri.parse('$baseUrl/v1/inventory/adjustment');
+
+    try {
+      final response = await _client.post(
+        uri,
+        headers: {..._headers, 'Idempotency-Key': idempotencyKey},
+        body: jsonEncode(request.toJson()),
+      ).timeout(_timeout);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final json = jsonDecode(response.body) as Map<String, dynamic>;
+        final stockData = json['stock'] as Map<String, dynamic>?;
+        final movementData = json['movement'] as Map<String, dynamic>?;
+
+        return StockAdjustmentResult(
+          ok: true,
+          stock: stockData != null ? StockDto.fromJson(stockData) : null,
+          movement: movementData != null ? StockMovementDto.fromJson(movementData) : null,
+        );
+      } else if (response.statusCode == 409) {
+        try {
+          final json = jsonDecode(response.body) as Map<String, dynamic>;
+          final code = (json['error'] as Map<String, dynamic>?)?['code'] as String?;
+          if (code == 'IDEMPOTENCY_KEY_REUSE') {
+            return const StockAdjustmentResult(ok: false, error: 'IDEMPOTENCY_KEY_REUSE');
+          }
+          return StockAdjustmentResult(
+            ok: false,
+            conflict: true,
+            error: code ?? 'STOCK_VERSION_CONFLICT',
+          );
+        } catch (e) {
+          return const StockAdjustmentResult(ok: false, conflict: true, error: 'STOCK_VERSION_CONFLICT');
+        }
+      } else if (response.statusCode == 403) {
+        return const StockAdjustmentResult(ok: false, error: 'INSUFFICIENT_PERMISSIONS');
+      } else if (response.statusCode == 400) {
+        final json = jsonDecode(response.body) as Map<String, dynamic>;
+        final code = (json['error'] as Map<String, dynamic>?)?['code'] as String?;
+        return StockAdjustmentResult(ok: false, error: code ?? 'VALIDATION_ERROR');
+      } else if (response.statusCode >= 500) {
+        throw HttpException(
+          'Server error: HTTP ${response.statusCode}',
+          statusCode: response.statusCode,
+          requestId: response.headers['x-request-id'],
+        );
+      }
+      return StockAdjustmentResult(ok: false, error: 'HTTP ${response.statusCode}');
+    } catch (e) {
+      if (e is HttpException || e is MalformedResponseException) {
+        rethrow;
+      }
+      throw NetworkException('Network error during stock adjustment', e);
     }
   }
 

@@ -1128,7 +1128,7 @@ void main() {
 
           final db2 = AppDatabase(NativeDatabase(dbFile));
           final result = await db2.customSelect('PRAGMA user_version').get();
-          expect(result.first.read<int>('user_version'), equals(11));
+          expect(result.first.read<int>('user_version'), equals(12));
           await db2.close();
         } finally {
           try {

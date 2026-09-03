@@ -10037,6 +10037,1528 @@ class SyncMetaCompanion extends UpdateCompanion<SyncMetaData> {
   }
 }
 
+class $StocksLocalTable extends StocksLocal
+    with TableInfo<$StocksLocalTable, StocksLocalData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $StocksLocalTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _businessIdMeta = const VerificationMeta(
+    'businessId',
+  );
+  @override
+  late final GeneratedColumn<String> businessId = GeneratedColumn<String>(
+    'business_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _branchIdMeta = const VerificationMeta(
+    'branchId',
+  );
+  @override
+  late final GeneratedColumn<String> branchId = GeneratedColumn<String>(
+    'branch_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _productIdMeta = const VerificationMeta(
+    'productId',
+  );
+  @override
+  late final GeneratedColumn<String> productId = GeneratedColumn<String>(
+    'product_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _productNameMeta = const VerificationMeta(
+    'productName',
+  );
+  @override
+  late final GeneratedColumn<String> productName = GeneratedColumn<String>(
+    'product_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _skuMeta = const VerificationMeta('sku');
+  @override
+  late final GeneratedColumn<String> sku = GeneratedColumn<String>(
+    'sku',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _categoryMeta = const VerificationMeta(
+    'category',
+  );
+  @override
+  late final GeneratedColumn<String> category = GeneratedColumn<String>(
+    'category',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _barcodeMeta = const VerificationMeta(
+    'barcode',
+  );
+  @override
+  late final GeneratedColumn<String> barcode = GeneratedColumn<String>(
+    'barcode',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _priceMinorMeta = const VerificationMeta(
+    'priceMinor',
+  );
+  @override
+  late final GeneratedColumn<int> priceMinor = GeneratedColumn<int>(
+    'price_minor',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _costMinorMeta = const VerificationMeta(
+    'costMinor',
+  );
+  @override
+  late final GeneratedColumn<int> costMinor = GeneratedColumn<int>(
+    'cost_minor',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _quantityMeta = const VerificationMeta(
+    'quantity',
+  );
+  @override
+  late final GeneratedColumn<int> quantity = GeneratedColumn<int>(
+    'quantity',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _serverVersionMeta = const VerificationMeta(
+    'serverVersion',
+  );
+  @override
+  late final GeneratedColumn<int> serverVersion = GeneratedColumn<int>(
+    'server_version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _cachedAtMeta = const VerificationMeta(
+    'cachedAt',
+  );
+  @override
+  late final GeneratedColumn<int> cachedAt = GeneratedColumn<int>(
+    'cached_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    businessId,
+    branchId,
+    productId,
+    productName,
+    sku,
+    category,
+    barcode,
+    priceMinor,
+    costMinor,
+    quantity,
+    serverVersion,
+    createdAt,
+    updatedAt,
+    cachedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'stocks_local';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<StocksLocalData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('business_id')) {
+      context.handle(
+        _businessIdMeta,
+        businessId.isAcceptableOrUnknown(data['business_id']!, _businessIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_businessIdMeta);
+    }
+    if (data.containsKey('branch_id')) {
+      context.handle(
+        _branchIdMeta,
+        branchId.isAcceptableOrUnknown(data['branch_id']!, _branchIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_branchIdMeta);
+    }
+    if (data.containsKey('product_id')) {
+      context.handle(
+        _productIdMeta,
+        productId.isAcceptableOrUnknown(data['product_id']!, _productIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_productIdMeta);
+    }
+    if (data.containsKey('product_name')) {
+      context.handle(
+        _productNameMeta,
+        productName.isAcceptableOrUnknown(
+          data['product_name']!,
+          _productNameMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_productNameMeta);
+    }
+    if (data.containsKey('sku')) {
+      context.handle(
+        _skuMeta,
+        sku.isAcceptableOrUnknown(data['sku']!, _skuMeta),
+      );
+    }
+    if (data.containsKey('category')) {
+      context.handle(
+        _categoryMeta,
+        category.isAcceptableOrUnknown(data['category']!, _categoryMeta),
+      );
+    }
+    if (data.containsKey('barcode')) {
+      context.handle(
+        _barcodeMeta,
+        barcode.isAcceptableOrUnknown(data['barcode']!, _barcodeMeta),
+      );
+    }
+    if (data.containsKey('price_minor')) {
+      context.handle(
+        _priceMinorMeta,
+        priceMinor.isAcceptableOrUnknown(data['price_minor']!, _priceMinorMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_priceMinorMeta);
+    }
+    if (data.containsKey('cost_minor')) {
+      context.handle(
+        _costMinorMeta,
+        costMinor.isAcceptableOrUnknown(data['cost_minor']!, _costMinorMeta),
+      );
+    }
+    if (data.containsKey('quantity')) {
+      context.handle(
+        _quantityMeta,
+        quantity.isAcceptableOrUnknown(data['quantity']!, _quantityMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_quantityMeta);
+    }
+    if (data.containsKey('server_version')) {
+      context.handle(
+        _serverVersionMeta,
+        serverVersion.isAcceptableOrUnknown(
+          data['server_version']!,
+          _serverVersionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    if (data.containsKey('cached_at')) {
+      context.handle(
+        _cachedAtMeta,
+        cachedAt.isAcceptableOrUnknown(data['cached_at']!, _cachedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  StocksLocalData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return StocksLocalData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      businessId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}business_id'],
+      )!,
+      branchId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}branch_id'],
+      )!,
+      productId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}product_id'],
+      )!,
+      productName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}product_name'],
+      )!,
+      sku: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sku'],
+      ),
+      category: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}category'],
+      ),
+      barcode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}barcode'],
+      ),
+      priceMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}price_minor'],
+      )!,
+      costMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}cost_minor'],
+      ),
+      quantity: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}quantity'],
+      )!,
+      serverVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}server_version'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at'],
+      ),
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      ),
+      cachedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}cached_at'],
+      ),
+    );
+  }
+
+  @override
+  $StocksLocalTable createAlias(String alias) {
+    return $StocksLocalTable(attachedDatabase, alias);
+  }
+}
+
+class StocksLocalData extends DataClass implements Insertable<StocksLocalData> {
+  /// Server-generated UUID (stocks.id)
+  final String id;
+
+  /// Tenant isolation
+  final String businessId;
+
+  /// Branch scope
+  final String branchId;
+
+  /// Product identifier
+  final String productId;
+
+  /// Product display fields (denormalized from products join)
+  final String productName;
+  final String? sku;
+  final String? category;
+  final String? barcode;
+
+  /// Price and cost in minor units (INTEGER, no floating point)
+  final int priceMinor;
+  final int? costMinor;
+
+  /// Current on-hand quantity (server-authoritative, INTEGER >= 0)
+  final int quantity;
+
+  /// Optimistic-lock version for stock adjustments (STOCK_VERSION_CONFLICT)
+  final int serverVersion;
+
+  /// Server timestamps (epoch ms)
+  final int? createdAt;
+  final int? updatedAt;
+
+  /// Local sync metadata (epoch ms)
+  final int? cachedAt;
+  const StocksLocalData({
+    required this.id,
+    required this.businessId,
+    required this.branchId,
+    required this.productId,
+    required this.productName,
+    this.sku,
+    this.category,
+    this.barcode,
+    required this.priceMinor,
+    this.costMinor,
+    required this.quantity,
+    required this.serverVersion,
+    this.createdAt,
+    this.updatedAt,
+    this.cachedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['business_id'] = Variable<String>(businessId);
+    map['branch_id'] = Variable<String>(branchId);
+    map['product_id'] = Variable<String>(productId);
+    map['product_name'] = Variable<String>(productName);
+    if (!nullToAbsent || sku != null) {
+      map['sku'] = Variable<String>(sku);
+    }
+    if (!nullToAbsent || category != null) {
+      map['category'] = Variable<String>(category);
+    }
+    if (!nullToAbsent || barcode != null) {
+      map['barcode'] = Variable<String>(barcode);
+    }
+    map['price_minor'] = Variable<int>(priceMinor);
+    if (!nullToAbsent || costMinor != null) {
+      map['cost_minor'] = Variable<int>(costMinor);
+    }
+    map['quantity'] = Variable<int>(quantity);
+    map['server_version'] = Variable<int>(serverVersion);
+    if (!nullToAbsent || createdAt != null) {
+      map['created_at'] = Variable<int>(createdAt);
+    }
+    if (!nullToAbsent || updatedAt != null) {
+      map['updated_at'] = Variable<int>(updatedAt);
+    }
+    if (!nullToAbsent || cachedAt != null) {
+      map['cached_at'] = Variable<int>(cachedAt);
+    }
+    return map;
+  }
+
+  StocksLocalCompanion toCompanion(bool nullToAbsent) {
+    return StocksLocalCompanion(
+      id: Value(id),
+      businessId: Value(businessId),
+      branchId: Value(branchId),
+      productId: Value(productId),
+      productName: Value(productName),
+      sku: sku == null && nullToAbsent ? const Value.absent() : Value(sku),
+      category: category == null && nullToAbsent
+          ? const Value.absent()
+          : Value(category),
+      barcode: barcode == null && nullToAbsent
+          ? const Value.absent()
+          : Value(barcode),
+      priceMinor: Value(priceMinor),
+      costMinor: costMinor == null && nullToAbsent
+          ? const Value.absent()
+          : Value(costMinor),
+      quantity: Value(quantity),
+      serverVersion: Value(serverVersion),
+      createdAt: createdAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(createdAt),
+      updatedAt: updatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(updatedAt),
+      cachedAt: cachedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(cachedAt),
+    );
+  }
+
+  factory StocksLocalData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return StocksLocalData(
+      id: serializer.fromJson<String>(json['id']),
+      businessId: serializer.fromJson<String>(json['businessId']),
+      branchId: serializer.fromJson<String>(json['branchId']),
+      productId: serializer.fromJson<String>(json['productId']),
+      productName: serializer.fromJson<String>(json['productName']),
+      sku: serializer.fromJson<String?>(json['sku']),
+      category: serializer.fromJson<String?>(json['category']),
+      barcode: serializer.fromJson<String?>(json['barcode']),
+      priceMinor: serializer.fromJson<int>(json['priceMinor']),
+      costMinor: serializer.fromJson<int?>(json['costMinor']),
+      quantity: serializer.fromJson<int>(json['quantity']),
+      serverVersion: serializer.fromJson<int>(json['serverVersion']),
+      createdAt: serializer.fromJson<int?>(json['createdAt']),
+      updatedAt: serializer.fromJson<int?>(json['updatedAt']),
+      cachedAt: serializer.fromJson<int?>(json['cachedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'businessId': serializer.toJson<String>(businessId),
+      'branchId': serializer.toJson<String>(branchId),
+      'productId': serializer.toJson<String>(productId),
+      'productName': serializer.toJson<String>(productName),
+      'sku': serializer.toJson<String?>(sku),
+      'category': serializer.toJson<String?>(category),
+      'barcode': serializer.toJson<String?>(barcode),
+      'priceMinor': serializer.toJson<int>(priceMinor),
+      'costMinor': serializer.toJson<int?>(costMinor),
+      'quantity': serializer.toJson<int>(quantity),
+      'serverVersion': serializer.toJson<int>(serverVersion),
+      'createdAt': serializer.toJson<int?>(createdAt),
+      'updatedAt': serializer.toJson<int?>(updatedAt),
+      'cachedAt': serializer.toJson<int?>(cachedAt),
+    };
+  }
+
+  StocksLocalData copyWith({
+    String? id,
+    String? businessId,
+    String? branchId,
+    String? productId,
+    String? productName,
+    Value<String?> sku = const Value.absent(),
+    Value<String?> category = const Value.absent(),
+    Value<String?> barcode = const Value.absent(),
+    int? priceMinor,
+    Value<int?> costMinor = const Value.absent(),
+    int? quantity,
+    int? serverVersion,
+    Value<int?> createdAt = const Value.absent(),
+    Value<int?> updatedAt = const Value.absent(),
+    Value<int?> cachedAt = const Value.absent(),
+  }) => StocksLocalData(
+    id: id ?? this.id,
+    businessId: businessId ?? this.businessId,
+    branchId: branchId ?? this.branchId,
+    productId: productId ?? this.productId,
+    productName: productName ?? this.productName,
+    sku: sku.present ? sku.value : this.sku,
+    category: category.present ? category.value : this.category,
+    barcode: barcode.present ? barcode.value : this.barcode,
+    priceMinor: priceMinor ?? this.priceMinor,
+    costMinor: costMinor.present ? costMinor.value : this.costMinor,
+    quantity: quantity ?? this.quantity,
+    serverVersion: serverVersion ?? this.serverVersion,
+    createdAt: createdAt.present ? createdAt.value : this.createdAt,
+    updatedAt: updatedAt.present ? updatedAt.value : this.updatedAt,
+    cachedAt: cachedAt.present ? cachedAt.value : this.cachedAt,
+  );
+  StocksLocalData copyWithCompanion(StocksLocalCompanion data) {
+    return StocksLocalData(
+      id: data.id.present ? data.id.value : this.id,
+      businessId: data.businessId.present
+          ? data.businessId.value
+          : this.businessId,
+      branchId: data.branchId.present ? data.branchId.value : this.branchId,
+      productId: data.productId.present ? data.productId.value : this.productId,
+      productName: data.productName.present
+          ? data.productName.value
+          : this.productName,
+      sku: data.sku.present ? data.sku.value : this.sku,
+      category: data.category.present ? data.category.value : this.category,
+      barcode: data.barcode.present ? data.barcode.value : this.barcode,
+      priceMinor: data.priceMinor.present
+          ? data.priceMinor.value
+          : this.priceMinor,
+      costMinor: data.costMinor.present ? data.costMinor.value : this.costMinor,
+      quantity: data.quantity.present ? data.quantity.value : this.quantity,
+      serverVersion: data.serverVersion.present
+          ? data.serverVersion.value
+          : this.serverVersion,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      cachedAt: data.cachedAt.present ? data.cachedAt.value : this.cachedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('StocksLocalData(')
+          ..write('id: $id, ')
+          ..write('businessId: $businessId, ')
+          ..write('branchId: $branchId, ')
+          ..write('productId: $productId, ')
+          ..write('productName: $productName, ')
+          ..write('sku: $sku, ')
+          ..write('category: $category, ')
+          ..write('barcode: $barcode, ')
+          ..write('priceMinor: $priceMinor, ')
+          ..write('costMinor: $costMinor, ')
+          ..write('quantity: $quantity, ')
+          ..write('serverVersion: $serverVersion, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('cachedAt: $cachedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    businessId,
+    branchId,
+    productId,
+    productName,
+    sku,
+    category,
+    barcode,
+    priceMinor,
+    costMinor,
+    quantity,
+    serverVersion,
+    createdAt,
+    updatedAt,
+    cachedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is StocksLocalData &&
+          other.id == this.id &&
+          other.businessId == this.businessId &&
+          other.branchId == this.branchId &&
+          other.productId == this.productId &&
+          other.productName == this.productName &&
+          other.sku == this.sku &&
+          other.category == this.category &&
+          other.barcode == this.barcode &&
+          other.priceMinor == this.priceMinor &&
+          other.costMinor == this.costMinor &&
+          other.quantity == this.quantity &&
+          other.serverVersion == this.serverVersion &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.cachedAt == this.cachedAt);
+}
+
+class StocksLocalCompanion extends UpdateCompanion<StocksLocalData> {
+  final Value<String> id;
+  final Value<String> businessId;
+  final Value<String> branchId;
+  final Value<String> productId;
+  final Value<String> productName;
+  final Value<String?> sku;
+  final Value<String?> category;
+  final Value<String?> barcode;
+  final Value<int> priceMinor;
+  final Value<int?> costMinor;
+  final Value<int> quantity;
+  final Value<int> serverVersion;
+  final Value<int?> createdAt;
+  final Value<int?> updatedAt;
+  final Value<int?> cachedAt;
+  final Value<int> rowid;
+  const StocksLocalCompanion({
+    this.id = const Value.absent(),
+    this.businessId = const Value.absent(),
+    this.branchId = const Value.absent(),
+    this.productId = const Value.absent(),
+    this.productName = const Value.absent(),
+    this.sku = const Value.absent(),
+    this.category = const Value.absent(),
+    this.barcode = const Value.absent(),
+    this.priceMinor = const Value.absent(),
+    this.costMinor = const Value.absent(),
+    this.quantity = const Value.absent(),
+    this.serverVersion = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.cachedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  StocksLocalCompanion.insert({
+    required String id,
+    required String businessId,
+    required String branchId,
+    required String productId,
+    required String productName,
+    this.sku = const Value.absent(),
+    this.category = const Value.absent(),
+    this.barcode = const Value.absent(),
+    required int priceMinor,
+    this.costMinor = const Value.absent(),
+    required int quantity,
+    this.serverVersion = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.cachedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       businessId = Value(businessId),
+       branchId = Value(branchId),
+       productId = Value(productId),
+       productName = Value(productName),
+       priceMinor = Value(priceMinor),
+       quantity = Value(quantity);
+  static Insertable<StocksLocalData> custom({
+    Expression<String>? id,
+    Expression<String>? businessId,
+    Expression<String>? branchId,
+    Expression<String>? productId,
+    Expression<String>? productName,
+    Expression<String>? sku,
+    Expression<String>? category,
+    Expression<String>? barcode,
+    Expression<int>? priceMinor,
+    Expression<int>? costMinor,
+    Expression<int>? quantity,
+    Expression<int>? serverVersion,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+    Expression<int>? cachedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (businessId != null) 'business_id': businessId,
+      if (branchId != null) 'branch_id': branchId,
+      if (productId != null) 'product_id': productId,
+      if (productName != null) 'product_name': productName,
+      if (sku != null) 'sku': sku,
+      if (category != null) 'category': category,
+      if (barcode != null) 'barcode': barcode,
+      if (priceMinor != null) 'price_minor': priceMinor,
+      if (costMinor != null) 'cost_minor': costMinor,
+      if (quantity != null) 'quantity': quantity,
+      if (serverVersion != null) 'server_version': serverVersion,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (cachedAt != null) 'cached_at': cachedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  StocksLocalCompanion copyWith({
+    Value<String>? id,
+    Value<String>? businessId,
+    Value<String>? branchId,
+    Value<String>? productId,
+    Value<String>? productName,
+    Value<String?>? sku,
+    Value<String?>? category,
+    Value<String?>? barcode,
+    Value<int>? priceMinor,
+    Value<int?>? costMinor,
+    Value<int>? quantity,
+    Value<int>? serverVersion,
+    Value<int?>? createdAt,
+    Value<int?>? updatedAt,
+    Value<int?>? cachedAt,
+    Value<int>? rowid,
+  }) {
+    return StocksLocalCompanion(
+      id: id ?? this.id,
+      businessId: businessId ?? this.businessId,
+      branchId: branchId ?? this.branchId,
+      productId: productId ?? this.productId,
+      productName: productName ?? this.productName,
+      sku: sku ?? this.sku,
+      category: category ?? this.category,
+      barcode: barcode ?? this.barcode,
+      priceMinor: priceMinor ?? this.priceMinor,
+      costMinor: costMinor ?? this.costMinor,
+      quantity: quantity ?? this.quantity,
+      serverVersion: serverVersion ?? this.serverVersion,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      cachedAt: cachedAt ?? this.cachedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (businessId.present) {
+      map['business_id'] = Variable<String>(businessId.value);
+    }
+    if (branchId.present) {
+      map['branch_id'] = Variable<String>(branchId.value);
+    }
+    if (productId.present) {
+      map['product_id'] = Variable<String>(productId.value);
+    }
+    if (productName.present) {
+      map['product_name'] = Variable<String>(productName.value);
+    }
+    if (sku.present) {
+      map['sku'] = Variable<String>(sku.value);
+    }
+    if (category.present) {
+      map['category'] = Variable<String>(category.value);
+    }
+    if (barcode.present) {
+      map['barcode'] = Variable<String>(barcode.value);
+    }
+    if (priceMinor.present) {
+      map['price_minor'] = Variable<int>(priceMinor.value);
+    }
+    if (costMinor.present) {
+      map['cost_minor'] = Variable<int>(costMinor.value);
+    }
+    if (quantity.present) {
+      map['quantity'] = Variable<int>(quantity.value);
+    }
+    if (serverVersion.present) {
+      map['server_version'] = Variable<int>(serverVersion.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (cachedAt.present) {
+      map['cached_at'] = Variable<int>(cachedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('StocksLocalCompanion(')
+          ..write('id: $id, ')
+          ..write('businessId: $businessId, ')
+          ..write('branchId: $branchId, ')
+          ..write('productId: $productId, ')
+          ..write('productName: $productName, ')
+          ..write('sku: $sku, ')
+          ..write('category: $category, ')
+          ..write('barcode: $barcode, ')
+          ..write('priceMinor: $priceMinor, ')
+          ..write('costMinor: $costMinor, ')
+          ..write('quantity: $quantity, ')
+          ..write('serverVersion: $serverVersion, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('cachedAt: $cachedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $StockMovementsLocalTable extends StockMovementsLocal
+    with TableInfo<$StockMovementsLocalTable, StockMovementsLocalData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $StockMovementsLocalTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _businessIdMeta = const VerificationMeta(
+    'businessId',
+  );
+  @override
+  late final GeneratedColumn<String> businessId = GeneratedColumn<String>(
+    'business_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _branchIdMeta = const VerificationMeta(
+    'branchId',
+  );
+  @override
+  late final GeneratedColumn<String> branchId = GeneratedColumn<String>(
+    'branch_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _productIdMeta = const VerificationMeta(
+    'productId',
+  );
+  @override
+  late final GeneratedColumn<String> productId = GeneratedColumn<String>(
+    'product_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _quantityMeta = const VerificationMeta(
+    'quantity',
+  );
+  @override
+  late final GeneratedColumn<int> quantity = GeneratedColumn<int>(
+    'quantity',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _movementTypeMeta = const VerificationMeta(
+    'movementType',
+  );
+  @override
+  late final GeneratedColumn<String> movementType = GeneratedColumn<String>(
+    'movement_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _referenceMeta = const VerificationMeta(
+    'reference',
+  );
+  @override
+  late final GeneratedColumn<String> reference = GeneratedColumn<String>(
+    'reference',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _actorMeta = const VerificationMeta('actor');
+  @override
+  late final GeneratedColumn<String> actor = GeneratedColumn<String>(
+    'actor',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _timestampMeta = const VerificationMeta(
+    'timestamp',
+  );
+  @override
+  late final GeneratedColumn<int> timestamp = GeneratedColumn<int>(
+    'timestamp',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _cachedAtMeta = const VerificationMeta(
+    'cachedAt',
+  );
+  @override
+  late final GeneratedColumn<int> cachedAt = GeneratedColumn<int>(
+    'cached_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    businessId,
+    branchId,
+    productId,
+    quantity,
+    movementType,
+    reference,
+    actor,
+    timestamp,
+    cachedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'stock_movements_local';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<StockMovementsLocalData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('business_id')) {
+      context.handle(
+        _businessIdMeta,
+        businessId.isAcceptableOrUnknown(data['business_id']!, _businessIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_businessIdMeta);
+    }
+    if (data.containsKey('branch_id')) {
+      context.handle(
+        _branchIdMeta,
+        branchId.isAcceptableOrUnknown(data['branch_id']!, _branchIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_branchIdMeta);
+    }
+    if (data.containsKey('product_id')) {
+      context.handle(
+        _productIdMeta,
+        productId.isAcceptableOrUnknown(data['product_id']!, _productIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_productIdMeta);
+    }
+    if (data.containsKey('quantity')) {
+      context.handle(
+        _quantityMeta,
+        quantity.isAcceptableOrUnknown(data['quantity']!, _quantityMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_quantityMeta);
+    }
+    if (data.containsKey('movement_type')) {
+      context.handle(
+        _movementTypeMeta,
+        movementType.isAcceptableOrUnknown(
+          data['movement_type']!,
+          _movementTypeMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_movementTypeMeta);
+    }
+    if (data.containsKey('reference')) {
+      context.handle(
+        _referenceMeta,
+        reference.isAcceptableOrUnknown(data['reference']!, _referenceMeta),
+      );
+    }
+    if (data.containsKey('actor')) {
+      context.handle(
+        _actorMeta,
+        actor.isAcceptableOrUnknown(data['actor']!, _actorMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_actorMeta);
+    }
+    if (data.containsKey('timestamp')) {
+      context.handle(
+        _timestampMeta,
+        timestamp.isAcceptableOrUnknown(data['timestamp']!, _timestampMeta),
+      );
+    }
+    if (data.containsKey('cached_at')) {
+      context.handle(
+        _cachedAtMeta,
+        cachedAt.isAcceptableOrUnknown(data['cached_at']!, _cachedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  StockMovementsLocalData map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return StockMovementsLocalData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      businessId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}business_id'],
+      )!,
+      branchId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}branch_id'],
+      )!,
+      productId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}product_id'],
+      )!,
+      quantity: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}quantity'],
+      )!,
+      movementType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}movement_type'],
+      )!,
+      reference: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}reference'],
+      ),
+      actor: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}actor'],
+      )!,
+      timestamp: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}timestamp'],
+      ),
+      cachedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}cached_at'],
+      ),
+    );
+  }
+
+  @override
+  $StockMovementsLocalTable createAlias(String alias) {
+    return $StockMovementsLocalTable(attachedDatabase, alias);
+  }
+}
+
+class StockMovementsLocalData extends DataClass
+    implements Insertable<StockMovementsLocalData> {
+  /// Server-generated UUID (stock_movements.id)
+  final String id;
+
+  /// Tenant isolation
+  final String businessId;
+
+  /// Branch scope
+  final String branchId;
+
+  /// Product identifier
+  final String productId;
+
+  /// Signed quantity delta (positive for STOCK_IN/ADJUSTMENT, negative for STOCK_OUT)
+  final int quantity;
+
+  /// Movement type: STOCK_IN | STOCK_OUT | ADJUSTMENT
+  final String movementType;
+
+  /// Optional reference (e.g., adjustment reason, purchase order number)
+  final String? reference;
+
+  /// Actor user identifier (server-side user who performed the action)
+  final String actor;
+
+  /// Event timestamp (epoch ms)
+  final int? timestamp;
+
+  /// Local sync metadata (epoch ms)
+  final int? cachedAt;
+  const StockMovementsLocalData({
+    required this.id,
+    required this.businessId,
+    required this.branchId,
+    required this.productId,
+    required this.quantity,
+    required this.movementType,
+    this.reference,
+    required this.actor,
+    this.timestamp,
+    this.cachedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['business_id'] = Variable<String>(businessId);
+    map['branch_id'] = Variable<String>(branchId);
+    map['product_id'] = Variable<String>(productId);
+    map['quantity'] = Variable<int>(quantity);
+    map['movement_type'] = Variable<String>(movementType);
+    if (!nullToAbsent || reference != null) {
+      map['reference'] = Variable<String>(reference);
+    }
+    map['actor'] = Variable<String>(actor);
+    if (!nullToAbsent || timestamp != null) {
+      map['timestamp'] = Variable<int>(timestamp);
+    }
+    if (!nullToAbsent || cachedAt != null) {
+      map['cached_at'] = Variable<int>(cachedAt);
+    }
+    return map;
+  }
+
+  StockMovementsLocalCompanion toCompanion(bool nullToAbsent) {
+    return StockMovementsLocalCompanion(
+      id: Value(id),
+      businessId: Value(businessId),
+      branchId: Value(branchId),
+      productId: Value(productId),
+      quantity: Value(quantity),
+      movementType: Value(movementType),
+      reference: reference == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reference),
+      actor: Value(actor),
+      timestamp: timestamp == null && nullToAbsent
+          ? const Value.absent()
+          : Value(timestamp),
+      cachedAt: cachedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(cachedAt),
+    );
+  }
+
+  factory StockMovementsLocalData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return StockMovementsLocalData(
+      id: serializer.fromJson<String>(json['id']),
+      businessId: serializer.fromJson<String>(json['businessId']),
+      branchId: serializer.fromJson<String>(json['branchId']),
+      productId: serializer.fromJson<String>(json['productId']),
+      quantity: serializer.fromJson<int>(json['quantity']),
+      movementType: serializer.fromJson<String>(json['movementType']),
+      reference: serializer.fromJson<String?>(json['reference']),
+      actor: serializer.fromJson<String>(json['actor']),
+      timestamp: serializer.fromJson<int?>(json['timestamp']),
+      cachedAt: serializer.fromJson<int?>(json['cachedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'businessId': serializer.toJson<String>(businessId),
+      'branchId': serializer.toJson<String>(branchId),
+      'productId': serializer.toJson<String>(productId),
+      'quantity': serializer.toJson<int>(quantity),
+      'movementType': serializer.toJson<String>(movementType),
+      'reference': serializer.toJson<String?>(reference),
+      'actor': serializer.toJson<String>(actor),
+      'timestamp': serializer.toJson<int?>(timestamp),
+      'cachedAt': serializer.toJson<int?>(cachedAt),
+    };
+  }
+
+  StockMovementsLocalData copyWith({
+    String? id,
+    String? businessId,
+    String? branchId,
+    String? productId,
+    int? quantity,
+    String? movementType,
+    Value<String?> reference = const Value.absent(),
+    String? actor,
+    Value<int?> timestamp = const Value.absent(),
+    Value<int?> cachedAt = const Value.absent(),
+  }) => StockMovementsLocalData(
+    id: id ?? this.id,
+    businessId: businessId ?? this.businessId,
+    branchId: branchId ?? this.branchId,
+    productId: productId ?? this.productId,
+    quantity: quantity ?? this.quantity,
+    movementType: movementType ?? this.movementType,
+    reference: reference.present ? reference.value : this.reference,
+    actor: actor ?? this.actor,
+    timestamp: timestamp.present ? timestamp.value : this.timestamp,
+    cachedAt: cachedAt.present ? cachedAt.value : this.cachedAt,
+  );
+  StockMovementsLocalData copyWithCompanion(StockMovementsLocalCompanion data) {
+    return StockMovementsLocalData(
+      id: data.id.present ? data.id.value : this.id,
+      businessId: data.businessId.present
+          ? data.businessId.value
+          : this.businessId,
+      branchId: data.branchId.present ? data.branchId.value : this.branchId,
+      productId: data.productId.present ? data.productId.value : this.productId,
+      quantity: data.quantity.present ? data.quantity.value : this.quantity,
+      movementType: data.movementType.present
+          ? data.movementType.value
+          : this.movementType,
+      reference: data.reference.present ? data.reference.value : this.reference,
+      actor: data.actor.present ? data.actor.value : this.actor,
+      timestamp: data.timestamp.present ? data.timestamp.value : this.timestamp,
+      cachedAt: data.cachedAt.present ? data.cachedAt.value : this.cachedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('StockMovementsLocalData(')
+          ..write('id: $id, ')
+          ..write('businessId: $businessId, ')
+          ..write('branchId: $branchId, ')
+          ..write('productId: $productId, ')
+          ..write('quantity: $quantity, ')
+          ..write('movementType: $movementType, ')
+          ..write('reference: $reference, ')
+          ..write('actor: $actor, ')
+          ..write('timestamp: $timestamp, ')
+          ..write('cachedAt: $cachedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    businessId,
+    branchId,
+    productId,
+    quantity,
+    movementType,
+    reference,
+    actor,
+    timestamp,
+    cachedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is StockMovementsLocalData &&
+          other.id == this.id &&
+          other.businessId == this.businessId &&
+          other.branchId == this.branchId &&
+          other.productId == this.productId &&
+          other.quantity == this.quantity &&
+          other.movementType == this.movementType &&
+          other.reference == this.reference &&
+          other.actor == this.actor &&
+          other.timestamp == this.timestamp &&
+          other.cachedAt == this.cachedAt);
+}
+
+class StockMovementsLocalCompanion
+    extends UpdateCompanion<StockMovementsLocalData> {
+  final Value<String> id;
+  final Value<String> businessId;
+  final Value<String> branchId;
+  final Value<String> productId;
+  final Value<int> quantity;
+  final Value<String> movementType;
+  final Value<String?> reference;
+  final Value<String> actor;
+  final Value<int?> timestamp;
+  final Value<int?> cachedAt;
+  final Value<int> rowid;
+  const StockMovementsLocalCompanion({
+    this.id = const Value.absent(),
+    this.businessId = const Value.absent(),
+    this.branchId = const Value.absent(),
+    this.productId = const Value.absent(),
+    this.quantity = const Value.absent(),
+    this.movementType = const Value.absent(),
+    this.reference = const Value.absent(),
+    this.actor = const Value.absent(),
+    this.timestamp = const Value.absent(),
+    this.cachedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  StockMovementsLocalCompanion.insert({
+    required String id,
+    required String businessId,
+    required String branchId,
+    required String productId,
+    required int quantity,
+    required String movementType,
+    this.reference = const Value.absent(),
+    required String actor,
+    this.timestamp = const Value.absent(),
+    this.cachedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       businessId = Value(businessId),
+       branchId = Value(branchId),
+       productId = Value(productId),
+       quantity = Value(quantity),
+       movementType = Value(movementType),
+       actor = Value(actor);
+  static Insertable<StockMovementsLocalData> custom({
+    Expression<String>? id,
+    Expression<String>? businessId,
+    Expression<String>? branchId,
+    Expression<String>? productId,
+    Expression<int>? quantity,
+    Expression<String>? movementType,
+    Expression<String>? reference,
+    Expression<String>? actor,
+    Expression<int>? timestamp,
+    Expression<int>? cachedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (businessId != null) 'business_id': businessId,
+      if (branchId != null) 'branch_id': branchId,
+      if (productId != null) 'product_id': productId,
+      if (quantity != null) 'quantity': quantity,
+      if (movementType != null) 'movement_type': movementType,
+      if (reference != null) 'reference': reference,
+      if (actor != null) 'actor': actor,
+      if (timestamp != null) 'timestamp': timestamp,
+      if (cachedAt != null) 'cached_at': cachedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  StockMovementsLocalCompanion copyWith({
+    Value<String>? id,
+    Value<String>? businessId,
+    Value<String>? branchId,
+    Value<String>? productId,
+    Value<int>? quantity,
+    Value<String>? movementType,
+    Value<String?>? reference,
+    Value<String>? actor,
+    Value<int?>? timestamp,
+    Value<int?>? cachedAt,
+    Value<int>? rowid,
+  }) {
+    return StockMovementsLocalCompanion(
+      id: id ?? this.id,
+      businessId: businessId ?? this.businessId,
+      branchId: branchId ?? this.branchId,
+      productId: productId ?? this.productId,
+      quantity: quantity ?? this.quantity,
+      movementType: movementType ?? this.movementType,
+      reference: reference ?? this.reference,
+      actor: actor ?? this.actor,
+      timestamp: timestamp ?? this.timestamp,
+      cachedAt: cachedAt ?? this.cachedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (businessId.present) {
+      map['business_id'] = Variable<String>(businessId.value);
+    }
+    if (branchId.present) {
+      map['branch_id'] = Variable<String>(branchId.value);
+    }
+    if (productId.present) {
+      map['product_id'] = Variable<String>(productId.value);
+    }
+    if (quantity.present) {
+      map['quantity'] = Variable<int>(quantity.value);
+    }
+    if (movementType.present) {
+      map['movement_type'] = Variable<String>(movementType.value);
+    }
+    if (reference.present) {
+      map['reference'] = Variable<String>(reference.value);
+    }
+    if (actor.present) {
+      map['actor'] = Variable<String>(actor.value);
+    }
+    if (timestamp.present) {
+      map['timestamp'] = Variable<int>(timestamp.value);
+    }
+    if (cachedAt.present) {
+      map['cached_at'] = Variable<int>(cachedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('StockMovementsLocalCompanion(')
+          ..write('id: $id, ')
+          ..write('businessId: $businessId, ')
+          ..write('branchId: $branchId, ')
+          ..write('productId: $productId, ')
+          ..write('quantity: $quantity, ')
+          ..write('movementType: $movementType, ')
+          ..write('reference: $reference, ')
+          ..write('actor: $actor, ')
+          ..write('timestamp: $timestamp, ')
+          ..write('cachedAt: $cachedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -10062,6 +11584,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $LocalIdempotencyKeysTable(this);
   late final $SyncOutboxTable syncOutbox = $SyncOutboxTable(this);
   late final $SyncMetaTable syncMeta = $SyncMetaTable(this);
+  late final $StocksLocalTable stocksLocal = $StocksLocalTable(this);
+  late final $StockMovementsLocalTable stockMovementsLocal =
+      $StockMovementsLocalTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -10084,6 +11609,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     localIdempotencyKeys,
     syncOutbox,
     syncMeta,
+    stocksLocal,
+    stockMovementsLocal,
   ];
 }
 
@@ -15968,6 +17495,719 @@ typedef $$SyncMetaTableProcessedTableManager =
       SyncMetaData,
       PrefetchHooks Function()
     >;
+typedef $$StocksLocalTableCreateCompanionBuilder =
+    StocksLocalCompanion Function({
+      required String id,
+      required String businessId,
+      required String branchId,
+      required String productId,
+      required String productName,
+      Value<String?> sku,
+      Value<String?> category,
+      Value<String?> barcode,
+      required int priceMinor,
+      Value<int?> costMinor,
+      required int quantity,
+      Value<int> serverVersion,
+      Value<int?> createdAt,
+      Value<int?> updatedAt,
+      Value<int?> cachedAt,
+      Value<int> rowid,
+    });
+typedef $$StocksLocalTableUpdateCompanionBuilder =
+    StocksLocalCompanion Function({
+      Value<String> id,
+      Value<String> businessId,
+      Value<String> branchId,
+      Value<String> productId,
+      Value<String> productName,
+      Value<String?> sku,
+      Value<String?> category,
+      Value<String?> barcode,
+      Value<int> priceMinor,
+      Value<int?> costMinor,
+      Value<int> quantity,
+      Value<int> serverVersion,
+      Value<int?> createdAt,
+      Value<int?> updatedAt,
+      Value<int?> cachedAt,
+      Value<int> rowid,
+    });
+
+class $$StocksLocalTableFilterComposer
+    extends Composer<_$AppDatabase, $StocksLocalTable> {
+  $$StocksLocalTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get businessId => $composableBuilder(
+    column: $table.businessId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get branchId => $composableBuilder(
+    column: $table.branchId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get productId => $composableBuilder(
+    column: $table.productId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get productName => $composableBuilder(
+    column: $table.productName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sku => $composableBuilder(
+    column: $table.sku,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get category => $composableBuilder(
+    column: $table.category,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get barcode => $composableBuilder(
+    column: $table.barcode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get priceMinor => $composableBuilder(
+    column: $table.priceMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get costMinor => $composableBuilder(
+    column: $table.costMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get quantity => $composableBuilder(
+    column: $table.quantity,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get serverVersion => $composableBuilder(
+    column: $table.serverVersion,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get cachedAt => $composableBuilder(
+    column: $table.cachedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$StocksLocalTableOrderingComposer
+    extends Composer<_$AppDatabase, $StocksLocalTable> {
+  $$StocksLocalTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get businessId => $composableBuilder(
+    column: $table.businessId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get branchId => $composableBuilder(
+    column: $table.branchId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get productId => $composableBuilder(
+    column: $table.productId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get productName => $composableBuilder(
+    column: $table.productName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sku => $composableBuilder(
+    column: $table.sku,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get category => $composableBuilder(
+    column: $table.category,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get barcode => $composableBuilder(
+    column: $table.barcode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get priceMinor => $composableBuilder(
+    column: $table.priceMinor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get costMinor => $composableBuilder(
+    column: $table.costMinor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get quantity => $composableBuilder(
+    column: $table.quantity,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get serverVersion => $composableBuilder(
+    column: $table.serverVersion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get cachedAt => $composableBuilder(
+    column: $table.cachedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$StocksLocalTableAnnotationComposer
+    extends Composer<_$AppDatabase, $StocksLocalTable> {
+  $$StocksLocalTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get businessId => $composableBuilder(
+    column: $table.businessId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get branchId =>
+      $composableBuilder(column: $table.branchId, builder: (column) => column);
+
+  GeneratedColumn<String> get productId =>
+      $composableBuilder(column: $table.productId, builder: (column) => column);
+
+  GeneratedColumn<String> get productName => $composableBuilder(
+    column: $table.productName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get sku =>
+      $composableBuilder(column: $table.sku, builder: (column) => column);
+
+  GeneratedColumn<String> get category =>
+      $composableBuilder(column: $table.category, builder: (column) => column);
+
+  GeneratedColumn<String> get barcode =>
+      $composableBuilder(column: $table.barcode, builder: (column) => column);
+
+  GeneratedColumn<int> get priceMinor => $composableBuilder(
+    column: $table.priceMinor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get costMinor =>
+      $composableBuilder(column: $table.costMinor, builder: (column) => column);
+
+  GeneratedColumn<int> get quantity =>
+      $composableBuilder(column: $table.quantity, builder: (column) => column);
+
+  GeneratedColumn<int> get serverVersion => $composableBuilder(
+    column: $table.serverVersion,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get cachedAt =>
+      $composableBuilder(column: $table.cachedAt, builder: (column) => column);
+}
+
+class $$StocksLocalTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $StocksLocalTable,
+          StocksLocalData,
+          $$StocksLocalTableFilterComposer,
+          $$StocksLocalTableOrderingComposer,
+          $$StocksLocalTableAnnotationComposer,
+          $$StocksLocalTableCreateCompanionBuilder,
+          $$StocksLocalTableUpdateCompanionBuilder,
+          (
+            StocksLocalData,
+            BaseReferences<_$AppDatabase, $StocksLocalTable, StocksLocalData>,
+          ),
+          StocksLocalData,
+          PrefetchHooks Function()
+        > {
+  $$StocksLocalTableTableManager(_$AppDatabase db, $StocksLocalTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$StocksLocalTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$StocksLocalTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$StocksLocalTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> businessId = const Value.absent(),
+                Value<String> branchId = const Value.absent(),
+                Value<String> productId = const Value.absent(),
+                Value<String> productName = const Value.absent(),
+                Value<String?> sku = const Value.absent(),
+                Value<String?> category = const Value.absent(),
+                Value<String?> barcode = const Value.absent(),
+                Value<int> priceMinor = const Value.absent(),
+                Value<int?> costMinor = const Value.absent(),
+                Value<int> quantity = const Value.absent(),
+                Value<int> serverVersion = const Value.absent(),
+                Value<int?> createdAt = const Value.absent(),
+                Value<int?> updatedAt = const Value.absent(),
+                Value<int?> cachedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => StocksLocalCompanion(
+                id: id,
+                businessId: businessId,
+                branchId: branchId,
+                productId: productId,
+                productName: productName,
+                sku: sku,
+                category: category,
+                barcode: barcode,
+                priceMinor: priceMinor,
+                costMinor: costMinor,
+                quantity: quantity,
+                serverVersion: serverVersion,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                cachedAt: cachedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String businessId,
+                required String branchId,
+                required String productId,
+                required String productName,
+                Value<String?> sku = const Value.absent(),
+                Value<String?> category = const Value.absent(),
+                Value<String?> barcode = const Value.absent(),
+                required int priceMinor,
+                Value<int?> costMinor = const Value.absent(),
+                required int quantity,
+                Value<int> serverVersion = const Value.absent(),
+                Value<int?> createdAt = const Value.absent(),
+                Value<int?> updatedAt = const Value.absent(),
+                Value<int?> cachedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => StocksLocalCompanion.insert(
+                id: id,
+                businessId: businessId,
+                branchId: branchId,
+                productId: productId,
+                productName: productName,
+                sku: sku,
+                category: category,
+                barcode: barcode,
+                priceMinor: priceMinor,
+                costMinor: costMinor,
+                quantity: quantity,
+                serverVersion: serverVersion,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                cachedAt: cachedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$StocksLocalTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $StocksLocalTable,
+      StocksLocalData,
+      $$StocksLocalTableFilterComposer,
+      $$StocksLocalTableOrderingComposer,
+      $$StocksLocalTableAnnotationComposer,
+      $$StocksLocalTableCreateCompanionBuilder,
+      $$StocksLocalTableUpdateCompanionBuilder,
+      (
+        StocksLocalData,
+        BaseReferences<_$AppDatabase, $StocksLocalTable, StocksLocalData>,
+      ),
+      StocksLocalData,
+      PrefetchHooks Function()
+    >;
+typedef $$StockMovementsLocalTableCreateCompanionBuilder =
+    StockMovementsLocalCompanion Function({
+      required String id,
+      required String businessId,
+      required String branchId,
+      required String productId,
+      required int quantity,
+      required String movementType,
+      Value<String?> reference,
+      required String actor,
+      Value<int?> timestamp,
+      Value<int?> cachedAt,
+      Value<int> rowid,
+    });
+typedef $$StockMovementsLocalTableUpdateCompanionBuilder =
+    StockMovementsLocalCompanion Function({
+      Value<String> id,
+      Value<String> businessId,
+      Value<String> branchId,
+      Value<String> productId,
+      Value<int> quantity,
+      Value<String> movementType,
+      Value<String?> reference,
+      Value<String> actor,
+      Value<int?> timestamp,
+      Value<int?> cachedAt,
+      Value<int> rowid,
+    });
+
+class $$StockMovementsLocalTableFilterComposer
+    extends Composer<_$AppDatabase, $StockMovementsLocalTable> {
+  $$StockMovementsLocalTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get businessId => $composableBuilder(
+    column: $table.businessId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get branchId => $composableBuilder(
+    column: $table.branchId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get productId => $composableBuilder(
+    column: $table.productId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get quantity => $composableBuilder(
+    column: $table.quantity,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get movementType => $composableBuilder(
+    column: $table.movementType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get reference => $composableBuilder(
+    column: $table.reference,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get actor => $composableBuilder(
+    column: $table.actor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get timestamp => $composableBuilder(
+    column: $table.timestamp,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get cachedAt => $composableBuilder(
+    column: $table.cachedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$StockMovementsLocalTableOrderingComposer
+    extends Composer<_$AppDatabase, $StockMovementsLocalTable> {
+  $$StockMovementsLocalTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get businessId => $composableBuilder(
+    column: $table.businessId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get branchId => $composableBuilder(
+    column: $table.branchId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get productId => $composableBuilder(
+    column: $table.productId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get quantity => $composableBuilder(
+    column: $table.quantity,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get movementType => $composableBuilder(
+    column: $table.movementType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get reference => $composableBuilder(
+    column: $table.reference,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get actor => $composableBuilder(
+    column: $table.actor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get timestamp => $composableBuilder(
+    column: $table.timestamp,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get cachedAt => $composableBuilder(
+    column: $table.cachedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$StockMovementsLocalTableAnnotationComposer
+    extends Composer<_$AppDatabase, $StockMovementsLocalTable> {
+  $$StockMovementsLocalTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get businessId => $composableBuilder(
+    column: $table.businessId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get branchId =>
+      $composableBuilder(column: $table.branchId, builder: (column) => column);
+
+  GeneratedColumn<String> get productId =>
+      $composableBuilder(column: $table.productId, builder: (column) => column);
+
+  GeneratedColumn<int> get quantity =>
+      $composableBuilder(column: $table.quantity, builder: (column) => column);
+
+  GeneratedColumn<String> get movementType => $composableBuilder(
+    column: $table.movementType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get reference =>
+      $composableBuilder(column: $table.reference, builder: (column) => column);
+
+  GeneratedColumn<String> get actor =>
+      $composableBuilder(column: $table.actor, builder: (column) => column);
+
+  GeneratedColumn<int> get timestamp =>
+      $composableBuilder(column: $table.timestamp, builder: (column) => column);
+
+  GeneratedColumn<int> get cachedAt =>
+      $composableBuilder(column: $table.cachedAt, builder: (column) => column);
+}
+
+class $$StockMovementsLocalTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $StockMovementsLocalTable,
+          StockMovementsLocalData,
+          $$StockMovementsLocalTableFilterComposer,
+          $$StockMovementsLocalTableOrderingComposer,
+          $$StockMovementsLocalTableAnnotationComposer,
+          $$StockMovementsLocalTableCreateCompanionBuilder,
+          $$StockMovementsLocalTableUpdateCompanionBuilder,
+          (
+            StockMovementsLocalData,
+            BaseReferences<
+              _$AppDatabase,
+              $StockMovementsLocalTable,
+              StockMovementsLocalData
+            >,
+          ),
+          StockMovementsLocalData,
+          PrefetchHooks Function()
+        > {
+  $$StockMovementsLocalTableTableManager(
+    _$AppDatabase db,
+    $StockMovementsLocalTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$StockMovementsLocalTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$StockMovementsLocalTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$StockMovementsLocalTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> businessId = const Value.absent(),
+                Value<String> branchId = const Value.absent(),
+                Value<String> productId = const Value.absent(),
+                Value<int> quantity = const Value.absent(),
+                Value<String> movementType = const Value.absent(),
+                Value<String?> reference = const Value.absent(),
+                Value<String> actor = const Value.absent(),
+                Value<int?> timestamp = const Value.absent(),
+                Value<int?> cachedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => StockMovementsLocalCompanion(
+                id: id,
+                businessId: businessId,
+                branchId: branchId,
+                productId: productId,
+                quantity: quantity,
+                movementType: movementType,
+                reference: reference,
+                actor: actor,
+                timestamp: timestamp,
+                cachedAt: cachedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String businessId,
+                required String branchId,
+                required String productId,
+                required int quantity,
+                required String movementType,
+                Value<String?> reference = const Value.absent(),
+                required String actor,
+                Value<int?> timestamp = const Value.absent(),
+                Value<int?> cachedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => StockMovementsLocalCompanion.insert(
+                id: id,
+                businessId: businessId,
+                branchId: branchId,
+                productId: productId,
+                quantity: quantity,
+                movementType: movementType,
+                reference: reference,
+                actor: actor,
+                timestamp: timestamp,
+                cachedAt: cachedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$StockMovementsLocalTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $StockMovementsLocalTable,
+      StockMovementsLocalData,
+      $$StockMovementsLocalTableFilterComposer,
+      $$StockMovementsLocalTableOrderingComposer,
+      $$StockMovementsLocalTableAnnotationComposer,
+      $$StockMovementsLocalTableCreateCompanionBuilder,
+      $$StockMovementsLocalTableUpdateCompanionBuilder,
+      (
+        StockMovementsLocalData,
+        BaseReferences<
+          _$AppDatabase,
+          $StockMovementsLocalTable,
+          StockMovementsLocalData
+        >,
+      ),
+      StockMovementsLocalData,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -16006,4 +18246,8 @@ class $AppDatabaseManager {
       $$SyncOutboxTableTableManager(_db, _db.syncOutbox);
   $$SyncMetaTableTableManager get syncMeta =>
       $$SyncMetaTableTableManager(_db, _db.syncMeta);
+  $$StocksLocalTableTableManager get stocksLocal =>
+      $$StocksLocalTableTableManager(_db, _db.stocksLocal);
+  $$StockMovementsLocalTableTableManager get stockMovementsLocal =>
+      $$StockMovementsLocalTableTableManager(_db, _db.stockMovementsLocal);
 }

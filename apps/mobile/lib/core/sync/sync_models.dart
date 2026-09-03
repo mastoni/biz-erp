@@ -644,3 +644,270 @@ class PurchasePushResult {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Inventory DTOs (reusing backend Inventory API)
+// ---------------------------------------------------------------------------
+
+int? _parseTs(dynamic val) {
+  if (val == null) return null;
+  if (val is num) return val.toInt();
+  if (val is String) {
+    final parsed = DateTime.tryParse(val);
+    if (parsed != null) return parsed.millisecondsSinceEpoch;
+  }
+  return null;
+}
+
+/// Mirrors backend StockDto (single stock query: /v1/inventory/stock).
+class StockDto {
+  final String? id;
+  final String? businessId;
+  final String? branchId;
+  final String productId;
+  final int quantity;
+  final int serverVersion;
+  final int? createdAt;
+  final int? updatedAt;
+
+  const StockDto({
+    this.id,
+    this.businessId,
+    this.branchId,
+    required this.productId,
+    required this.quantity,
+    required this.serverVersion,
+    this.createdAt,
+    this.updatedAt,
+  });
+
+  factory StockDto.fromJson(Map<String, dynamic> j) => StockDto(
+        id: j['id'] as String?,
+        businessId: j['business_id'] as String?,
+        branchId: j['branch_id'] as String?,
+        productId: j['product_id'] as String? ?? '',
+        quantity: (j['quantity'] as num?)?.toInt() ?? 0,
+        serverVersion: (j['server_version'] as num?)?.toInt() ?? 0,
+        createdAt: _parseTs(j['created_at']),
+        updatedAt: _parseTs(j['updated_at']),
+      );
+}
+
+/// Mirrors backend StockWithProductDto (list endpoint: /v1/inventory/stocks).
+class StockWithProductDto {
+  final String id;
+  final String businessId;
+  final String branchId;
+  final String productId;
+  final String productName;
+  final String? sku;
+  final String? category;
+  final String? barcode;
+  final int priceMinor;
+  final int? costMinor;
+  final int quantity;
+  final int serverVersion;
+  final int? createdAt;
+  final int? updatedAt;
+
+  const StockWithProductDto({
+    required this.id,
+    required this.businessId,
+    required this.branchId,
+    required this.productId,
+    required this.productName,
+    this.sku,
+    this.category,
+    this.barcode,
+    required this.priceMinor,
+    this.costMinor,
+    required this.quantity,
+    required this.serverVersion,
+    this.createdAt,
+    this.updatedAt,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'business_id': businessId,
+        'branch_id': branchId,
+        'product_id': productId,
+        'product_name': productName,
+        'sku': sku,
+        'category': category,
+        'barcode': barcode,
+        'price_minor': priceMinor,
+        'cost_minor': costMinor,
+        'quantity': quantity,
+        'server_version': serverVersion,
+        'created_at': createdAt,
+        'updated_at': updatedAt,
+      };
+
+  factory StockWithProductDto.fromJson(Map<String, dynamic> j) => StockWithProductDto(
+        id: j['id'] as String? ?? '',
+        businessId: j['business_id'] as String? ?? '',
+        branchId: j['branch_id'] as String? ?? '',
+        productId: j['product_id'] as String? ?? '',
+        productName: j['product_name'] as String? ?? '',
+        sku: j['sku'] as String?,
+        category: j['category'] as String?,
+        barcode: j['barcode'] as String?,
+        priceMinor: (j['price_minor'] as num?)?.toInt() ?? 0,
+        costMinor: (j['cost_minor'] as num?)?.toInt(),
+        quantity: (j['quantity'] as num?)?.toInt() ?? 0,
+        serverVersion: (j['server_version'] as num?)?.toInt() ?? 0,
+        createdAt: _parseTs(j['created_at']),
+        updatedAt: _parseTs(j['updated_at']),
+      );
+}
+
+/// Mirrors backend StockMovementDto (GET /v1/inventory/movements).
+class StockMovementDto {
+  final String id;
+  final String businessId;
+  final String branchId;
+  final String productId;
+  final int quantity;
+  final String movementType;
+  final String? reference;
+  final String actor;
+  final int? timestamp;
+
+  const StockMovementDto({
+    required this.id,
+    required this.businessId,
+    required this.branchId,
+    required this.productId,
+    required this.quantity,
+    required this.movementType,
+    this.reference,
+    required this.actor,
+    this.timestamp,
+  });
+
+  factory StockMovementDto.fromJson(Map<String, dynamic> j) => StockMovementDto(
+        id: j['id'] as String? ?? '',
+        businessId: j['business_id'] as String? ?? '',
+        branchId: j['branch_id'] as String? ?? '',
+        productId: j['product_id'] as String? ?? '',
+        quantity: (j['quantity'] as num?)?.toInt() ?? 0,
+        movementType: j['movement_type'] as String? ?? '',
+        reference: j['reference'] as String?,
+        actor: j['actor'] as String? ?? '',
+        timestamp: _parseTs(j['timestamp']),
+      );
+}
+
+/// Mirrors backend StockMovementPaginatedResponse.
+class StockMovementPaginatedResponse {
+  final List<StockMovementDto> items;
+  final int total;
+  final int limit;
+  final int offset;
+  final bool hasMore;
+
+  const StockMovementPaginatedResponse({
+    required this.items,
+    required this.total,
+    required this.limit,
+    final int? offset,
+    required this.hasMore,
+  }) : offset = offset ?? 0;
+
+  factory StockMovementPaginatedResponse.fromJson(Map<String, dynamic> j) =>
+      StockMovementPaginatedResponse(
+        items: (j['items'] as List? ?? [])
+            .map((e) => StockMovementDto.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        total: (j['total'] as num?)?.toInt() ?? 0,
+        limit: (j['limit'] as num?)?.toInt() ?? 50,
+        offset: (j['offset'] as num?)?.toInt() ?? 0,
+        hasMore: j['has_more'] as bool? ?? false,
+      );
+}
+
+/// Mirrors backend StockSummaryDto (GET /v1/inventory/summary).
+class StockSummaryDto {
+  final int totalStockValueMinor;
+  final int lowStockCount;
+  final int outOfStockCount;
+  final int totalSkus;
+
+  const StockSummaryDto({
+    required this.totalStockValueMinor,
+    required this.lowStockCount,
+    required this.outOfStockCount,
+    required this.totalSkus,
+  });
+
+  factory StockSummaryDto.fromJson(Map<String, dynamic> j) => StockSummaryDto(
+        totalStockValueMinor: (j['total_stock_value_minor'] as num?)?.toInt() ?? 0,
+        lowStockCount: (j['low_stock_count'] as num?)?.toInt() ?? 0,
+        outOfStockCount: (j['out_of_stock_count'] as num?)?.toInt() ?? 0,
+        totalSkus: (j['total_skus'] as num?)?.toInt() ?? 0,
+      );
+}
+
+/// Mirrors backend StockAdjustmentRequest (POST /v1/inventory/adjustment).
+class StockAdjustmentRequest {
+  final String businessId;
+  final String branchId;
+  final String productId;
+  final int quantityChange;
+  final int expectedServerVersion;
+  final String? reference;
+  final String? movementType;
+
+  const StockAdjustmentRequest({
+    required this.businessId,
+    required this.branchId,
+    required this.productId,
+    required this.quantityChange,
+    required this.expectedServerVersion,
+    this.reference,
+    this.movementType,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'business_id': businessId,
+        'branch_id': branchId,
+        'product_id': productId,
+        'quantity_change': quantityChange,
+        'expected_server_version': expectedServerVersion,
+        if (reference != null) 'reference': reference,
+        if (movementType != null) 'movement_type': movementType,
+      };
+}
+
+/// Result of POST /v1/inventory/adjustment.
+class StockAdjustmentResult {
+  final bool ok;
+  final bool conflict;
+  final String? error;
+  final StockDto? stock;
+  final StockMovementDto? movement;
+
+  const StockAdjustmentResult({
+    this.ok = false,
+    this.conflict = false,
+    this.error,
+    this.stock,
+    this.movement,
+  });
+}
+
+/// Response wrapper for GET /v1/inventory/stocks.
+class PullStocksResponse {
+  final List<StockWithProductDto> items;
+  final bool hasMore;
+
+  const PullStocksResponse(this.items, this.hasMore);
+
+  factory PullStocksResponse.fromJson(Map<String, dynamic> j) => PullStocksResponse(
+        (j['items'] as List? ?? [])
+            .map((e) => StockWithProductDto.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        j['has_more'] as bool? ?? false,
+      );
+}
+

@@ -265,6 +265,45 @@ class _FakeSettingsApi implements SyncApiClient {
   Future<PurchasePushResult> deleteDraftPurchase({
     required String id,
   }) async => PurchasePushResult(ok: true);
+
+  @override
+  Future<PullStocksResponse> pullStocks({
+    required String businessId,
+    required String branchId,
+  }) async => const PullStocksResponse([], false);
+
+  @override
+  Future<StockSummaryDto> pullStockSummary({
+    required String businessId,
+    required String branchId,
+  }) async => const StockSummaryDto(
+      totalStockValueMinor: 0,
+      lowStockCount: 0,
+      outOfStockCount: 0,
+      totalSkus: 0,
+    );
+
+  @override
+  Future<StockMovementPaginatedResponse> pullStockMovements({
+    required String businessId,
+    required String branchId,
+    String? productId,
+    int? sinceMs,
+    int limit = 50,
+    int offset = 0,
+  }) async => StockMovementPaginatedResponse(
+      items: const [],
+      total: 0,
+      limit: limit,
+      offset: offset,
+      hasMore: false,
+    );
+
+  @override
+  Future<StockAdjustmentResult> adjustStock(
+    StockAdjustmentRequest request, {
+    required String idempotencyKey,
+  }) async => const StockAdjustmentResult(ok: false);
 }
 
 void main() {

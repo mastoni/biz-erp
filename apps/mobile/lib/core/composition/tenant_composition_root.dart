@@ -27,6 +27,7 @@ import 'package:biz_erp_mobile/core/sync/sync_status_notifier.dart';
 import 'package:biz_erp_mobile/core/sync/branch_repository.dart';
 import 'package:biz_erp_mobile/core/sync/store_settings_repository.dart';
 import 'package:biz_erp_mobile/sales/data/sales_sync_repository.dart';
+import 'package:biz_erp_mobile/inventory/data/stock_repository.dart';
 
 /// Container yang menyimpan semua instance dependency untuk sebuah sesi tenant/business.
 class TenantDependencyGraph {
@@ -43,7 +44,8 @@ class TenantDependencyGraph {
   final SyncEngine syncEngine;
   final PrintingService printingService;
   final BranchRepository branchRepo;
-  final StoreSettingsRepository storeSettingsRepo;
+   final StoreSettingsRepository storeSettingsRepo;
+  final StockRepository stockRepo;
 
   TenantDependencyGraph({
     required this.db,
@@ -59,8 +61,9 @@ class TenantDependencyGraph {
     required this.syncEngine,
     required this.printingService,
     required this.branchRepo,
-    required this.storeSettingsRepo,
-  });
+     required this.storeSettingsRepo,
+     required this.stockRepo,
+   });
 
   /// Membersihkan background workers, koneksi API, dan menutup koneksi SQLite terenkripsi.
   Future<void> dispose() async {
@@ -93,6 +96,7 @@ class TenantCompositionRoot {
     final syncMetaRepo = SyncMetaRepository(db);
     final syncOutboxRepo = SyncOutboxRepository(db);
     final salesSyncRepo = SalesSyncRepository(db);
+    final stockRepo = StockRepository(db);
 
     // 2. Synchronization & Network Subsystem
     final apiClient = HttpSyncApiClient(
@@ -102,6 +106,20 @@ class TenantCompositionRoot {
       businessId: businessId,
     );
     final networkMonitor = NetworkMonitor(api: apiClient);
+
+    // 3. Branch Context Resolution (needed for branch-scoped sync)
+    final branchRepo = BranchRepository(db, apiClient);
+    String? branchId = await branchRepo.getSelectedBranchId(businessId);
+    if (branchId == null) {
+      final activeBranch = await branchRepo.getActiveBranch(businessId);
+      if (activeBranch != null) {
+        branchId = activeBranch.id;
+        await branchRepo.setActiveBranch(businessId, branchId);
+      }
+    }
+    final resolvedBranchId = branchId ?? '';
+
+    // 4. Synchronization Engine (pass resolved branchId)
     final syncEngine = SyncEngine(
       outbox: syncOutboxRepo,
       meta: syncMetaRepo,
@@ -110,6 +128,8 @@ class TenantCompositionRoot {
       salesSync: salesSyncRepo,
       customers: customerRepo,
       suppliers: supplierRepo,
+      stocks: stockRepo,
+      branchId: resolvedBranchId,
       businessId: businessId,
     );
     final syncStatusNotifier = SyncStatusNotifier(
@@ -121,7 +141,7 @@ class TenantCompositionRoot {
       authStateNotifier: authStateNotifier,
     );
 
-    // 3. Checkout Service
+    // 5. Checkout Service
     final checkoutService = CheckoutService(
       db,
       calcEngine,
@@ -130,20 +150,7 @@ class TenantCompositionRoot {
       () => syncStatusNotifier.syncNow(),
     );
 
-     // 4. Branch Context Resolution
-    final branchRepo = BranchRepository(db, apiClient);
-    String? branchId = await branchRepo.getSelectedBranchId(businessId);
-    if (branchId == null) {
-      final activeBranch = await branchRepo.getActiveBranch(businessId);
-      if (activeBranch != null) {
-        branchId = activeBranch.id;
-        await branchRepo.setActiveBranch(businessId, branchId);
-      }
-    }
-
-    final resolvedBranchId = branchId ?? '';
-
-    // 5. Store Settings — server is authoritative for resolved config.
+    // 6. Store Settings — server is authoritative for resolved config.
     //    Fetch after branch is resolved; persist locally for offline use.
     final storeSettingsRepo = StoreSettingsRepository(db, apiClient);
     if (resolvedBranchId.isNotEmpty) {
@@ -158,13 +165,13 @@ class TenantCompositionRoot {
       }
     }
 
-    // 5. Hardware Subsystems (Printing & Scanner)
+    // 7. Hardware Subsystems (Printing & Scanner)
     final printingService = PrintingService(
       adapter: BluetoothPrinterAdapter(),
       prefs: FilePrinterPreferences(baseDir: appDir),
     );
 
-    // 6. Presentation Controller
+    // 8. Presentation Controller
     final controller = PosController(
       businessId: businessId,
       branchId: resolvedBranchId,
@@ -199,9 +206,10 @@ class TenantCompositionRoot {
       apiClient: apiClient,
       syncEngine: syncEngine,
       printingService: printingService,
-      branchRepo: branchRepo,
+       branchRepo: branchRepo,
       storeSettingsRepo: storeSettingsRepo,
       supplierRepo: supplierRepo,
+      stockRepo: stockRepo,
     );
   }
 }

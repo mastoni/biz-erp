@@ -115,15 +115,17 @@ void main() {
       expect(tableNames, contains('sale_items_local'));
       expect(tableNames, contains('payments_local'));
       expect(tableNames, contains('local_idempotency_keys'));
+      expect(tableNames, contains('stocks_local'));
+      expect(tableNames, contains('stock_movements_local'));
 
       await db.close();
     });
   });
 
   group('MIG-002: schemaVersion is correct', () {
-    test('schemaVersion is 11', () async {
+    test('schemaVersion is 12', () async {
       final db = AppDatabase.memory();
-      expect(db.schemaVersion, equals(11));
+      expect(db.schemaVersion, equals(12));
       await db.close();
     });
 
@@ -132,7 +134,7 @@ void main() {
       await db.customSelect('SELECT 1').get(); // Trigger creation
 
       final result = await db.customSelect('PRAGMA user_version').get();
-      expect(result.first.read<int>('user_version'), equals(11));
+      expect(result.first.read<int>('user_version'), equals(12));
 
       await db.close();
     });
@@ -357,7 +359,7 @@ void main() {
   });
 
   group('MIG-009: Opening current-version DB does not migrate', () {
-    test('user_version remains 11 after reopen', () async {
+    test('user_version remains 12 after reopen', () async {
       final tempDir = Directory.systemTemp.createTempSync('mig_test_');
       final dbFile = File('${tempDir.path}/test.db');
 
@@ -370,7 +372,7 @@ void main() {
         // Reopen and verify version unchanged
         final db2 = AppDatabase(NativeDatabase(dbFile));
         final result = await db2.customSelect('PRAGMA user_version').get();
-        expect(result.first.read<int>('user_version'), equals(11));
+        expect(result.first.read<int>('user_version'), equals(12));
 
         await db2.close();
       } finally {
@@ -427,7 +429,7 @@ void main() {
       // Buka ulang - migration tidak harus dijalankan lagi
       final db2 = AppDatabase(NativeDatabase.memory());
       final version = await db2.customSelect('PRAGMA user_version').getSingle();
-      expect(version.read<int>('user_version'), 11);
+      expect(version.read<int>('user_version'), 12);
       await db2.close();
     });
   });

@@ -32,6 +32,25 @@ abstract class SyncApiClient {
     required String businessId,
   });
 
+  Future<PullStocksResponse> pullStocks({
+    required String businessId,
+    required String branchId,
+  });
+
+  Future<StockSummaryDto> pullStockSummary({
+    required String businessId,
+    required String branchId,
+  });
+
+  Future<StockMovementPaginatedResponse> pullStockMovements({
+    required String businessId,
+    required String branchId,
+    String? productId,
+    int? sinceMs,
+    int limit = 50,
+    int offset = 0,
+  });
+
   Future<StoreSettingsDto?> getStoreSettings({
     required String businessId,
     required String branchId,
@@ -136,5 +155,10 @@ abstract class SyncApiClient {
 
   Future<PurchasePushResult> deleteDraftPurchase({
     required String id,
+  });
+
+  Future<StockAdjustmentResult> adjustStock(
+    StockAdjustmentRequest request, {
+    required String idempotencyKey,
   });
 }

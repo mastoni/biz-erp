@@ -5,6 +5,7 @@ import 'package:biz_erp_mobile/core/database/app_database.dart';
 import 'package:biz_erp_mobile/core/sync/sync_status_notifier.dart';
 import 'package:biz_erp_mobile/core/sync/network_monitor.dart';
 import 'package:biz_erp_mobile/core/sync/sync_engine.dart';
+import 'package:biz_erp_mobile/core/sync/sync_api_client.dart';
 import 'package:biz_erp_mobile/core/sync/sync_outbox_repository.dart';
 import 'package:biz_erp_mobile/core/sync/sync_models.dart';
 import 'package:biz_erp_mobile/products/data/product_repository.dart';
@@ -13,6 +14,7 @@ import 'package:biz_erp_mobile/core/auth/auth_models.dart';
 import 'package:biz_erp_mobile/core/auth/auth_repository.dart';
 import 'package:biz_erp_mobile/suppliers/data/supplier_repository.dart';
 import 'package:biz_erp_mobile/purchases/data/purchase_repository.dart';
+import 'package:biz_erp_mobile/inventory/data/stock_repository.dart';
 import 'package:biz_erp_mobile/suppliers/domain/supplier.dart';
 import 'package:biz_erp_mobile/suppliers/presentation/supplier_list_screen.dart';
 import 'package:biz_erp_mobile/suppliers/presentation/supplier_edit_screen.dart';
@@ -82,6 +84,10 @@ class _FakeSyncEngine extends ChangeNotifier implements SyncEngine {
   int syncNowCallCount = 0;
   @override
   PurchaseRepository? get purchases => null;
+  @override
+  StockRepository? get stocks => null;
+  @override
+  SyncApiClient get apiClient => throw UnimplementedError();
   @override
   String? get branchId => null;
   @override

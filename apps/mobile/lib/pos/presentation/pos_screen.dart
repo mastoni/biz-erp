@@ -12,6 +12,8 @@ import 'package:biz_erp_mobile/customers/presentation/customer_list_screen.dart'
 import 'package:biz_erp_mobile/customers/data/customer_repository.dart';
 import 'package:biz_erp_mobile/suppliers/data/supplier_repository.dart';
 import 'package:biz_erp_mobile/suppliers/presentation/supplier_list_screen.dart';
+import 'package:biz_erp_mobile/inventory/data/stock_repository.dart';
+import 'package:biz_erp_mobile/inventory/presentation/stock_list_screen.dart';
 import 'widgets/conflict_list_sheet.dart';
 import 'package:biz_erp_mobile/core/auth/auth_state_notifier.dart';
 
@@ -24,6 +26,7 @@ class PosScreen extends StatefulWidget {
   final SyncOutboxRepository? outboxRepo;
   final AuthStateNotifier? authStateNotifier;
   final SupplierRepository? supplierRepo;
+  final StockRepository? stockRepo;
 
   const PosScreen({
     super.key,
@@ -33,6 +36,7 @@ class PosScreen extends StatefulWidget {
     this.productRepo,
     this.customerRepo,
     this.supplierRepo,
+    this.stockRepo,
     this.outboxRepo,
     this.authStateNotifier,
   });
@@ -239,6 +243,33 @@ class _PosScreenState extends State<PosScreen> {
               );
             },
           ),
+          if (widget.authStateNotifier != null)
+            ListTile(
+              leading: const Icon(Icons.inventory_2),
+              title: const Text('Stok Barang'),
+              subtitle: const Text('Lihat stok & riwayat pergerakan'),
+              onTap: () {
+                Navigator.pop(context);
+                if (widget.stockRepo == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Manajemen stok belum diaktifkan')),
+                  );
+                  return;
+                }
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => StockListScreen(
+                      businessId: widget.authStateNotifier!.businessId!,
+                      branchId: widget.controller.branchId,
+                      stockRepo: widget.stockRepo!,
+                      apiClient: widget.syncStatusNotifier!.syncEngine.apiClient,
+                      userRole: widget.authStateNotifier!.session?.role ?? 'CASHIER',
+                    ),
+                  ),
+                );
+              },
+            ),
           if (widget.authStateNotifier != null)
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.red),

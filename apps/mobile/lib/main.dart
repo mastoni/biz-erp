@@ -211,8 +211,9 @@ class _MyAppState extends State<MyApp> {
             outboxRepo: _graph!.outboxRepo,
             authStateNotifier: widget.authStateNotifier,
             customerRepo: _graph!.customerRepo,
-            supplierRepo: _graph!.supplierRepo,
-          );
+             supplierRepo: _graph!.supplierRepo,
+             stockRepo: _graph!.stockRepo,
+           );
         },
       ),
     );

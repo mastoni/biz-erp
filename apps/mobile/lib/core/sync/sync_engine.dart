@@ -9,6 +9,7 @@ import '../../sales/data/sales_sync_repository.dart';
 import '../../customers/data/customer_repository.dart';
 import '../../suppliers/data/supplier_repository.dart';
 import '../../purchases/data/purchase_repository.dart';
+import '../../inventory/data/stock_repository.dart';
 import 'http_sync_api_client.dart' show HttpException, NetworkException;
 import 'package:sentry_flutter/sentry_flutter.dart';
 
@@ -20,6 +21,7 @@ class SyncSummary {
   final int pulledSuppliers;
   final int pulledPurchases;
   final int pulledSales;
+  final int pulledStocks;
   final SyncCounts counts;
   const SyncSummary({
     required this.reachable,
@@ -29,6 +31,7 @@ class SyncSummary {
     required this.pulledSuppliers,
     this.pulledPurchases = 0,
     required this.pulledSales,
+    this.pulledStocks = 0,
     required this.counts,
   });
 }
@@ -43,6 +46,7 @@ class SyncEngine extends ChangeNotifier {
     required this._customers,
     required this._suppliers,
     this.purchases,
+    this.stocks,
     this.branchId,
     required this._businessId,
   });
@@ -55,12 +59,15 @@ class SyncEngine extends ChangeNotifier {
   final CustomerRepository _customers;
   final SupplierRepository _suppliers;
   final PurchaseRepository? purchases;
+  final StockRepository? stocks;
   final String? branchId;
   final String _businessId;
 
+  SyncApiClient get apiClient => _api;
+
   Future<SyncSummary> syncNow() async {
     bool reachable = false;
-    int pushed = 0, pulledP = 0, pulledC = 0, pulledS = 0, pulledSup = 0, pulledPurchases = 0;
+    int pushed = 0, pulledP = 0, pulledC = 0, pulledS = 0, pulledSup = 0, pulledPurchases = 0, pulledStocks = 0;
     try {
       reachable = await _api.health();
     } catch (_) {
@@ -76,6 +83,7 @@ class SyncEngine extends ChangeNotifier {
         pulledSup = pull.$3;
         pulledPurchases = pull.$4;
         pulledS = pull.$5;
+        pulledStocks = pull.$6;
       } on HttpException catch (e, st) {
         if (e.statusCode == 401) {
           // Graceful abort on auth error. Session expiry is handled by AuthStateNotifier.
@@ -104,9 +112,10 @@ class SyncEngine extends ChangeNotifier {
       pulledProducts: pulledP,
       pulledCustomers: pulledC,
       pulledSuppliers: pulledSup,
-      pulledPurchases: pulledPurchases,
-      pulledSales: pulledS,
-      counts: counts,
+       pulledPurchases: pulledPurchases,
+       pulledSales: pulledS,
+       pulledStocks: pulledStocks,
+       counts: counts,
     );
   }
 
@@ -380,7 +389,7 @@ class SyncEngine extends ChangeNotifier {
     }
   }
 
-  Future<(int, int, int, int, int)> _pull() async {
+  Future<(int, int, int, int, int, int)> _pull() async {
     // Pull products (skip local dirty — policy B)
     int pulledP = 0;
     final sinceV = await _products.maxServerVersion(_businessId);
@@ -443,6 +452,22 @@ class SyncEngine extends ChangeNotifier {
     }
     await _meta.setInt('sales_pull_cursor', maxCursor);
 
-    return (pulledP, pulledC, pulledSup, pulledPur, pulledS);
+    // Pull inventory stocks + movements (full pull, server-authoritative)
+    int pulledStocks = 0;
+    if (stocks != null && branchId != null) {
+      final res = await _api.pullStocks(
+        businessId: _businessId,
+        branchId: branchId!,
+      );
+      pulledStocks = await stocks!.applyStocksPull(res.items, _businessId, branchId!);
+
+      final movementsRes = await _api.pullStockMovements(
+        businessId: _businessId,
+        branchId: branchId!,
+      );
+      await stocks!.applyMovementsPull(movementsRes.items, _businessId, branchId!);
+    }
+
+    return (pulledP, pulledC, pulledSup, pulledPur, pulledS, pulledStocks);
   }
 }

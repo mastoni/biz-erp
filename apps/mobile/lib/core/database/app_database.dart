@@ -14,6 +14,8 @@ import 'tables/sales_local.dart';
 import 'tables/purchases_local.dart';
 import 'tables/purchase_items_local.dart';
 import 'tables/suppliers_local.dart';
+import 'tables/stock_movements_local.dart';
+import 'tables/stocks_local.dart';
 import 'tables/sync_meta.dart';
 import 'tables/sync_outbox.dart';
 
@@ -38,6 +40,8 @@ part 'app_database.g.dart';
     LocalIdempotencyKeys,
     SyncOutbox,
     SyncMeta,
+    StocksLocal,
+    StockMovementsLocal,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -47,7 +51,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.memory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => 12;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -223,12 +227,40 @@ class AppDatabase extends _$AppDatabase {
         final hasCostMinor = columns.any(
           (row) => row.read<String>('name') == 'cost_minor',
         );
-        if (!hasCostMinor) {
-          await customStatement(
-            'ALTER TABLE products_local ADD COLUMN cost_minor INTEGER',
+          if (!hasCostMinor) {
+            await customStatement(
+              'ALTER TABLE products_local ADD COLUMN cost_minor INTEGER',
+            );
+          }
+        }
+        if (from < 12) {
+          final stocksTable = await customSelect(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='stocks_local'",
+          ).get();
+          if (stocksTable.isEmpty) {
+            await m.createTable(stocksLocal);
+          }
+
+          final movementsTable = await customSelect(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='stock_movements_local'",
+          ).get();
+          if (movementsTable.isEmpty) {
+            await m.createTable(stockMovementsLocal);
+          }
+
+          await m.database.customStatement(
+            'CREATE INDEX IF NOT EXISTS idx_stocks_business_branch '
+            'ON stocks_local (business_id, branch_id)',
+          );
+          await m.database.customStatement(
+            'CREATE INDEX IF NOT EXISTS idx_stock_movements_business_branch '
+            'ON stock_movements_local (business_id, branch_id)',
+          );
+          await m.database.customStatement(
+            'CREATE INDEX IF NOT EXISTS idx_stock_movements_business_branch_product '
+            'ON stock_movements_local (business_id, branch_id, product_id)',
           );
         }
-      }
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
