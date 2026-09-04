@@ -6,17 +6,18 @@ import {
   generatePlatformInvoice,
   recordPlatformPayment,
   getPlatformInvoiceById,
+  createPlatformInvoicePaymentToken,
   PLATFORM_PAGE_SIZE,
 } from '@/features/platform/api';
 import type {
   PlatformSubscription,
   PlatformInvoice,
   PlatformPaymentMethod,
+  GatewayTransactionResult,
 } from '@/features/platform/types';
 import {
   getApiErrorInfo,
   formatPlatformDate,
-  formatNullable,
   formatCurrency,
   formatRangeLabel,
   isNextDisabled,
@@ -50,6 +51,9 @@ import {
   Building2,
   FileText,
   Calendar,
+  ExternalLink,
+  Zap,
+  Copy,
 } from 'lucide-react';
 
 const FALLBACK = 'Terjadi kesalahan saat memproses data langganan dan penagihan platform.';
@@ -94,9 +98,13 @@ export default function PlatformSubscriptionsPage() {
   const [paymentRef, setPaymentRef] = useState('');
   const [paymentNotes, setPaymentNotes] = useState('');
 
+  // Payment Gateway Modal
+  const [gatewayTx, setGatewayTx] = useState<GatewayTransactionResult | null>(null);
+  const [gatewayLoading, setGatewayLoading] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+
   // Invoice Detail Inspection Modal
   const [inspectInvoice, setInspectInvoice] = useState<PlatformInvoice | null>(null);
-  const [inspectLoading, setInspectLoading] = useState(false);
 
   const activeRef = useRef(true);
 
@@ -192,6 +200,22 @@ export default function PlatformSubscriptionsPage() {
     }
   };
 
+  // Payment Gateway Token Initiation
+  const handleInitiateGatewayPayment = async (inv: PlatformInvoice) => {
+    setGatewayLoading(true);
+    setActionError(null);
+    try {
+      const result = await createPlatformInvoicePaymentToken(inv.id);
+      setGatewayTx(result.transaction);
+      setCopiedLink(false);
+    } catch (err) {
+      const info = getApiErrorInfo(err, 'Gagal menginisiasi token payment gateway.');
+      setActionError(info.message);
+    } finally {
+      setGatewayLoading(false);
+    }
+  };
+
   // Payment Recording Handler
   const handleOpenPayment = (inv: PlatformInvoice) => {
     setPaymentInvoice(inv);
@@ -229,15 +253,20 @@ export default function PlatformSubscriptionsPage() {
 
   // Inspect Invoice Detail
   const handleInspectInvoice = async (invoiceId: string) => {
-    setInspectLoading(true);
     try {
       const inv = await getPlatformInvoiceById(invoiceId);
       setInspectInvoice(inv);
     } catch (err) {
       const info = getApiErrorInfo(err, 'Gagal memuat detail invoice.');
       setError(info.message);
-    } finally {
-      setInspectLoading(false);
+    }
+  };
+
+  const copyToClipboard = (text: string) => {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2000);
     }
   };
 
@@ -307,7 +336,7 @@ export default function PlatformSubscriptionsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-3xl font-display font-bold tracking-tight text-ink">Langganan & Penagihan Platform</h2>
-          <p className="text-ink/60 mt-1">Siklus langganan, invoice periodik, dan pencatatan pembayaran tenant</p>
+          <p className="text-ink/60 mt-1">Siklus langganan, payment gateway online, dan pencatatan pembayaran</p>
         </div>
         <Button
           variant="outline"
@@ -491,7 +520,7 @@ export default function PlatformSubscriptionsPage() {
                               Mulai: {formatPlatformDate(row.starts_at)}
                             </div>
                             <div className="text-ink/60">
-                              Berakhir: {row.ends_at ? formatPlatformDate(row.ends_at) : '—'}
+                              Berakhir: {formatPlatformDate(row.ends_at)}
                             </div>
                           </div>
                         </TableCell>
@@ -529,14 +558,27 @@ export default function PlatformSubscriptionsPage() {
                             )}
 
                             {inv && inv.status !== 'PAID' ? (
-                              <Button
-                                size="sm"
-                                variant="default"
-                                onClick={() => handleOpenPayment(inv)}
-                                className="h-8 px-3 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
-                              >
-                                <CreditCard className="w-3.5 h-3.5 mr-1.5" /> Catat Bayar
-                              </Button>
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleInitiateGatewayPayment(inv)}
+                                  disabled={gatewayLoading}
+                                  className="h-8 px-2.5 text-xs border-ink/20 text-ink hover:bg-ink/5"
+                                  title="Dapatkan Token & Link Pembayaran Midtrans Snap"
+                                >
+                                  <Zap className="w-3.5 h-3.5 mr-1 text-amber-500" /> Gateway
+                                </Button>
+
+                                <Button
+                                  size="sm"
+                                  variant="default"
+                                  onClick={() => handleOpenPayment(inv)}
+                                  className="h-8 px-3 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
+                                >
+                                  <CreditCard className="w-3.5 h-3.5 mr-1.5" /> Catat Bayar
+                                </Button>
+                              </>
                             ) : (
                               <Button
                                 size="sm"
@@ -582,6 +624,95 @@ export default function PlatformSubscriptionsPage() {
             </div>
           </div>
         </>
+      )}
+
+      {/* MODAL: Payment Gateway Snap Token */}
+      {gatewayTx && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-card border-2 border-ink/20 rounded-lg max-w-md w-full p-6 shadow-xl space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold font-display text-ink flex items-center gap-2">
+                <Zap className="w-5 h-5 text-amber-500" /> Payment Gateway Online (Midtrans)
+              </h3>
+              <button
+                onClick={() => setGatewayTx(null)}
+                className="text-ink/40 hover:text-ink transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-sm text-ink/80 bg-ink/5 p-4 rounded-md">
+              <div className="flex justify-between">
+                <span className="text-ink/60">No. Order / Invoice:</span>
+                <span className="font-mono font-bold text-ink">{gatewayTx.order_id}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-ink/60">Nominal Tagihan:</span>
+                <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                  {formatCurrency(gatewayTx.gross_amount, gatewayTx.currency)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-ink/60">Berlaku Sampai:</span>
+                <span className="text-xs text-ink/80">{formatPlatformDate(gatewayTx.expires_at)}</span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-ink/70">Snap Token</label>
+              <Input
+                type="text"
+                readOnly
+                value={gatewayTx.token}
+                className="font-mono text-xs bg-muted"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-ink/70">Payment Checkout Link</label>
+              <div className="flex gap-2">
+                <Input
+                  type="text"
+                  readOnly
+                  value={gatewayTx.redirect_url}
+                  className="font-mono text-xs bg-muted flex-1"
+                />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => copyToClipboard(gatewayTx.redirect_url)}
+                  className="shrink-0 text-xs border-ink/20"
+                >
+                  <Copy className="w-3.5 h-3.5 mr-1" />
+                  {copiedLink ? 'Tersalin' : 'Salin'}
+                </Button>
+              </div>
+            </div>
+
+            <p className="text-xs text-ink/60 italic">
+              Pembayaran online akan otomatis diverifikasi melalui webhook gateway secara real-time dan mengaktifkan langganan.
+            </p>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setGatewayTx(null)}
+              >
+                Tutup
+              </Button>
+              <a
+                href={gatewayTx.redirect_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center rounded-md text-xs font-medium h-8 px-3 bg-amber-600 hover:bg-amber-700 text-white"
+              >
+                <ExternalLink className="w-3.5 h-3.5 mr-1.5" /> Buka Halaman Bayar
+              </a>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* MODAL: Generate Invoice */}
@@ -664,7 +795,7 @@ export default function PlatformSubscriptionsPage() {
           <div className="bg-card border-2 border-ink/20 rounded-lg max-w-md w-full p-6 shadow-xl space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold font-display text-ink flex items-center gap-2">
-                <CreditCard className="w-5 h-5 text-emerald-600" /> Catat Pembayaran Invoice
+                <CreditCard className="w-5 h-5 text-emerald-600" /> Catat Pembayaran Manual
               </h3>
               <button
                 onClick={() => setPaymentInvoice(null)}

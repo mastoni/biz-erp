@@ -7,6 +7,7 @@ import {
   requirePlatformRole
 } from '../middleware/auth'
 import { createPlatformService } from '../services/platform_service'
+import { createPaymentGatewayService } from '../services/payment_gateway_service'
 import { createAuditService } from '../services/audit_service'
 import { asyncHandler } from '../utils/async_handler'
 
@@ -24,6 +25,7 @@ export function createPlatformRoutes(pool: Pool): Router {
   const jwtService = createJwtService(jwtSecret, jwtIssuer, jwtAudience)
   const platformAuth = createPlatformJwtAuthMiddleware(jwtService)
   const platformService = createPlatformService(pool)
+  const paymentGatewayService = createPaymentGatewayService(pool)
   const auditService = createAuditService(pool)
 
   // Every platform route is gated by the platform auth middleware. Tenant tokens
@@ -461,6 +463,24 @@ export function createPlatformRoutes(pool: Pool): Router {
       res.status(200).json({
         message: 'Payment recorded and subscription renewed/activated successfully',
         ...result,
+      })
+    })
+  )
+
+  router.post(
+    '/invoices/:id/payment-token',
+    requirePlatformRole() as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const actorUserId = req.platformUser!.userId
+      const requestId = req.headers['x-request-id'] as string | undefined
+      const result = await paymentGatewayService.createInvoiceTransaction(
+        req.params.id,
+        actorUserId,
+        requestId
+      )
+      res.status(200).json({
+        message: 'Payment gateway transaction initiated successfully',
+        transaction: result,
       })
     })
   )

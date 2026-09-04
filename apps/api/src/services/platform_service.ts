@@ -2229,6 +2229,7 @@ export function createPlatformService(pool: Pool) {
             $1, $2, $3, $4, $5, $6, $7, $8, now()
           ) RETURNING *
         `
+        const recordedByUserId = actorUserId && isUuid(actorUserId) ? actorUserId : null
         const payRes = await client.query(paySql, [
           invoiceId,
           invoice.business_id,
@@ -2237,7 +2238,7 @@ export function createPlatformService(pool: Pool) {
           method,
           input.payment_reference || null,
           input.notes || null,
-          actorUserId || null,
+          recordedByUserId,
         ])
         const payment = payRes.rows[0]
 
@@ -2293,7 +2294,7 @@ export function createPlatformService(pool: Pool) {
         // 4. Record Audit Log
         const auditService = createAuditService(pool)
         await auditService.recordAudit({
-          actor_id: actorUserId || null,
+          actor_id: recordedByUserId,
           actor_scope: 'platform',
           action: 'PLATFORM_PAYMENT_RECORDED',
           target_type: 'platform_invoices',

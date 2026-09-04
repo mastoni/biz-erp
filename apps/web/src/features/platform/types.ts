@@ -214,6 +214,15 @@ export interface PlatformPayment {
   created_at: string;
 }
 
+export interface GatewayTransactionResult {
+  order_id: string;
+  token: string;
+  redirect_url: string;
+  gross_amount: number;
+  currency: string;
+  expires_at: string;
+}
+
 export interface PlatformInvoice {
   id: string;
   invoice_number: string;

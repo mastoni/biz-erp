@@ -30,6 +30,7 @@ import {
   PlatformInvoiceStatus,
   PlatformPayment,
   PlatformPaymentMethod,
+  GatewayTransactionResult,
   InvoiceListSummary,
   PlatformInvoicesResponse,
   BusinessLifecycleStatus,
@@ -69,6 +70,7 @@ export type {
   PlatformInvoiceStatus,
   PlatformPayment,
   PlatformPaymentMethod,
+  GatewayTransactionResult,
   InvoiceListSummary,
   PlatformInvoicesResponse,
   PlatformSupportTicket,
@@ -502,6 +504,15 @@ export async function recordPlatformPayment(
     invoice: PlatformInvoice;
     subscription_status: string;
   }>(`/v1/platform/invoices/${invoiceId}/payments`, payload);
+  return res.data;
+}
+
+export async function createPlatformInvoicePaymentToken(
+  invoiceId: string
+): Promise<{ message: string; transaction: GatewayTransactionResult }> {
+  const res = await api.post<{ message: string; transaction: GatewayTransactionResult }>(
+    `/v1/platform/invoices/${invoiceId}/payment-token`
+  );
   return res.data;
 }
 
