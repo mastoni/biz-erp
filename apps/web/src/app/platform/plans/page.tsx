@@ -355,10 +355,21 @@ export default function PlatformPlansPage() {
                       </td>
                       <td className="px-4 py-3 text-xs text-ink/70">{p.billing_cycle || 'MONTHLY'}</td>
                       <td className="px-4 py-3">
-                        <div className="font-semibold text-ink">{formatMinor(finalPrice)}</div>
-                        {p.pricing?.discount ? (
-                          <div className="text-[11px] text-emerald-600">Diskon: {formatMinor(p.pricing.discount)}</div>
-                        ) : null}
+                        {p.pricing?.discount && p.pricing.discount > 0 ? (
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-bold text-ink">{formatMinor(finalPrice)}</span>
+                              <span className="rounded bg-emerald-100 px-1 py-0.2 text-[9px] font-extrabold text-emerald-800 uppercase">Promo</span>
+                            </div>
+                            <div className="text-[11px] text-ink/40 line-through">Normal: {formatMinor(p.pricing?.base_price ?? 0)}</div>
+                            <div className="text-[11px] text-emerald-700 font-medium">Diskon: -{formatMinor(p.pricing.discount)}</div>
+                          </div>
+                        ) : (
+                          <div>
+                            <div className="font-semibold text-ink">{formatMinor(finalPrice)}</div>
+                            <div className="text-[10px] text-ink/40">Harga normal</div>
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-xs">
                         <div className="text-ink/80">{p.limits?.max_branches || 1} Cabang, {p.limits?.max_users || 1} User</div>
@@ -578,8 +589,13 @@ export default function PlatformPlansPage() {
                     <span className="text-[10px] text-ink/50">{formatMinor(formTax)}</span>
                   </div>
                 </div>
-                <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-right">
-                  <span className="text-xs text-emerald-800 font-medium">Harga Final yang Dibayar Tenant: </span>
+                <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-3 flex items-center justify-between">
+                  <div>
+                    <div className="text-xs text-emerald-800 font-semibold">Harga Final yang Dibayar Tenant:</div>
+                    <div className="text-[11px] text-ink/60">
+                      {formDiscount > 0 ? `Harga normal ${formatMinor(formBasePrice)} - Diskon ${formatMinor(formDiscount)}` : 'Harga normal standar'}
+                    </div>
+                  </div>
                   <span className="text-lg font-bold text-emerald-900 font-display">
                     {formatMinor(Math.max(0, formBasePrice - formDiscount + formTax))}
                   </span>

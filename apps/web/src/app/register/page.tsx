@@ -234,20 +234,43 @@ function RegisterForm() {
               {commercialData.pricing && (
                 <div className="text-right">
                   {commercialData.type === 'PLAN' && (
-                    <span className="font-display font-extrabold text-sm text-ink">
-                      {formatMinor(
-                        commercialData.pricing.final_price ?? commercialData.pricing.base_price ?? 0
+                    <div>
+                      {commercialData.pricing.discount && commercialData.pricing.discount > 0 ? (
+                        <div>
+                          <span className="block text-[10px] text-ink/40 line-through">
+                            Normal {formatMinor(commercialData.pricing.base_price ?? 0)}
+                          </span>
+                          <span className="font-display font-extrabold text-sm text-ink">
+                            {formatMinor(commercialData.pricing.final_price ?? 0)}
+                            <span className="font-mono text-[10px] font-normal text-fog">
+                              {commercialData.billing_cycle === 'ANNUAL' ? '/thn' : '/bln'}
+                            </span>
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="font-display font-extrabold text-sm text-ink">
+                          {formatMinor(
+                            commercialData.pricing.final_price ?? commercialData.pricing.base_price ?? 0
+                          )}
+                          <span className="font-mono text-[10px] font-normal text-fog">
+                            {commercialData.billing_cycle === 'ANNUAL' ? '/thn' : '/bln'}
+                          </span>
+                        </span>
                       )}
-                      <span className="font-mono text-[10px] font-normal text-fog">
-                        {commercialData.billing_cycle === 'ANNUAL' ? '/thn' : '/bln'}
-                      </span>
-                    </span>
+                    </div>
                   )}
                   {commercialData.type === 'BUNDLE' && (
-                    <span className="font-display font-extrabold text-sm text-ink">
-                      {formatMinor(commercialData.pricing.monthly ?? 0)}
-                      <span className="font-mono text-[10px] font-normal text-fog">/bln</span>
-                    </span>
+                    <div>
+                      <span className="font-display font-extrabold text-sm text-ink">
+                        {formatMinor(commercialData.pricing.monthly ?? 0)}
+                        <span className="font-mono text-[10px] font-normal text-fog">/bln</span>
+                      </span>
+                      {Number(commercialData.pricing.one_time || 0) > 0 && (
+                        <div className="text-[10px] text-fog font-medium">
+                          + {formatMinor(commercialData.pricing.one_time ?? 0)} biaya perangkat
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               )}

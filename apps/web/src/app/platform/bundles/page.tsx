@@ -278,8 +278,8 @@ export default function PlatformBundlesPage() {
               <tr>
                 <th className="px-4 py-3.5">Kode & Nama Bundle</th>
                 <th className="px-4 py-3.5">Target Segmen</th>
-                <th className="px-4 py-3.5">Biaya Pasang (One-Time)</th>
-                <th className="px-4 py-3.5">Biaya Bulanan (Monthly)</th>
+                <th className="px-4 py-3.5">Biaya Awal / Perangkat (One-Time)</th>
+                <th className="px-4 py-3.5">Langganan ERP / Bulan (Monthly)</th>
                 <th className="px-4 py-3.5">Komposisi Item</th>
                 <th className="px-4 py-3.5">Status</th>
                 <th className="px-4 py-3.5">Publikasi</th>
@@ -312,8 +312,9 @@ export default function PlatformBundlesPage() {
                         {b.target_segment || 'RETAIL'}
                       </span>
                     </td>
-                    <td className="px-4 py-3 font-semibold text-ink">
-                      {formatMinor(b.pricing?.one_time || 0)}
+                    <td className="px-4 py-3">
+                      <div className="font-semibold text-ink">{formatMinor(b.pricing?.one_time || 0)}</div>
+                      <div className="text-[10px] text-ink/50">Biaya perangkat & setup</div>
                     </td>
                     <td className="px-4 py-3">
                       <div className="font-semibold text-ink">{formatMinor(b.pricing?.monthly || 0)} /bln</div>
@@ -502,8 +503,18 @@ export default function PlatformBundlesPage() {
                         className="flex items-center justify-between rounded-lg border border-ink/10 bg-white p-3 shadow-xs"
                       >
                         <div>
-                          <span className="inline-flex rounded bg-ink/5 px-1.5 py-0.5 text-[10px] font-bold font-mono text-ink">
-                            {item.item_type}
+                          <span
+                            className={`inline-flex rounded px-2 py-0.5 text-[10px] font-bold font-mono ${
+                              item.item_type === 'PLAN'
+                                ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                                : item.item_type === 'HARDWARE'
+                                ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                                : item.item_type === 'SERVICE'
+                                ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                : 'bg-slate-100 text-slate-800 border border-slate-200'
+                            }`}
+                          >
+                            [{item.item_type}]
                           </span>
                           <span className="ml-2 text-xs font-semibold text-ink">{item.item_code}</span>
                         </div>

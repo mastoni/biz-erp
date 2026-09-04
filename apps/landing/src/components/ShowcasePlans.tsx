@@ -171,14 +171,14 @@ export default function ShowcasePlans({
                   <div className="mt-6 rounded-xl border border-ink/10 bg-paper/50 p-4">
                     {item.item_type === 'PLAN' && planPricing && (
                       <div>
-                        {planPricing.discount_amount > 0 && (
+                        {((planPricing.discount_amount ?? 0) > 0 || ((planPricing as any).discount ?? 0) > 0) && (
                           <span className="block text-xs font-semibold text-ink/40 line-through">
                             {formatRupiah(planPricing.base_price)}
                           </span>
                         )}
                         <div className="flex items-baseline gap-1">
                           <span className="font-display text-3xl font-extrabold tracking-tight text-ink">
-                            {formatRupiah(planPricing.final_price)}
+                            {formatRupiah(planPricing.final_price ?? planPricing.base_price)}
                           </span>
                           <span className="font-mono text-xs font-bold text-ink/50">
                             {formatBillingCycleSuffix(item.target_details?.billing_cycle as string)}
@@ -191,13 +191,13 @@ export default function ShowcasePlans({
                       <div className="space-y-1">
                         <div className="flex items-baseline gap-1">
                           <span className="font-display text-2xl font-extrabold tracking-tight text-ink">
-                            {formatRupiah(bundlePricing.monthly_price)}
+                            {formatRupiah(bundlePricing.monthly_price ?? (bundlePricing as any).monthly ?? 0)}
                           </span>
                           <span className="font-mono text-xs font-bold text-ink/50">/bulan</span>
                         </div>
-                        {bundlePricing.one_time_price > 0 && (
+                        {(Number(bundlePricing.one_time_price ?? (bundlePricing as any).one_time ?? 0) > 0) && (
                           <p className="font-mono text-[11px] font-semibold text-ink/60">
-                            + {formatRupiah(bundlePricing.one_time_price)} (biaya pasang)
+                            + {formatRupiah(bundlePricing.one_time_price ?? (bundlePricing as any).one_time)} (biaya perangkat & pasang)
                           </p>
                         )}
                       </div>
