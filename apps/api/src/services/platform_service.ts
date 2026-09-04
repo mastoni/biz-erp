@@ -2,6 +2,7 @@ import { Pool, QueryResultRow } from 'pg'
 import { ApiError, ValidationError } from '../errors/api_error'
 import { isUuid } from '../utils/uuid'
 import { withTransaction } from '../db/transaction'
+import { createAuditService } from './audit_service'
 
 export interface PlatformContext {
   scope: 'platform'
@@ -1707,6 +1708,275 @@ export function createPlatformService(pool: Pool) {
         limit,
         offset
       )
+    },
+
+    // =========================================================================
+    // 9. SUPPORT TICKETS (SA-3.0B Control Plane)
+    // =========================================================================
+    async listSupportTickets(query?: Record<string, unknown>): Promise<PlatformPaginated<Record<string, unknown>>> {
+      const { limit, offset } = parsePagination(query)
+      const q = query ?? {}
+      const statusFilter = typeof q.status === 'string' && q.status.trim() !== '' ? q.status.trim().toUpperCase() : undefined
+      const priorityFilter = typeof q.priority === 'string' && q.priority.trim() !== '' ? q.priority.trim().toUpperCase() : undefined
+      const serviceFilter = typeof q.service_code === 'string' && q.service_code.trim() !== '' ? q.service_code.trim().toUpperCase() : undefined
+      const searchFilter = typeof q.search === 'string' && q.search.trim() !== '' ? q.search.trim().toLowerCase() : undefined
+
+      const validStatuses = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED']
+      const validPriorities = ['LOW', 'MEDIUM', 'HIGH', 'URGENT']
+
+      if (statusFilter && statusFilter !== 'ALL' && !validStatuses.includes(statusFilter)) {
+        throw new ApiError(400, 'VALIDATION_ERROR', `Invalid status filter: ${statusFilter}`)
+      }
+
+      if (priorityFilter && priorityFilter !== 'ALL' && !validPriorities.includes(priorityFilter)) {
+        throw new ApiError(400, 'VALIDATION_ERROR', `Invalid priority filter: ${priorityFilter}`)
+      }
+
+      const conditions: string[] = []
+      const params: any[] = []
+      let paramIdx = 1
+
+      if (statusFilter && statusFilter !== 'ALL') {
+        conditions.push(`t.status = $${paramIdx}`)
+        params.push(statusFilter)
+        paramIdx++
+      }
+
+      if (priorityFilter && priorityFilter !== 'ALL') {
+        conditions.push(`t.priority = $${paramIdx}`)
+        params.push(priorityFilter)
+        paramIdx++
+      }
+
+      if (serviceFilter && serviceFilter !== 'ALL') {
+        conditions.push(`t.service_code = $${paramIdx}`)
+        params.push(serviceFilter)
+        paramIdx++
+      }
+
+      if (searchFilter) {
+        conditions.push(`(
+          LOWER(t.subject) LIKE $${paramIdx} OR
+          LOWER(t.description) LIKE $${paramIdx} OR
+          LOWER(b.name) LIKE $${paramIdx}
+        )`)
+        params.push(`%${searchFilter}%`)
+        paramIdx++
+      }
+
+      const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
+
+      const countSql = `
+        SELECT COUNT(*)::bigint AS count
+        FROM support_tickets t
+        JOIN businesses b ON t.business_id = b.id
+        ${whereClause}
+      `
+
+      const dataSql = `
+        SELECT
+          t.id,
+          t.business_id,
+          b.name AS business_name,
+          t.conversation_id,
+          t.service_code,
+          t.subject,
+          t.description,
+          t.priority,
+          t.status,
+          t.assigned_to,
+          u.email AS assigned_email,
+          t.created_at,
+          t.updated_at
+        FROM support_tickets t
+        JOIN businesses b ON t.business_id = b.id
+        LEFT JOIN users u ON t.assigned_to = u.id
+        ${whereClause}
+        ORDER BY t.created_at DESC
+        LIMIT $${paramIdx} OFFSET $${paramIdx + 1}
+      `
+
+      const summarySql = `
+        SELECT
+          COUNT(*)::int AS total,
+          COUNT(*) FILTER (WHERE status = 'OPEN')::int AS open_count,
+          COUNT(*) FILTER (WHERE status = 'IN_PROGRESS')::int AS in_progress_count,
+          COUNT(*) FILTER (WHERE status = 'RESOLVED')::int AS resolved_count,
+          COUNT(*) FILTER (WHERE status = 'CLOSED')::int AS closed_count
+        FROM support_tickets
+      `
+
+      const [countRes, dataRes, summaryRes] = await Promise.all([
+        pool.query<{ count: string }>(countSql, params),
+        pool.query(dataSql, [...params, limit, offset]),
+        pool.query(summarySql),
+      ])
+
+      const total = Number(countRes.rows[0]?.count ?? 0)
+      const summary = summaryRes.rows[0] || {
+        total: 0,
+        open_count: 0,
+        in_progress_count: 0,
+        resolved_count: 0,
+        closed_count: 0,
+      }
+
+      return {
+        items: dataRes.rows,
+        total,
+        limit,
+        offset,
+        has_more: offset + limit < total,
+        summary,
+      }
+    },
+
+    async getSupportTicketById(id: string): Promise<Record<string, unknown>> {
+      if (!isUuid(id)) {
+        throw new ApiError(400, 'VALIDATION_ERROR', 'id must be a valid UUID')
+      }
+
+      const ticketRes = await pool.query(
+        `SELECT
+          t.id,
+          t.business_id,
+          b.name AS business_name,
+          t.conversation_id,
+          t.service_code,
+          t.subject,
+          t.description,
+          t.priority,
+          t.status,
+          t.assigned_to,
+          u.email AS assigned_email,
+          t.created_at,
+          t.updated_at
+        FROM support_tickets t
+        JOIN businesses b ON t.business_id = b.id
+        LEFT JOIN users u ON t.assigned_to = u.id
+        WHERE t.id = $1`,
+        [id]
+      )
+
+      if (ticketRes.rows.length === 0) {
+        throw new ApiError(404, 'NOT_FOUND', 'Support ticket not found')
+      }
+
+      const ticket = ticketRes.rows[0]
+
+      // Fetch linked AI conversation messages if conversation exists and belongs to the same business
+      let conversationMessages: any[] = []
+      if (ticket.conversation_id) {
+        const convRes = await pool.query(
+          `SELECT m.id, m.sender, m.intent, m.content, m.created_at
+           FROM ai_conversation_messages m
+           JOIN ai_conversations c ON m.conversation_id = c.id
+           WHERE m.conversation_id = $1 AND c.business_id = $2
+           ORDER BY m.created_at ASC`,
+          [ticket.conversation_id, ticket.business_id]
+        )
+        conversationMessages = convRes.rows
+      }
+
+      return {
+        ...ticket,
+        conversation_messages: conversationMessages,
+      }
+    },
+
+    async updateSupportTicketStatus(
+      id: string,
+      body: { status?: string; assigned_to?: string | null },
+      actorUserId: string,
+      requestId?: string
+    ): Promise<Record<string, unknown>> {
+      if (!isUuid(id)) {
+        throw new ApiError(400, 'VALIDATION_ERROR', 'id must be a valid UUID')
+      }
+
+      const currentRes = await pool.query(
+        `SELECT id, business_id, service_code, status, assigned_to FROM support_tickets WHERE id = $1`,
+        [id]
+      )
+
+      if (currentRes.rows.length === 0) {
+        throw new ApiError(404, 'NOT_FOUND', 'Support ticket not found')
+      }
+
+      const current = currentRes.rows[0]
+      const validStatuses = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED']
+
+      let newStatus = current.status
+      if (body.status !== undefined) {
+        const upper = String(body.status).toUpperCase()
+        if (!validStatuses.includes(upper)) {
+          throw new ApiError(
+            400,
+            'VALIDATION_ERROR',
+            `Invalid status: ${body.status}. Valid statuses: ${validStatuses.join(', ')}`
+          )
+        }
+        newStatus = upper
+      }
+
+      let newAssignedTo = current.assigned_to
+      if (body.assigned_to !== undefined) {
+        if (body.assigned_to === null || body.assigned_to === '') {
+          newAssignedTo = null
+        } else {
+          if (!isUuid(body.assigned_to)) {
+            throw new ApiError(400, 'VALIDATION_ERROR', 'assigned_to must be a valid UUID')
+          }
+          const userRes = await pool.query(
+            `SELECT id, status, platform_role FROM users WHERE id = $1`,
+            [body.assigned_to]
+          )
+          if (userRes.rows.length === 0 || userRes.rows[0].status !== 'ACTIVE') {
+            throw new ApiError(
+              400,
+              'VALIDATION_ERROR',
+              'Assigned user must be an active platform user'
+            )
+          }
+          newAssignedTo = body.assigned_to
+        }
+      }
+
+      const updateRes = await pool.query(
+        `UPDATE support_tickets
+         SET status = $1, assigned_to = $2, updated_at = NOW()
+         WHERE id = $3
+         RETURNING *`,
+        [newStatus, newAssignedTo, id]
+      )
+
+      const updated = updateRes.rows[0]
+
+      // Record operational audit trail
+      const auditService = createAuditService(pool)
+      await auditService.recordAudit({
+        actor_id: actorUserId,
+        actor_scope: 'platform',
+        action: 'TICKET_STATUS_UPDATED',
+        service_code: current.service_code,
+        target_type: 'support_ticket',
+        target_id: id,
+        before_state: { status: current.status, assigned_to: current.assigned_to },
+        after_state: { status: newStatus, assigned_to: newAssignedTo },
+        diff: {
+          status: { from: current.status, to: newStatus },
+          assigned_to: { from: current.assigned_to, to: newAssignedTo },
+        },
+        request_id: requestId ?? null,
+        status: 'SUCCESS',
+        metadata: {
+          ticket_id: id,
+          previous_status: current.status,
+          new_status: newStatus,
+        },
+      })
+
+      return updated
     }
   }
 }

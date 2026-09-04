@@ -451,5 +451,45 @@ export function createPlatformRoutes(pool: Pool): Router {
     })
   )
 
+  // =========================================================================
+  // 9. SUPPORT TICKETS (SA-3.0B Control Plane)
+  // =========================================================================
+  router.get(
+    '/tickets',
+    requirePlatformRole() as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const result = await platformService.listSupportTickets(req.query as Record<string, unknown>)
+      res.status(200).json(result)
+    })
+  )
+
+  router.get(
+    '/tickets/:id',
+    requirePlatformRole() as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const result = await platformService.getSupportTicketById(req.params.id)
+      res.status(200).json(result)
+    })
+  )
+
+  router.patch(
+    '/tickets/:id/status',
+    requirePlatformRole() as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const actorUserId = req.platformUser!.userId
+      const requestId = (res.locals?.requestId as string) || (req.headers['x-request-id'] as string) || undefined
+      const result = await platformService.updateSupportTicketStatus(
+        req.params.id,
+        req.body || {},
+        actorUserId,
+        requestId
+      )
+      res.status(200).json({
+        message: 'Support ticket status updated successfully',
+        ticket: result,
+      })
+    })
+  )
+
   return router
 }

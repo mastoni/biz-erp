@@ -250,3 +250,57 @@ export interface PlatformOverviewState {
   requestId: string | null;
   refresh: () => Promise<void>;
 }
+
+// ── Support Tickets (CS AI Escalation & Control Plane) ───────────────────────
+export type TicketStatus = 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
+export type TicketPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+
+export interface PlatformSupportTicket {
+  id: string;
+  business_id: string;
+  business_name?: string | null;
+  conversation_id: string | null;
+  service_code: string | null;
+  subject: string;
+  description: string;
+  priority: TicketPriority;
+  status: TicketStatus;
+  assigned_to: string | null;
+  assignee_name?: string | null;
+  assignee_email?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TicketMessage {
+  id: string;
+  sender_type: string;
+  sender_user_id: string | null;
+  content: string;
+  created_at: string;
+}
+
+export interface PlatformSupportTicketDetail extends PlatformSupportTicket {
+  conversation_messages: TicketMessage[];
+}
+
+export interface TicketListSummary {
+  open_count: number;
+  in_progress_count: number;
+  resolved_count: number;
+  closed_count: number;
+  total: number;
+  [key: string]: unknown;
+}
+
+export interface PlatformTicketAssignee {
+  id: string;
+  name: string;
+  email: string;
+}
+
+export interface PlatformTicketsResponse extends PlatformPaginated<PlatformSupportTicket> {
+  summary: TicketListSummary;
+  assignees: PlatformTicketAssignee[];
+}
+

@@ -140,4 +140,5 @@ export const PLATFORM_NAVIGATION: PlatformNavItem[] = [
   { name: 'Landing Showcase', href: '/platform/showcase' },
   { name: 'Modules', href: '/platform/modules' },
   { name: 'Subscriptions', href: '/platform/subscriptions' },
+  { name: 'Support Tickets', href: '/platform/tickets' },
 ];

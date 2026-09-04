@@ -27,6 +27,13 @@ import {
   PlatformShowcaseResponse,
   PlatformSubscription,
   BusinessLifecycleStatus,
+  PlatformSupportTicket,
+  PlatformSupportTicketDetail,
+  PlatformTicketsResponse,
+  PlatformTicketAssignee,
+  TicketStatus,
+  TicketPriority,
+  TicketListSummary,
 } from './types';
 
 export type {
@@ -40,6 +47,13 @@ export type {
   PlatformBundlesResponse,
   PlatformShowcaseItem,
   PlatformShowcaseResponse,
+  PlatformSupportTicket,
+  PlatformSupportTicketDetail,
+  PlatformTicketsResponse,
+  PlatformTicketAssignee,
+  TicketStatus,
+  TicketPriority,
+  TicketListSummary,
 };
 
 export const PLATFORM_PAGE_SIZE = 20;
@@ -360,3 +374,49 @@ export async function getPlatformSubscriptions(
   });
   return res.data;
 }
+
+// =============================================================================
+// 6. SUPPORT TICKETS (CS AI CONTROL PLANE)
+// =============================================================================
+export interface GetTicketsParams {
+  limit?: number;
+  offset?: number;
+  status?: TicketStatus | 'ALL';
+  priority?: TicketPriority | 'ALL';
+  search?: string;
+}
+
+export async function getPlatformTickets(
+  params?: GetTicketsParams
+): Promise<PlatformTicketsResponse> {
+  const res = await api.get<PlatformTicketsResponse>('/v1/platform/tickets', {
+    params: {
+      limit: params?.limit ?? PLATFORM_PAGE_SIZE,
+      offset: params?.offset ?? 0,
+      status: params?.status === 'ALL' ? undefined : params?.status,
+      priority: params?.priority === 'ALL' ? undefined : params?.priority,
+      search: params?.search?.trim() || undefined,
+    },
+  });
+  return res.data;
+}
+
+export async function getPlatformTicketById(id: string): Promise<PlatformSupportTicketDetail> {
+  const res = await api.get<PlatformSupportTicketDetail>(`/v1/platform/tickets/${id}`);
+  return res.data;
+}
+
+export async function updatePlatformTicketStatus(
+  id: string,
+  payload: {
+    status: TicketStatus;
+    assigned_to?: string | null;
+  }
+): Promise<{ message: string; ticket: PlatformSupportTicket }> {
+  const res = await api.patch<{ message: string; ticket: PlatformSupportTicket }>(
+    `/v1/platform/tickets/${id}/status`,
+    payload
+  );
+  return res.data;
+}
+
