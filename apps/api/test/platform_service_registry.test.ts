@@ -33,17 +33,11 @@ describe('Phase SA-2.5 Platform Service Registry API', () => {
   })
 
   beforeEach(async () => {
-    await pool.query(`
-      TRUNCATE TABLE
-        user_businesses,
-        refresh_tokens,
-        service_dependencies,
-        services,
-        modules,
-        businesses,
-        users
-      RESTART IDENTITY CASCADE
-    `)
+    await pool.query('DELETE FROM service_dependencies')
+    await pool.query('DELETE FROM services')
+    await pool.query('DELETE FROM user_businesses')
+    await pool.query('DELETE FROM users')
+    await pool.query('DELETE FROM businesses')
     await pool.query(
       `INSERT INTO businesses (id, name) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING`,
       [BUSINESS_A, 'Business A']

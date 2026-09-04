@@ -142,6 +142,7 @@ export const PLATFORM_NAVIGATION: PlatformNavItem[] = [
   { name: 'Subscriptions', href: '/platform/subscriptions' },
   { name: 'Support Tickets', href: '/platform/tickets' },
   { name: 'Audit Logs', href: '/platform/audit' },
+  { name: 'Service Registry', href: '/platform/services' },
 ];
 
 // ── Sensitive Payload Masking ────────────────────────────────────────────────

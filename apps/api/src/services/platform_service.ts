@@ -1462,13 +1462,77 @@ export function createPlatformService(pool: Pool) {
     // =========================================================================
     async listServices(query?: Record<string, unknown>): Promise<PlatformPaginated<Record<string, unknown>>> {
       const { limit, offset } = parsePagination(query)
-      return listPage(
-        'code, name, category, service_type, owner, lifecycle_status, public_visibility, created_at, updated_at',
-        'services',
-        'created_at DESC',
-        limit,
-        offset
+      const whereClauses: string[] = []
+      const params: unknown[] = []
+      let paramIdx = 1
+
+      if (query?.status && typeof query.status === 'string' && query.status !== 'ALL') {
+        whereClauses.push(`lifecycle_status = $${paramIdx++}`)
+        params.push(query.status.toUpperCase())
+      } else if (query?.lifecycle_status && typeof query.lifecycle_status === 'string' && query.lifecycle_status !== 'ALL') {
+        whereClauses.push(`lifecycle_status = $${paramIdx++}`)
+        params.push(query.lifecycle_status.toUpperCase())
+      }
+
+      if (query?.service_type && typeof query.service_type === 'string' && query.service_type !== 'ALL') {
+        whereClauses.push(`service_type = $${paramIdx++}`)
+        params.push(query.service_type.toUpperCase())
+      }
+
+      if (query?.category && typeof query.category === 'string' && query.category !== 'ALL') {
+        whereClauses.push(`category = $${paramIdx++}`)
+        params.push(query.category)
+      }
+
+      if (query?.search && typeof query.search === 'string' && query.search.trim().length > 0) {
+        const pattern = `%${query.search.trim()}%`
+        whereClauses.push(`(code ILIKE $${paramIdx} OR name ILIKE $${paramIdx} OR category ILIKE $${paramIdx} OR description ILIKE $${paramIdx})`)
+        params.push(pattern)
+        paramIdx++
+      }
+
+      const whereStr = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : ''
+
+      const countRes = await pool.query(
+        `SELECT 
+           COUNT(*) as total,
+           COUNT(*) FILTER (WHERE lifecycle_status = 'ACTIVE') as active_count,
+           COUNT(*) FILTER (WHERE lifecycle_status = 'DRAFT') as draft_count,
+           COUNT(*) FILTER (WHERE lifecycle_status = 'DEPRECATED') as deprecated_count,
+           COUNT(*) FILTER (WHERE lifecycle_status = 'SUSPENDED') as suspended_count,
+           COUNT(*) FILTER (WHERE lifecycle_status = 'RETIRED') as retired_count
+         FROM services ${whereStr}`,
+        params
       )
+
+      const total = parseInt(countRes.rows[0].total, 10)
+      const summary = {
+        total,
+        active_count: parseInt(countRes.rows[0].active_count || '0', 10),
+        draft_count: parseInt(countRes.rows[0].draft_count || '0', 10),
+        deprecated_count: parseInt(countRes.rows[0].deprecated_count || '0', 10),
+        suspended_count: parseInt(countRes.rows[0].suspended_count || '0', 10),
+        retired_count: parseInt(countRes.rows[0].retired_count || '0', 10),
+      }
+
+      const selectParams = [...params, limit, offset]
+      const selectQuery = `
+        SELECT code, name, description, category, service_type, owner, lifecycle_status, public_visibility, created_at, updated_at
+        FROM services
+        ${whereStr}
+        ORDER BY created_at DESC
+        LIMIT $${paramIdx++} OFFSET $${paramIdx++}
+      `
+      const resultRes = await pool.query(selectQuery, selectParams)
+
+      return {
+        items: resultRes.rows,
+        total,
+        limit,
+        offset,
+        has_more: offset + resultRes.rows.length < total,
+        summary,
+      }
     },
 
     async getServiceByCode(code: string): Promise<Record<string, unknown>> {

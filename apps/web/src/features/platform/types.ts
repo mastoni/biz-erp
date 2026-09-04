@@ -363,4 +363,46 @@ export interface EcosystemHealth {
   };
 }
 
+// ── Service Registry (SA-2.5 / Control Plane) ────────────────────────────────
+export type ServiceLifecycleStatus = 'DRAFT' | 'ACTIVE' | 'SUSPENDED' | 'DEPRECATED' | 'RETIRED';
+export type ServiceType = 'INTERNAL' | 'EXTERNAL' | 'HYBRID';
+export type ServiceDependencyType = 'REQUIRED' | 'OPTIONAL';
+
+export interface ServiceDependency {
+  depends_on_service_code: string;
+  dependency_type: ServiceDependencyType;
+}
+
+export interface PlatformService {
+  code: string;
+  name: string;
+  description: string | null;
+  category: string;
+  service_type: ServiceType;
+  owner: string;
+  lifecycle_status: ServiceLifecycleStatus;
+  public_visibility: boolean;
+  base_capability?: Record<string, unknown>;
+  provisioning_capability?: Record<string, unknown>;
+  support_capability?: Record<string, unknown>;
+  dependencies?: ServiceDependency[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ServiceListSummary {
+  total: number;
+  active_count: number;
+  draft_count: number;
+  deprecated_count: number;
+  suspended_count: number;
+  retired_count: number;
+  [key: string]: unknown;
+}
+
+export interface PlatformServicesResponse extends PlatformPaginated<PlatformService> {
+  summary?: ServiceListSummary;
+}
+
+
 

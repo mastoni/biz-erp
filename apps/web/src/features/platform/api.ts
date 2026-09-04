@@ -40,6 +40,13 @@ import {
   AuditScope,
   AuditListSummary,
   EcosystemHealth,
+  PlatformService,
+  PlatformServicesResponse,
+  ServiceLifecycleStatus,
+  ServiceType,
+  ServiceDependency,
+  ServiceDependencyType,
+  ServiceListSummary,
 } from './types';
 
 export type {
@@ -66,6 +73,13 @@ export type {
   AuditScope,
   AuditListSummary,
   EcosystemHealth,
+  PlatformService,
+  PlatformServicesResponse,
+  ServiceLifecycleStatus,
+  ServiceType,
+  ServiceDependency,
+  ServiceDependencyType,
+  ServiceListSummary,
 };
 
 export const PLATFORM_PAGE_SIZE = 20;
@@ -477,5 +491,54 @@ export async function getPlatformHealth(): Promise<EcosystemHealth> {
   const res = await api.get<EcosystemHealth>('/v1/platform/observability/health');
   return res.data;
 }
+
+// =============================================================================
+// 8. SERVICE REGISTRY (SA-2.5 / CONTROL PLANE)
+// =============================================================================
+export interface GetServicesParams {
+  limit?: number;
+  offset?: number;
+  status?: ServiceLifecycleStatus | 'ALL';
+  service_type?: ServiceType | 'ALL';
+  category?: string;
+  search?: string;
+}
+
+export async function getPlatformServices(
+  params?: GetServicesParams
+): Promise<PlatformServicesResponse> {
+  const res = await api.get<PlatformServicesResponse>('/v1/platform/services', {
+    params: {
+      limit: params?.limit ?? PLATFORM_PAGE_SIZE,
+      offset: params?.offset ?? 0,
+      status: params?.status === 'ALL' ? undefined : params?.status,
+      service_type: params?.service_type === 'ALL' ? undefined : params?.service_type,
+      category: params?.category === 'ALL' ? undefined : params?.category,
+      search: params?.search?.trim() || undefined,
+    },
+  });
+  return res.data;
+}
+
+export async function getPlatformServiceByCode(code: string): Promise<PlatformService> {
+  const res = await api.get<PlatformService>(`/v1/platform/services/${code}`);
+  return res.data;
+}
+
+export async function createPlatformService(
+  payload: Partial<PlatformService>
+): Promise<{ message: string; service: PlatformService }> {
+  const res = await api.post<{ message: string; service: PlatformService }>('/v1/platform/services', payload);
+  return res.data;
+}
+
+export async function updatePlatformService(
+  code: string,
+  payload: Partial<PlatformService>
+): Promise<{ message: string; service: PlatformService }> {
+  const res = await api.patch<{ message: string; service: PlatformService }>(`/v1/platform/services/${code}`, payload);
+  return res.data;
+}
+
 
 
