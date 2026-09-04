@@ -14,6 +14,9 @@ describe('Canonical Demo Product Catalog & Bundles (Migration 044)', () => {
     if (!databaseUrl) throw new Error('TEST_DATABASE_URL or DATABASE_URL must be set')
     pool = createPool(databaseUrl)
     await runMigrations(pool, path.resolve(process.cwd(), 'migrations'))
+    const fs = await import('fs')
+    const sql044 = fs.readFileSync(path.resolve(process.cwd(), 'migrations/044_canonical_demo_catalog_and_bundles.sql'), 'utf-8')
+    await pool.query(sql044)
     platformService = createPlatformService(pool)
   })
 
