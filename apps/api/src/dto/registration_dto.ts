@@ -4,6 +4,8 @@ export interface RegistrationRequest {
   email: string
   password: string
   business_name: string
+  plan_code?: string
+  bundle_code?: string
 }
 
 export interface RegistrationResponse {
@@ -26,6 +28,8 @@ export function validateRegistrationRequest(body: unknown): RegistrationRequest 
   const email = body.email
   const password = body.password
   const businessName = body.business_name
+  const planCode = body.plan_code
+  const bundleCode = body.bundle_code
 
   if (typeof email !== 'string' || email.trim().length === 0) {
     errors.email = 'Email is required'
@@ -39,13 +43,31 @@ export function validateRegistrationRequest(body: unknown): RegistrationRequest 
     errors.business_name = 'Business name is required'
   }
 
+  if (planCode !== undefined && (typeof planCode !== 'string' || planCode.trim().length === 0)) {
+    errors.plan_code = 'plan_code must be a non-empty string if provided'
+  }
+
+  if (bundleCode !== undefined && (typeof bundleCode !== 'string' || bundleCode.trim().length === 0)) {
+    errors.bundle_code = 'bundle_code must be a non-empty string if provided'
+  }
+
   if (Object.keys(errors).length > 0) {
     throw new ValidationError('Registration validation failed', errors)
   }
 
-  return {
+  const req: RegistrationRequest = {
     email: (email as string).trim(),
     password: password as string,
     business_name: (businessName as string).trim()
   }
+
+  if (typeof planCode === 'string' && planCode.trim().length > 0) {
+    req.plan_code = planCode.trim().toUpperCase()
+  }
+
+  if (typeof bundleCode === 'string' && bundleCode.trim().length > 0) {
+    req.bundle_code = bundleCode.trim().toUpperCase()
+  }
+
+  return req
 }

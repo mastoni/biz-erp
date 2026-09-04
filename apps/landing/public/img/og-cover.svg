@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <!-- SKMNetwork OG cover — dibangun dari aset brand yang disetujui di landing page -->
+  <defs>
+    <pattern id="grid" width="34" height="34" patternUnits="userSpaceOnUse">
+      <path d="M34 0H0v34" fill="none" stroke="#F3F2EA" stroke-opacity="0.05"/>
+    </pattern>
+  </defs>
+
+  <rect width="1200" height="630" fill="#0B1F33"/>
+  <rect width="1200" height="630" fill="url(#grid)"/>
+
+  <!-- konstelasi jaringan kanan -->
+  <g stroke="#F3F2EA" stroke-opacity="0.28" stroke-width="2" stroke-dasharray="3 8" fill="none">
+    <path d="M905 150 1040 250 950 380 1105 470"/>
+    <path d="M1040 250 1150 180"/>
+    <path d="M950 380 840 470"/>
+  </g>
+  <circle cx="905" cy="150" r="13" fill="#FFB224"/>
+  <circle cx="1040" cy="250" r="9" fill="#F3F2EA"/>
+  <circle cx="1150" cy="180" r="7" fill="#0E7C5B"/>
+  <circle cx="950" cy="380" r="11" fill="#FFB224"/>
+  <circle cx="1105" cy="470" r="9" fill="#F3F2EA"/>
+  <circle cx="840" cy="470" r="7" fill="#146C8B"/>
+  <circle cx="1000" cy="300" r="170" fill="none" stroke="#F3F2EA" stroke-opacity="0.12" stroke-dasharray="2 10"/>
+
+  <!-- logo mark dalam tile -->
+  <rect x="76" y="88" width="132" height="132" rx="30" fill="#123252" stroke="#F3F2EA" stroke-opacity="0.18" stroke-width="2"/>
+  <path d="M106 162 142 118l36 44" stroke="#F3F2EA" stroke-width="7" stroke-linecap="round" fill="none"/>
+  <circle cx="106" cy="162" r="10" fill="#FFB224"/>
+  <circle cx="142" cy="118" r="10" fill="#F3F2EA"/>
+  <circle cx="178" cy="162" r="10" fill="#FFB224"/>
+
+  <!-- wordmark -->
+  <text x="72" y="316" font-family="'Bricolage Grotesque','Plus Jakarta Sans',Arial,sans-serif" font-weight="800" font-size="108" fill="#F3F2EA">SKM<tspan fill="#FFB224">Net</tspan></text>
+
+  <!-- tagline -->
+  <text x="76" y="368" font-family="'JetBrains Mono',monospace" font-weight="700" font-size="26" letter-spacing="8" fill="#F3F2EA" fill-opacity="0.62">TEKNOLOGI • JARINGAN • SOLUSI DIGITAL</text>
+
+  <!-- chip layanan -->
+  <g font-family="'JetBrains Mono',monospace" font-weight="700" font-size="20" letter-spacing="3">
+    <rect x="76" y="420" width="160" height="52" rx="12" fill="none" stroke="#F3F2EA" stroke-opacity="0.28" stroke-width="2"/>
+    <text x="156" y="453" fill="#F3F2EA" text-anchor="middle">INTERNET</text>
+    <rect x="252" y="420" width="170" height="52" rx="12" fill="none" stroke="#F3F2EA" stroke-opacity="0.28" stroke-width="2"/>
+    <text x="337" y="453" fill="#F3F2EA" text-anchor="middle">NETWORK</text>
+    <rect x="438" y="420" width="130" height="52" rx="12" fill="none" stroke="#F3F2EA" stroke-opacity="0.28" stroke-width="2"/>
+    <text x="503" y="453" fill="#F3F2EA" text-anchor="middle">CCTV</text>
+    <rect x="584" y="420" width="160" height="52" rx="12" fill="none" stroke="#F3F2EA" stroke-opacity="0.28" stroke-width="2"/>
+    <text x="664" y="453" fill="#F3F2EA" text-anchor="middle">SOFTWARE</text>
+    <rect x="760" y="420" width="110" height="52" rx="12" fill="#FFB224"/>
+    <text x="815" y="453" fill="#0B1F33" text-anchor="middle">ERP</text>
+  </g>
+
+  <!-- domain -->
+  <text x="76" y="556" font-family="'JetBrains Mono',monospace" font-weight="700" font-size="24" letter-spacing="2" fill="#FFB224">www.skmnetwork.com</text>
+
+  <!-- garis aksen bawah -->
+  <rect y="618" width="1200" height="12" fill="#FFB224"/>
+</svg>

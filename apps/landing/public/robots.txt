@@ -1,0 +1,6 @@
+# https://www.skmnetwork.com
+# Izinkan perayapan publik untuk halaman landing.
+User-agent: *
+Allow: /
+
+Sitemap: https://www.skmnetwork.com/sitemap.xml

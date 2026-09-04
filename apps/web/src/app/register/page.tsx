@@ -9,48 +9,41 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { SKMNetworkLogo } from '@/components/brand/SKMNetworkLogo';
 import { api } from '@/lib/api';
-import { Check, Sparkles, Loader2, ArrowRight } from 'lucide-react';
+import { formatMinor } from '@/lib/format';
+import { Check, Sparkles, Loader2, AlertCircle, Building2, PackageCheck } from 'lucide-react';
 
-interface PackageInfo {
-  id: string;
+interface CommercialResolved {
+  type: 'PLAN' | 'BUNDLE';
+  code: string;
   name: string;
-  badge?: string;
-  description: string;
-  features: string[];
+  family?: string;
+  billing_cycle?: string;
+  pricing?: {
+    base_price?: number;
+    discount?: number;
+    tax?: number;
+    final_price?: number;
+    monthly?: number;
+    one_time?: number;
+    currency?: string;
+  };
+  trial_days?: number;
+  marketing_badge?: string | null;
+  headline?: string | null;
+  description?: string | null;
+  features_list?: string[];
 }
-
-const AVAILABLE_PACKAGES: Record<string, PackageInfo> = {
-  starter: {
-    id: 'starter',
-    name: 'Paket Starter',
-    badge: 'UMKM',
-    description: 'Solusi kasir POS & inventori lengkap untuk 1 cabang usaha.',
-    features: ['1 Cabang Operasional', 'POS Kasir Cepat', 'Manajemen Stok & Produk', 'Laporan Harian'],
-  },
-  business: {
-    id: 'business',
-    name: 'Paket Business',
-    badge: 'Populer',
-    description: 'Sistem ERP terintegrasi untuk bisnis berkembang dan multi-cabang.',
-    features: ['Multi-Cabang & Gudang', 'Multi-User & Role RBAC', 'Analisis Penjualan Lengkap', 'Integrasi Sync Realtime'],
-  },
-  enterprise: {
-    id: 'enterprise',
-    name: 'Paket Enterprise',
-    badge: 'Kustom',
-    description: 'Skalabilitas tinggi untuk jaringan ritel besar dan korporasi.',
-    features: ['Multi-Tenant Terpusat', 'Dukungan CCTV & Hardware', 'SLA & Dedicated Support', 'Kustom Modul Operasional'],
-  },
-};
 
 function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const planParam = searchParams.get('plan')?.toLowerCase() || searchParams.get('package')?.toLowerCase() || 'starter';
-  const [selectedPlan, setSelectedPlan] = useState<string>(
-    AVAILABLE_PACKAGES[planParam] ? planParam : 'starter'
-  );
+  const planParam = searchParams.get('plan')?.trim() || '';
+  const bundleParam = searchParams.get('bundle')?.trim() || '';
+
+  const [commercialData, setCommercialData] = useState<CommercialResolved | null>(null);
+  const [commercialError, setCommercialError] = useState<string | null>(null);
+  const [isResolvingCommercial, setIsResolvingCommercial] = useState<boolean>(Boolean(planParam || bundleParam));
 
   const [businessName, setBusinessName] = useState('');
   const [email, setEmail] = useState('');
@@ -61,38 +54,97 @@ function RegisterForm() {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    const p = searchParams.get('plan')?.toLowerCase() || searchParams.get('package')?.toLowerCase();
-    if (p && AVAILABLE_PACKAGES[p]) {
-      setSelectedPlan(p);
-    }
-  }, [searchParams]);
+    let active = true;
 
-  const activePackage = AVAILABLE_PACKAGES[selectedPlan] || AVAILABLE_PACKAGES.starter;
+    async function resolveCommercial() {
+      if (!planParam && !bundleParam) {
+        setCommercialData(null);
+        setCommercialError(null);
+        setIsResolvingCommercial(false);
+        return;
+      }
+
+      setIsResolvingCommercial(true);
+      setCommercialError(null);
+
+      try {
+        const params: Record<string, string> = {};
+        if (planParam) params.plan = planParam;
+        if (bundleParam) params.bundle = bundleParam;
+
+        const res = await api.get('/v1/public/commercial/resolve', { params });
+        if (active) {
+          setCommercialData(res.data);
+          setCommercialError(null);
+          setIsResolvingCommercial(false);
+        }
+      } catch (err: any) {
+        if (active) {
+          setCommercialData(null);
+          const rawCode = planParam || bundleParam;
+          setCommercialError(
+            `Paket / bundel pilihan '${rawCode}' tidak valid atau tidak aktif. Silakan pilih paket yang tersedia.`
+          );
+          setIsResolvingCommercial(false);
+        }
+      }
+    }
+
+    resolveCommercial();
+
+    return () => {
+      active = false;
+    };
+  }, [planParam, bundleParam]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
     setSuccessMsg('');
-    setIsLoading(true);
+
+    if (commercialError) {
+      setErrorMsg('Pendaftaran tidak dapat dilanjutkan dengan kode paket yang tidak valid.');
+      return;
+    }
 
     if (password !== confirmPassword) {
       setErrorMsg('Kata sandi dan konfirmasi kata sandi tidak cocok.');
-      setIsLoading(false);
       return;
     }
 
     if (password.length < 8) {
       setErrorMsg('Kata sandi harus minimal 8 karakter.');
-      setIsLoading(false);
       return;
     }
 
+    setIsLoading(true);
+
     try {
-      await api.post('/v1/auth/register', {
+      const payload: {
+        business_name: string;
+        email: string;
+        password: string;
+        plan_code?: string;
+        bundle_code?: string;
+      } = {
         business_name: businessName,
         email,
         password,
-      });
+      };
+
+      if (commercialData) {
+        if (commercialData.type === 'PLAN') {
+          payload.plan_code = commercialData.code;
+        } else if (commercialData.type === 'BUNDLE') {
+          payload.bundle_code = commercialData.code;
+        }
+      } else if (planParam) {
+        payload.plan_code = planParam.toUpperCase();
+      } else if (bundleParam) {
+        payload.bundle_code = bundleParam.toUpperCase();
+      }
+
+      await api.post('/v1/auth/register', payload);
 
       setSuccessMsg('Pendaftaran berhasil! Mengalihkan ke halaman masuk...');
 
@@ -112,6 +164,9 @@ function RegisterForm() {
 
       if (err.response?.status === 429) {
         setErrorMsg('Terlalu banyak percobaan pendaftaran. Silakan coba beberapa saat lagi.');
+      } else if (err.response?.data?.error?.details) {
+        const details = Object.values(err.response.data.error.details).join(', ');
+        setErrorMsg(details);
       } else if (err.response?.data?.error?.message) {
         setErrorMsg(err.response.data.error.message);
       } else if (err.response?.data?.message) {
@@ -133,49 +188,105 @@ function RegisterForm() {
           Daftar Akun Baru
         </h1>
         <p className="text-xs text-fog">
-          Buat workspace bisnis Anda untuk mengakses SKMNet ERP
+          Buat workspace bisnis Anda untuk mengakses SKMNetwork ERP
         </p>
       </div>
 
-      {/* Package Selector Context Banner */}
-      <div className="p-3.5 rounded-xl bg-surface-soft border border-line space-y-2.5">
-        <div className="flex items-center justify-between">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-fog">
-            Paket Pilihan:
-          </span>
-          <div className="flex items-center gap-1">
-            {Object.keys(AVAILABLE_PACKAGES).map((key) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setSelectedPlan(key)}
-                className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase transition-all cursor-pointer ${
-                  selectedPlan === key
-                    ? 'bg-pine text-paper shadow-sm'
-                    : 'bg-surface border border-line text-ink/70 hover:bg-surface-soft'
-                }`}
-              >
-                {AVAILABLE_PACKAGES[key].name.replace('Paket ', '')}
-              </button>
-            ))}
-          </div>
+      {/* Package Selector / Commercial Context Banner */}
+      {isResolvingCommercial && (
+        <div className="p-4 rounded-xl bg-surface-soft border border-line flex items-center justify-center gap-2.5 text-xs text-fog animate-pulse">
+          <Loader2 className="h-4 w-4 animate-spin text-pine" />
+          <span>Memverifikasi pilihan paket...</span>
         </div>
+      )}
 
-        <div className="pt-1">
-          <div className="flex items-center gap-1.5 font-bold text-xs text-ink">
-            <Sparkles className="h-3.5 w-3.5 text-honey" />
-            <span>{activePackage.name}</span>
-            {activePackage.badge && (
-              <span className="text-[9px] px-1.5 py-0.2 rounded bg-honey/20 text-honey font-bold uppercase">
-                {activePackage.badge}
-              </span>
+      {!isResolvingCommercial && commercialError && (
+        <Alert variant="destructive" className="bg-clay-soft/50 border-clay/30 text-clay py-2.5">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle className="text-xs font-bold font-heading">Paket Tidak Valid</AlertTitle>
+          <AlertDescription className="text-xs">
+            {commercialError}{' '}
+            <Link href="/register" className="font-bold underline ml-1 hover:text-clay-dark">
+              Daftar akun standar
+            </Link>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {!isResolvingCommercial && commercialData && (
+        <div className="p-4 rounded-xl bg-surface-soft border border-pine/30 shadow-sm space-y-2.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-pine bg-pine/10 px-2 py-0.5 rounded-full">
+              {commercialData.marketing_badge ||
+                (commercialData.type === 'PLAN' ? 'Paket ERP' : 'Paket Bundel')}
+            </span>
+            <span className="font-mono text-[10px] font-semibold text-fog">
+              {commercialData.code}
+            </span>
+          </div>
+
+          <div className="pt-0.5">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 font-extrabold text-sm text-ink">
+                <Sparkles className="h-4 w-4 text-honey shrink-0" />
+                <span>{commercialData.name}</span>
+              </div>
+              {commercialData.pricing && (
+                <div className="text-right">
+                  {commercialData.type === 'PLAN' && (
+                    <span className="font-display font-extrabold text-sm text-ink">
+                      {formatMinor(
+                        commercialData.pricing.final_price ?? commercialData.pricing.base_price ?? 0
+                      )}
+                      <span className="font-mono text-[10px] font-normal text-fog">
+                        {commercialData.billing_cycle === 'ANNUAL' ? '/thn' : '/bln'}
+                      </span>
+                    </span>
+                  )}
+                  {commercialData.type === 'BUNDLE' && (
+                    <span className="font-display font-extrabold text-sm text-ink">
+                      {formatMinor(commercialData.pricing.monthly ?? 0)}
+                      <span className="font-mono text-[10px] font-normal text-fog">/bln</span>
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {commercialData.headline && (
+              <p className="text-xs font-medium text-ink/75 mt-1">
+                {commercialData.headline}
+              </p>
+            )}
+
+            {commercialData.description && (
+              <p className="text-[11px] text-fog mt-0.5 leading-snug">
+                {commercialData.description}
+              </p>
+            )}
+
+            {Array.isArray(commercialData.features_list) && commercialData.features_list.length > 0 && (
+              <ul className="mt-2.5 space-y-1 border-t border-line/60 pt-2">
+                {commercialData.features_list.slice(0, 3).map((feat, idx) => (
+                  <li key={idx} className="flex items-center gap-1.5 text-[11px] text-ink/80">
+                    <Check className="h-3 w-3 text-pine shrink-0" />
+                    <span>{feat}</span>
+                  </li>
+                ))}
+              </ul>
             )}
           </div>
-          <p className="text-[11px] text-fog mt-0.5 leading-snug">
-            {activePackage.description}
+        </div>
+      )}
+
+      {!isResolvingCommercial && !commercialData && !commercialError && (
+        <div className="p-3 rounded-xl bg-surface-soft border border-line flex items-center gap-2.5">
+          <Building2 className="h-4 w-4 text-pine shrink-0" />
+          <p className="text-[11px] text-fog leading-tight">
+            Mendaftar workspace bisnis standar. Paket langganan dapat diatur sewaktu-waktu di dalam sistem.
           </p>
         </div>
-      </div>
+      )}
 
       {/* Error & Success Feedback Alerts */}
       {errorMsg && (
@@ -258,16 +369,18 @@ function RegisterForm() {
 
         <Button
           type="submit"
-          disabled={isLoading}
-          className="w-full h-11 text-sm font-semibold rounded-lg bg-pine hover:bg-pine-dark text-paper shadow-[0_2px_0_rgba(12,32,24,0.35)] transition-all active:scale-[0.98] mt-2 cursor-pointer"
+          disabled={isLoading || Boolean(commercialError)}
+          className="w-full h-11 text-sm font-semibold rounded-lg bg-pine hover:bg-pine-dark text-paper shadow-[0_2px_0_rgba(12,32,24,0.35)] transition-all active:scale-[0.98] mt-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isLoading ? (
             <span className="inline-flex items-center gap-2">
               <Loader2 className="h-4 w-4 animate-spin" />
               Mendaftarkan Bisnis...
             </span>
+          ) : commercialData ? (
+            `Daftar dengan ${commercialData.name}`
           ) : (
-            `Daftar dengan ${activePackage.name}`
+            'Daftar Akun Bisnis'
           )}
         </Button>
 

@@ -29,13 +29,59 @@ export function createRegistrationService(pool: Pool) {
         try {
           await client.query('BEGIN')
 
+          // Validate plan_code if supplied
+          let planToBind: any = null
+          if (request.plan_code) {
+            const planRes = await client.query(
+              `SELECT code, name, family, tier, billing_cycle, pricing, type, status, trial_days
+               FROM plans WHERE code = $1`,
+              [request.plan_code]
+            )
+            if (planRes.rows.length === 0 || planRes.rows[0].status !== 'ACTIVE') {
+              throw new ValidationError('Invalid or inactive plan_code', {
+                plan_code: `Plan '${request.plan_code}' is invalid or inactive`
+              })
+            }
+            planToBind = planRes.rows[0]
+          }
+
+          // Validate bundle_code if supplied
+          let bundleToBind: any = null
+          if (request.bundle_code) {
+            const bundleRes = await client.query(
+              `SELECT code, name, pricing, status FROM bundles WHERE code = $1`,
+              [request.bundle_code]
+            )
+            if (bundleRes.rows.length === 0 || bundleRes.rows[0].status !== 'ACTIVE') {
+              throw new ValidationError('Invalid or inactive bundle_code', {
+                bundle_code: `Bundle '${request.bundle_code}' is invalid or inactive`
+              })
+            }
+            bundleToBind = bundleRes.rows[0]
+
+            // If no standalone plan_code was specified, check if bundle contains an active plan
+            if (!planToBind) {
+              const bundlePlanRes = await client.query(
+                `SELECT p.code, p.name, p.family, p.tier, p.billing_cycle, p.pricing, p.type, p.status, p.trial_days
+                 FROM bundle_items bi
+                 JOIN plans p ON p.code = bi.item_code
+                 WHERE bi.bundle_code = $1 AND bi.item_type = 'PLAN' AND p.status = 'ACTIVE'
+                 ORDER BY bi.id ASC
+                 LIMIT 1`,
+                [bundleToBind.code]
+              )
+              if (bundlePlanRes.rows.length > 0) {
+                planToBind = bundlePlanRes.rows[0]
+              }
+            }
+          }
+
           const existingUser = await client.query(
             'SELECT id FROM users WHERE email = $1',
             [email]
           )
 
           if (existingUser.rows.length > 0) {
-            await client.query('ROLLBACK')
             throw new ValidationError('Email is already registered', { email: 'Email is already registered' })
           }
 
@@ -60,6 +106,50 @@ export function createRegistrationService(pool: Pool) {
              VALUES ($1, $2, 'OWNER', 'ACTIVE', now(), now())`,
             [userId, businessId]
           )
+
+          // If commercial intent exists (plan or bundle plan), create initial pending subscription
+          if (planToBind) {
+            const rawPricing = planToBind.pricing || {}
+            const unitPrice = Math.max(0, Number(rawPricing.base_price || 0))
+            const discount = Math.max(0, Number(rawPricing.discount || 0))
+            const tax = Math.max(0, Number(rawPricing.tax || 0))
+            const finalPrice = Math.max(0, Number(rawPricing.final_price ?? (unitPrice - discount + tax)))
+            const currency = rawPricing.currency || 'IDR'
+            const billingCycle = planToBind.billing_cycle || 'MONTHLY'
+            const trialDays = Math.max(0, Number(planToBind.trial_days || 0))
+            const source = planToBind.type === 'TRIAL' ? 'TRIAL' : 'DIRECT'
+
+            const meta: Record<string, unknown> = {
+              registered_via: 'LANDING_CONVERSION',
+              plan_name: planToBind.name
+            }
+            if (bundleToBind) {
+              meta.bundle_code = bundleToBind.code
+              meta.bundle_name = bundleToBind.name
+            }
+
+            await client.query(
+              `INSERT INTO subscriptions (
+                business_id, plan_code, family_code, source, status,
+                starts_at, ends_at, trial_ends_at,
+                unit_price, discount, tax, final_price, currency, billing_cycle, metadata
+              ) VALUES ($1, $2, $3, $4, 'PENDING', now(), null, $5, $6, $7, $8, $9, $10, $11, $12)`,
+              [
+                businessId,
+                planToBind.code,
+                planToBind.family,
+                source,
+                trialDays > 0 ? new Date(Date.now() + trialDays * 86400000) : null,
+                unitPrice,
+                discount,
+                tax,
+                finalPrice,
+                currency,
+                billingCycle,
+                JSON.stringify(meta)
+              ]
+            )
+          }
 
           await client.query('COMMIT')
 

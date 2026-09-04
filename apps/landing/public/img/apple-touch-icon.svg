@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180">
+  <!-- SKMNetwork apple-touch-icon: mark yang sama, kanvas penuh (iOS membulatkan sudut) -->
+  <rect width="180" height="180" rx="40" fill="#0B1F33"/>
+  <path d="M56 118 90 62l34 56" stroke="#F3F2EA" stroke-width="9" stroke-linecap="round" fill="none"/>
+  <circle cx="56" cy="118" r="14" fill="#FFB224"/>
+  <circle cx="90" cy="62" r="14" fill="#F3F2EA"/>
+  <circle cx="124" cy="118" r="14" fill="#FFB224"/>
+</svg>
