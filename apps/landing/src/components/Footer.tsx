@@ -1,4 +1,4 @@
-import { SITE, ERP_URL, PORTAL_URL } from "../data";
+import { SITE, ERP_URL } from "../data";
 import { LogoMark, Wordmark, IconGlobe, IconArrowUp } from "../icons";
 
 const cols: { title: string; links: { label: string; href: string; ext?: boolean }[] }[] = [
@@ -31,7 +31,7 @@ const cols: { title: string; links: { label: string; href: string; ext?: boolean
   {
     title: "Dukungan",
     links: [
-      { label: "Portal Pelanggan", href: PORTAL_URL },
+      { label: "Hubungi Kami", href: "#kontak" },
       { label: "Bantuan", href: "#faq" },
       { label: "FAQ", href: "#faq" },
     ],

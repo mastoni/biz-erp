@@ -15,6 +15,7 @@ import Development from "./components/Development";
 import Faq from "./components/Faq";
 import Cta from "./components/Cta";
 import Footer from "./components/Footer";
+import VisitorChat from "./components/VisitorChat";
 
 export default function App() {
   return (
@@ -41,6 +42,7 @@ export default function App() {
         <Cta />
       </main>
       <Footer />
+      <VisitorChat />
       <div className="noise-overlay" aria-hidden />
     </div>
   );

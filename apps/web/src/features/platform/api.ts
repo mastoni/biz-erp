@@ -23,6 +23,8 @@ import {
   PlatformPlansResponse,
   PlatformBundle,
   PlatformBundlesResponse,
+  PlatformCatalogProduct,
+  PlatformCatalogProductsResponse,
   PlatformShowcaseItem,
   PlatformShowcaseResponse,
   PlatformSubscription,
@@ -65,6 +67,9 @@ export type {
   PlatformPlan,
   PlatformPlansResponse,
   PlatformBundle,
+  PlatformBundlesResponse,
+  PlatformCatalogProduct,
+  PlatformCatalogProductsResponse,
   PlatformSubscription,
   PlatformInvoice,
   PlatformInvoiceStatus,
@@ -331,6 +336,35 @@ export async function setPlatformBundleItems(
     `/v1/platform/bundles/${code}/items`,
     { items }
   );
+  return res.data;
+}
+
+// =============================================================================
+// 3.5 CATALOG PRODUCTS GOVERNANCE (SA-2)
+// =============================================================================
+export interface GetCatalogProductsParams {
+  limit?: number;
+  offset?: number;
+  status?: 'DRAFT' | 'ACTIVE' | 'DEPRECATED' | 'ALL';
+  category?: string;
+  search?: string;
+}
+
+export async function getPlatformCatalogProducts(
+  params?: GetCatalogProductsParams
+): Promise<PlatformCatalogProductsResponse> {
+  const limit = params?.limit ?? PLATFORM_PAGE_SIZE;
+  const offset = params?.offset ?? 0;
+
+  const res = await api.get<PlatformCatalogProductsResponse>('/v1/platform/catalog-products', {
+    params: {
+      limit,
+      offset,
+      status: params?.status,
+      category: params?.category,
+      search: params?.search,
+    },
+  });
   return res.data;
 }
 

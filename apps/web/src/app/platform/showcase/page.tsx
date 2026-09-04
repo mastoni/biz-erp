@@ -11,8 +11,9 @@ import {
   getPublicShowcase,
   getPlatformPlans,
   getPlatformBundles,
+  getPlatformCatalogProducts,
 } from '@/features/platform/api';
-import { PlatformShowcaseItem, PlatformPlan, PlatformBundle } from '@/features/platform/types';
+import { PlatformShowcaseItem, PlatformPlan, PlatformBundle, PlatformCatalogProduct } from '@/features/platform/types';
 import { formatMinor } from '@/lib/format';
 
 const SECTIONS = [
@@ -46,13 +47,14 @@ export default function PlatformShowcasePage() {
   // Target options from DB
   const [plans, setPlans] = useState<PlatformPlan[]>([]);
   const [bundles, setBundles] = useState<PlatformBundle[]>([]);
+  const [catalogProducts, setCatalogProducts] = useState<PlatformCatalogProduct[]>([]);
 
   // Form fields
   const [formSection, setFormSection] = useState<'HERO_FEATURED' | 'ERP_PLANS' | 'ISP_PLANS' | 'BUNDLES' | 'HARDWARE' | 'PROMOS'>('ERP_PLANS');
   const [formItemType, setFormItemType] = useState<'PLAN' | 'BUNDLE' | 'CATALOG_PRODUCT' | 'CUSTOM'>('PLAN');
   const [formPlanCode, setFormPlanCode] = useState('');
   const [formBundleCode, setFormBundleCode] = useState('');
-  const [formCatalogCode, setFormCatalogCode] = useState('ISP_50M');
+  const [formCatalogCode, setFormCatalogCode] = useState('');
   const [formCustomCode, setFormCustomCode] = useState('');
   const [formDisplayName, setFormDisplayName] = useState('');
   const [formHeadline, setFormHeadline] = useState('');
@@ -101,6 +103,13 @@ export default function PlatformShowcasePage() {
         if (res.items.length > 0 && !formBundleCode) setFormBundleCode(res.items[0].code);
       })
       .catch(() => {});
+
+    getPlatformCatalogProducts({ status: 'ACTIVE', limit: 100 })
+      .then((res) => {
+        setCatalogProducts(res.items);
+        if (res.items.length > 0 && !formCatalogCode) setFormCatalogCode(res.items[0].code);
+      })
+      .catch(() => {});
   }, []);
 
   const openCreateDrawer = () => {
@@ -131,7 +140,7 @@ export default function PlatformShowcasePage() {
       setFormItemType(item.item_type);
       setFormPlanCode(item.plan_code || '');
       setFormBundleCode(item.bundle_code || '');
-      setFormCatalogCode(item.catalog_product_code || 'ISP_50M');
+      setFormCatalogCode(item.catalog_product_code || (catalogProducts[0]?.code ?? ''));
       setFormCustomCode(item.custom_item_code || '');
       setFormDisplayName(item.display_name);
       setFormHeadline(item.headline || '');
@@ -465,8 +474,11 @@ export default function PlatformShowcasePage() {
                     onChange={(e) => setFormCatalogCode(e.target.value)}
                     className="mt-1 w-full rounded-lg border border-ink/20 px-3 py-2 text-sm text-ink"
                   >
-                    <option value="ISP_50M">Internet Bisnis 50 Mbps (ISP_50M)</option>
-                    <option value="ROUTER_MIKROTIK">Router MikroTik hEX (ROUTER_MIKROTIK)</option>
+                    {catalogProducts.map((cp) => (
+                      <option key={cp.code} value={cp.code}>
+                        {cp.name} ({cp.code}) — {formatMinor(cp.base_price)}
+                      </option>
+                    ))}
                   </select>
                 ) : (
                   <input

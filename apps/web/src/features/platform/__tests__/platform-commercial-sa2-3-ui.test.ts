@@ -13,6 +13,7 @@ import {
   createPlatformShowcaseItem,
   setPlatformShowcasePublish,
   getPublicShowcase,
+  getPlatformCatalogProducts,
 } from '../api';
 import { api } from '@/lib/api';
 
@@ -153,5 +154,52 @@ describe('Phase SA-2.3: Superadmin Commercial UI & Client Operations', () => {
     const publicRes = await getPublicShowcase('ERP_PLANS');
     expect(publicRes.items).toHaveLength(1);
     expect(publicRes.items[0].cta_text).toBe('Coba Gratis 14 Hari');
+  });
+
+  it('5. Catalog Products: lists active canonical catalog products dynamically for showcase selection', async () => {
+    vi.mocked(api.get).mockResolvedValueOnce({
+      data: {
+        items: [
+          {
+            code: 'POS_PRINTER_THERMAL',
+            name: 'Printer Kasir Thermal 80mm USB+Bluetooth',
+            type: 'HARDWARE',
+            category: 'POS_EQUIPMENT',
+            billing_model: 'ONE_TIME',
+            base_price: 650000,
+            status: 'ACTIVE',
+            display_order: 13,
+          },
+          {
+            code: 'INET_BASIC',
+            name: 'Internet Paket Basic 20 Mbps',
+            type: 'INTERNET',
+            category: 'INTERNET_BROADBAND',
+            billing_model: 'RECURRING',
+            base_price: 110000,
+            status: 'ACTIVE',
+            display_order: 1,
+          },
+        ],
+        total: 2,
+        limit: 100,
+        offset: 0,
+        has_more: false,
+      },
+    });
+
+    const res = await getPlatformCatalogProducts({ status: 'ACTIVE', limit: 100 });
+    expect(api.get).toHaveBeenCalledWith('/v1/platform/catalog-products', {
+      params: {
+        limit: 100,
+        offset: 0,
+        status: 'ACTIVE',
+        category: undefined,
+        search: undefined,
+      },
+    });
+    expect(res.items).toHaveLength(2);
+    expect(res.items[0].code).toBe('POS_PRINTER_THERMAL');
+    expect(res.items[0].base_price).toBe(650000);
   });
 });

@@ -171,6 +171,36 @@ export interface PlatformBundlesResponse extends PlatformPaginated<PlatformBundl
   summary?: BundleListSummary;
 }
 
+export interface PlatformCatalogProduct {
+  code: string;
+  name: string;
+  type: string;
+  category: string;
+  billing_model: string;
+  base_price: number;
+  currency: string;
+  tax_rate: number;
+  metadata?: Record<string, unknown>;
+  status: 'DRAFT' | 'ACTIVE' | 'DEPRECATED';
+  is_published: boolean;
+  display_order: number;
+  version: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CatalogProductListSummary {
+  total: number;
+  active_count: number;
+  draft_count: number;
+  deprecated_count: number;
+  [key: string]: unknown;
+}
+
+export interface PlatformCatalogProductsResponse extends PlatformPaginated<PlatformCatalogProduct> {
+  summary?: CatalogProductListSummary;
+}
+
 export interface PlatformShowcaseItem {
   id: string;
   section: 'HERO_FEATURED' | 'ERP_PLANS' | 'ISP_PLANS' | 'BUNDLES' | 'HARDWARE' | 'PROMOS';

@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { faqs, CONTACT_URL, PORTAL_URL } from "../data";
-import { IconGlobe, IconHeadset } from "../icons";
+import { faqs, CONTACT_URL } from "../data";
+import { IconGlobe, IconArrowRight } from "../icons";
 import { Reveal, SectionHead } from "./Ui";
 
 export default function Faq() {
@@ -25,15 +25,12 @@ export default function Faq() {
                 <div className="mt-5 flex flex-col gap-3">
                   <a
                     href={CONTACT_URL}
-                    className="btn-arrow flex items-center gap-2.5 rounded-xl bg-ink px-5 py-3.5 text-sm font-extrabold text-paper transition hover:-translate-y-0.5 hover:bg-ink-2"
+                    className="btn-arrow flex items-center justify-between rounded-xl bg-ink px-5 py-3.5 text-sm font-extrabold text-paper transition hover:-translate-y-0.5 hover:bg-ink-2"
                   >
-                    <IconGlobe size={17} className="text-marigold" /> Halaman Kontak Resmi
-                  </a>
-                  <a
-                    href={PORTAL_URL}
-                    className="flex items-center gap-2.5 rounded-xl border-2 border-ink/15 px-5 py-3.5 text-sm font-bold text-ink transition hover:border-ink/40"
-                  >
-                    <IconHeadset size={17} className="text-ink/50" /> Portal Pelanggan
+                    <span className="flex items-center gap-2.5">
+                      <IconGlobe size={17} className="text-marigold" /> Menuju Bagian Kontak
+                    </span>
+                    <IconArrowRight size={15} />
                   </a>
                   <p className="px-1 font-mono text-[11px] font-semibold text-ink/45">www.skmnetwork.com</p>
                 </div>

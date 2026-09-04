@@ -285,6 +285,18 @@ export function createPlatformRoutes(pool: Pool): Router {
   )
 
   // =========================================================================
+  // 4.5 CATALOG PRODUCTS GOVERNANCE (SA-2)
+  // =========================================================================
+  router.get(
+    '/catalog-products',
+    requirePlatformRole() as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const result = await platformService.listCatalogProducts(req.query as Record<string, unknown>)
+      res.status(200).json(result)
+    })
+  )
+
+  // =========================================================================
   // 5. SHOWCASE GOVERNANCE (SA-2)
   // =========================================================================
   router.get(

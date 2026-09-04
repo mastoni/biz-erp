@@ -7,8 +7,7 @@
    dicantumkan di sini — jangan menaruh alamat sistem tertutup. */
 export const SITE = "https://www.skmnetwork.com"; // VERIFIED — domain produksi landing publik
 export const ERP_URL = "https://erp.skmnetwork.com"; // VERIFIED — SKMNetwork ERP web produksi
-export const PORTAL_URL = "#kontak"; // TBD: rute portal belum tersedia — arahkan ke bagian kontak
-export const CONTACT_URL = "#kontak"; // TBD: rute kontak belum tersedia — arahkan ke bagian kontak (id="kontak")
+export const CONTACT_URL = "#kontak"; // rute kontak resmi (id="kontak")
 export const INTERNET_URL = "#internet"; // arahkan ke bagian internet (id="internet")
 
 /* Ilustrasi produk ERP (konten halaman, bukan aset brand).
@@ -27,10 +26,10 @@ export const CONTACTS: { label: string; value: string; href: string }[] = [
 
 export const navLinks = [
   { href: "#beranda", label: "Beranda" },
-  { href: "#solusi", label: "Solusi" },
-  { href: "#erp", label: "Produk" },
-  { href: "#teknologi", label: "Teknologi" },
-  { href: "#tentang", label: "Tentang" },
+  { href: "#internet", label: "Internet" },
+  { href: "#erp", label: "ERP & POS" },
+  { href: "#infrastruktur", label: "CCTV" },
+  { href: "#paket-promo", label: "Paket / Promo" },
   { href: "#kontak", label: "Kontak" },
 ];
 
@@ -392,12 +391,8 @@ export const faqs = [
     a: "SKMNetwork ERP adalah sistem terintegrasi untuk operasional bisnis: kasir & penjualan, inventory, produk, pelanggan, dukungan multi-business/multi-tenant, serta laporan & monitoring dalam satu sistem.",
   },
   {
-    q: "Bagaimana cara menghubungi SKMNetwork?",
-    a: "Anda dapat menghubungi SKMNetwork melalui halaman kontak resmi di situs skmnetwork.com atau melalui Portal Pelanggan. Ceritakan kebutuhan Anda, dan kami bantu menentukan solusi yang paling sesuai.",
-  },
-  {
-    q: "Apakah tersedia portal pelanggan?",
-    a: "Ya. Portal Pelanggan SKMNetwork tersedia melalui situs resmi skmnetwork.com untuk membantu pelanggan dalam mengelola layanan dan permintaan dukungan.",
+    q: "Bagaimana cara menghubungi atau berkonsultasi dengan tim SKMNetwork?",
+    a: "Anda dapat menghubungi tim SKMNetwork melalui bagian kontak resmi di situs skmnetwork.com atau melalui asisten chat publik di pojok kanan bawah. Ceritakan kebutuhan Anda, dan tim kami siap membantu menentukan solusi yang paling sesuai.",
   },
   {
     q: "Apakah SKMNetwork ERP hanya untuk pelanggan internet SKMNetwork?",

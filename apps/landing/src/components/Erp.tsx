@@ -127,46 +127,48 @@ export default function Erp() {
             </Reveal>
           </div>
         </div>
-        {/* Dynamic ERP Plans Showcase with static erpAccess fallback */}
-        <ShowcasePlans
-          section="ERP_PLANS"
-          eyebrowText="Paket Layanan · SKMNetwork ERP"
-          title="Pilihan Paket ERP untuk Kebutuhan Bisnis Anda"
-          description="Pilih paket langganan software ERP yang sesuai dengan skala operasional dan pertumbuhan unit usaha Anda."
-          fallbackNode={
-            <div className="mt-16 border-t-2 border-ink/10 pt-14">
-              <Reveal>
-                <Eyebrow>Dua cara mengakses</Eyebrow>
-              </Reveal>
-              <Reveal delay={90}>
-                <h2 className="font-display mt-4 text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">
-                  SKMNetwork ERP untuk Pelanggan Internet maupun UMKM Mandiri
-                </h2>
-              </Reveal>
-              <div className="mt-8 grid gap-5 md:grid-cols-2">
-                {erpAccess.map((m, i) => (
-                  <Reveal key={m.tag} delay={i * 100}>
-                    <div className="h-full rounded-2xl border-2 border-ink/10 bg-card p-6 sm:p-7">
-                      <span className="inline-flex rounded-full border border-marigold/30 bg-marigold/10 px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-marigold-2">
-                        {m.tag}
-                      </span>
-                      <h3 className="font-display mt-4 text-xl font-bold text-ink">{m.title}</h3>
-                      <p className="mt-2 text-sm leading-relaxed text-ink/60">{m.desc}</p>
-                    </div>
-                  </Reveal>
-                ))}
+        {/* Dynamic ERP Plans & Bundles Showcase Container */}
+        <div id="paket-promo" className="scroll-mt-24">
+          <ShowcasePlans
+            section="ERP_PLANS"
+            eyebrowText="Paket Layanan · SKMNetwork ERP"
+            title="Pilihan Paket ERP untuk Kebutuhan Bisnis Anda"
+            description="Pilih paket langganan software ERP yang sesuai dengan skala operasional dan pertumbuhan unit usaha Anda."
+            fallbackNode={
+              <div className="mt-16 border-t-2 border-ink/10 pt-14">
+                <Reveal>
+                  <Eyebrow>Dua cara mengakses</Eyebrow>
+                </Reveal>
+                <Reveal delay={90}>
+                  <h2 className="font-display mt-4 text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">
+                    SKMNetwork ERP untuk Pelanggan Internet maupun UMKM Mandiri
+                  </h2>
+                </Reveal>
+                <div className="mt-8 grid gap-5 md:grid-cols-2">
+                  {erpAccess.map((m, i) => (
+                    <Reveal key={m.tag} delay={i * 100}>
+                      <div className="h-full rounded-2xl border-2 border-ink/10 bg-card p-6 sm:p-7">
+                        <span className="inline-flex rounded-full border border-marigold/30 bg-marigold/10 px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-marigold-2">
+                          {m.tag}
+                        </span>
+                        <h3 className="font-display mt-4 text-xl font-bold text-ink">{m.title}</h3>
+                        <p className="mt-2 text-sm leading-relaxed text-ink/60">{m.desc}</p>
+                      </div>
+                    </Reveal>
+                  ))}
+                </div>
               </div>
-            </div>
-          }
-        />
+            }
+          />
 
-        {/* Dynamic Bundles Showcase */}
-        <ShowcasePlans
-          section="BUNDLES"
-          eyebrowText="Solusi Bundel · Terintegrasi"
-          title="Paket Solusi Lengkap (ERP + Internet + Hardware)"
-          description="Dapatkan efisiensi maksimal dengan integrasi menyeluruh sistem kasir, konektivitas, dan pengawasan bisnis."
-        />
+          {/* Dynamic Bundles Showcase */}
+          <ShowcasePlans
+            section="BUNDLES"
+            eyebrowText="Solusi Bundel · Terintegrasi"
+            title="Paket Solusi Lengkap (ERP + Internet + Hardware)"
+            description="Dapatkan efisiensi maksimal dengan integrasi menyeluruh sistem kasir, konektivitas, dan pengawasan bisnis."
+          />
+        </div>
       </div>
     </section>
   )

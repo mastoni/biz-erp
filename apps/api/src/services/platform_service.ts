@@ -1100,6 +1100,91 @@ export function createPlatformService(pool: Pool) {
     },
 
     // =========================================================================
+    // 4.5 CATALOG PRODUCTS GOVERNANCE (SA-2)
+    // =========================================================================
+    async listCatalogProducts(query?: Record<string, unknown>): Promise<PlatformPaginated<Record<string, unknown>>> {
+      const { limit, offset } = parsePagination(query)
+      const statusFilter = typeof query?.status === 'string' ? query.status.trim().toUpperCase() : undefined
+      const categoryFilter = typeof query?.category === 'string' ? query.category.trim().toUpperCase() : undefined
+      const searchFilter = typeof query?.search === 'string' ? query.search.trim().toLowerCase() : undefined
+
+      const conditions: string[] = []
+      const params: any[] = []
+      let paramIdx = 1
+
+      if (statusFilter && statusFilter !== 'ALL') {
+        conditions.push(`cp.status = $${paramIdx}`)
+        params.push(statusFilter)
+        paramIdx++
+      }
+
+      if (categoryFilter && categoryFilter !== 'ALL') {
+        conditions.push(`cp.category = $${paramIdx}`)
+        params.push(categoryFilter)
+        paramIdx++
+      }
+
+      if (searchFilter) {
+        conditions.push(`(LOWER(cp.name) LIKE $${paramIdx} OR LOWER(cp.code) LIKE $${paramIdx})`)
+        params.push(`%${searchFilter}%`)
+        paramIdx++
+      }
+
+      const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
+      const fromClause = `catalog_products cp`
+
+      const countSql = `SELECT COUNT(*)::bigint AS count FROM ${fromClause} ${whereClause}`
+      const countRes = await pool.query(countSql, params)
+      const total = Number(countRes.rows[0].count)
+
+      const selectCols = `
+        cp.code,
+        cp.name,
+        cp.type,
+        cp.category,
+        cp.billing_model,
+        cp.base_price,
+        cp.currency,
+        cp.tax_rate,
+        cp.metadata,
+        cp.status,
+        cp.is_published,
+        cp.display_order,
+        cp.version,
+        cp.created_at,
+        cp.updated_at
+      `
+
+      const queryParams = [...params, limit, offset]
+      const dataSql = `
+        SELECT ${selectCols}
+        FROM ${fromClause}
+        ${whereClause}
+        ORDER BY cp.display_order ASC, cp.created_at ASC
+        LIMIT $${paramIdx} OFFSET $${paramIdx + 1}
+      `
+      const dataRes = await pool.query(dataSql, queryParams)
+
+      const summaryRes = await pool.query(`
+        SELECT
+          COUNT(*)::int AS total,
+          COUNT(*) FILTER (WHERE status = 'ACTIVE')::int AS active_count,
+          COUNT(*) FILTER (WHERE status = 'DRAFT')::int AS draft_count,
+          COUNT(*) FILTER (WHERE status = 'DEPRECATED')::int AS deprecated_count
+        FROM catalog_products
+      `)
+
+      return {
+        items: dataRes.rows,
+        total,
+        limit,
+        offset,
+        has_more: offset + dataRes.rows.length < total,
+        summary: summaryRes.rows[0]
+      }
+    },
+
+    // =========================================================================
     // 5. SHOWCASE GOVERNANCE (SA-2)
     // =========================================================================
     async listShowcaseItems(query?: Record<string, unknown>): Promise<PlatformPaginated<Record<string, unknown>>> {

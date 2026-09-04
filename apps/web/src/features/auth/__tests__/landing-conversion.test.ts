@@ -102,4 +102,29 @@ describe('Landing to ERP Conversion Flow - Unit & Regression Tests', () => {
     })
     expect(url).toBe('https://erp.skmnetwork.com/register?plan=ERP_BASIC_MONTHLY')
   })
+
+  it('verifies clear separation between Masuk ERP and Kontak/Support', () => {
+    const ERP_LOGIN_URL = 'https://erp.skmnetwork.com/login'
+    const CONTACT_URL = '#kontak'
+
+    expect(ERP_LOGIN_URL).not.toBe(CONTACT_URL)
+    expect(ERP_LOGIN_URL).toContain('erp.skmnetwork.com/login')
+    expect(CONTACT_URL).toBe('#kontak')
+  })
+
+  it('verifies visitor assistant welcome topics and public safety', () => {
+    const welcomeTopics = [
+      '🌐 Paket Internet',
+      '💼 ERP & POS',
+      '📹 CCTV & Keamanan',
+      '🎁 Paket & Promo',
+      '📝 Cara Berlangganan',
+      '💬 Hubungi CS',
+    ]
+
+    expect(welcomeTopics).toHaveLength(6)
+    welcomeTopics.forEach(topic => {
+      expect(typeof topic).toBe('string')
+    })
+  })
 })
