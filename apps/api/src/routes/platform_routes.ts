@@ -8,6 +8,7 @@ import {
 } from '../middleware/auth'
 import { createPlatformService } from '../services/platform_service'
 import { createPaymentGatewayService } from '../services/payment_gateway_service'
+import { createBillingAutomationService } from '../services/billing_automation_service'
 import { createAuditService } from '../services/audit_service'
 import { asyncHandler } from '../utils/async_handler'
 
@@ -26,6 +27,7 @@ export function createPlatformRoutes(pool: Pool): Router {
   const platformAuth = createPlatformJwtAuthMiddleware(jwtService)
   const platformService = createPlatformService(pool)
   const paymentGatewayService = createPaymentGatewayService(pool)
+  const billingAutomationService = createBillingAutomationService(pool)
   const auditService = createAuditService(pool)
 
   // Every platform route is gated by the platform auth middleware. Tenant tokens
@@ -481,6 +483,26 @@ export function createPlatformRoutes(pool: Pool): Router {
       res.status(200).json({
         message: 'Payment gateway transaction initiated successfully',
         transaction: result,
+      })
+    })
+  )
+
+  // =========================================================================
+  // 7B. BILLING AUTOMATION (Phase 5C)
+  // =========================================================================
+  router.post(
+    '/billing/automation/run',
+    requirePlatformRole('SUPER_ADMIN') as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const actorUserId = req.platformUser!.userId
+      const { now } = req.body || {}
+      const result = await billingAutomationService.runBillingAutomation({
+        now: now ? new Date(now) : undefined,
+        actorUserId,
+      })
+      res.status(200).json({
+        message: 'Billing automation batch completed',
+        ...result,
       })
     })
   )
