@@ -1,0 +1,163 @@
+name: Production Superadmin Bootstrap
+
+on:
+  workflow_dispatch:
+
+jobs:
+  bootstrap-superadmin:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Bootstrap Superadmin on Production VPS
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          SUPERADMIN_EMAIL: ${{ secrets.SUPERADMIN_EMAIL }}
+          SUPERADMIN_PASSWORD: ${{ secrets.SUPERADMIN_PASSWORD }}
+        with:
+          host: ${{ secrets.PRODUCTION_HOST }}
+          username: skmdeploy
+          key: ${{ secrets.PRODUCTION_SSH_KEY }}
+          envs: SUPERADMIN_EMAIL,SUPERADMIN_PASSWORD
+          script: |
+            set -e
+            echo "== Production Safety & Environment Verification =="
+            RUNNING_CONTAINER=$(docker ps -q -f name=bizerp_prod_api)
+            if [ -z "$RUNNING_CONTAINER" ]; then
+              echo "Error: bizerp_prod_api container not found!"
+              exit 1
+            fi
+
+            ENV_CHECK=$(docker exec bizerp_prod_api env | grep NODE_ENV || true)
+            if [[ "$ENV_CHECK" != *"NODE_ENV=production"* ]]; then
+              echo "Error: Target container is not in production environment! Found: $ENV_CHECK"
+              exit 1
+            fi
+
+            if [ -z "$SUPERADMIN_EMAIL" ] || [ -z "$SUPERADMIN_PASSWORD" ]; then
+              echo "Error: SUPERADMIN_EMAIL and SUPERADMIN_PASSWORD secrets must be set in production environment"
+              exit 1
+            fi
+
+            echo "== Executing Idempotent Superadmin Bootstrap =="
+            docker exec \
+              -e SUPERADMIN_EMAIL="$SUPERADMIN_EMAIL" \
+              -e SUPERADMIN_PASSWORD="$SUPERADMIN_PASSWORD" \
+              bizerp_prod_api node -e '
+            const { Pool } = require("pg");
+            const { randomUUID } = require("crypto");
+            const { hashPassword } = require("./dist/services/password_service");
+
+            async function run() {
+              const databaseUrl = process.env.DATABASE_URL;
+              const nodeEnv = process.env.NODE_ENV;
+              
+              if (!databaseUrl || nodeEnv !== "production") {
+                throw new Error("Safety check failed: databaseUrl missing or environment is not production");
+              }
+
+              const parsedUrl = new URL(databaseUrl.replace(/^postgres(ql)?:\/\//, "http://"));
+              console.log("[DB SAFETY CHECK] Environment:", nodeEnv, "| DB Host:", parsedUrl.host, "| DB Name:", parsedUrl.pathname.replace(/^\//, ""));
+
+              const email = process.env.SUPERADMIN_EMAIL ? process.env.SUPERADMIN_EMAIL.toLowerCase().trim() : "";
+              const password = process.env.SUPERADMIN_PASSWORD || "";
+
+              if (!email || !password) {
+                throw new Error("SUPERADMIN_EMAIL and SUPERADMIN_PASSWORD environment variables are required");
+              }
+
+              const pool = new Pool({ connectionString: databaseUrl });
+              try {
+                const existing = await pool.query(
+                  "SELECT id, email, status, platform_role FROM users WHERE email = $1 LIMIT 1",
+                  [email]
+                );
+
+                if (existing.rows.length > 0) {
+                  const u = existing.rows[0];
+                  
+                  if (u.platform_role === "SUPER_ADMIN") {
+                    console.log("[BOOTSTRAP IDEMPOTENT] SUPER_ADMIN already exists: id=" + u.id + ", email=" + u.email + ", status=" + u.status + ", role=" + u.platform_role + ". No changes made.");
+                    return;
+                  }
+
+                  throw new Error("[BOOTSTRAP ABORTED] User with email " + email + " exists with incompatible platform_role=\"" + u.platform_role + "\" and status=\"" + u.status + "\". Refusing to mutate existing account.");
+                }
+
+                const hash = await hashPassword(password);
+                const userId = randomUUID();
+
+                await pool.query(
+                  "INSERT INTO users (id, email, password_hash, status, platform_role) VALUES ($1, $2, $3, \x27ACTIVE\x27, \x27SUPER_ADMIN\x27)",
+                  [userId, email, hash]
+                );
+
+                console.log("[BOOTSTRAP SUCCESS] Initial SUPER_ADMIN created successfully: email=" + email + ", status=ACTIVE, platform_role=SUPER_ADMIN (zero tenant binding).");
+              } finally {
+                await pool.end();
+              }
+            }
+            run().catch(e => { console.error("Bootstrap error:", e.message); process.exit(1); });
+            '
+
+            echo "== Verifying Authentication with Platform Context =="
+            docker exec \
+              -e SUPERADMIN_EMAIL="$SUPERADMIN_EMAIL" \
+              -e SUPERADMIN_PASSWORD="$SUPERADMIN_PASSWORD" \
+              bizerp_prod_api node -e '
+            const http = require("http");
+
+            async function verify() {
+              const email = process.env.SUPERADMIN_EMAIL ? process.env.SUPERADMIN_EMAIL.toLowerCase().trim() : "";
+              const password = process.env.SUPERADMIN_PASSWORD || "";
+
+              const payload = JSON.stringify({ email, password });
+
+              const req = http.request(
+                {
+                  hostname: "127.0.0.1",
+                  port: 8080,
+                  path: "/v1/auth/login",
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    "Content-Length": Buffer.byteLength(payload),
+                    "x-auth-context": "platform"
+                  }
+                },
+                (res) => {
+                  let body = "";
+                  res.on("data", (chunk) => { body += chunk; });
+                  res.on("end", () => {
+                    if (res.statusCode === 200) {
+                      try {
+                        const data = JSON.parse(body);
+                        if (data.access_token && data.user && data.user.platform_role === "SUPER_ADMIN") {
+                          console.log("[VERIFY SUCCESS] Platform login HTTP 200 OK. Valid SUPER_ADMIN platform token issued.");
+                          process.exit(0);
+                        } else {
+                          console.error("[VERIFY FAILED] Unexpected response structure (status 200 but invalid platform payload).");
+                          process.exit(1);
+                        }
+                      } catch (err) {
+                        console.error("[VERIFY FAILED] Response is not valid JSON.");
+                        process.exit(1);
+                      }
+                    } else {
+                      console.error("[VERIFY FAILED] Login returned HTTP status " + res.statusCode);
+                      process.exit(1);
+                    }
+                  });
+                }
+              );
+
+              req.on("error", (e) => {
+                console.error("[VERIFY ERROR] Connection error:", e.message);
+                process.exit(1);
+              });
+
+              req.write(payload);
+              req.end();
+            }
+
+            verify();
+            '
