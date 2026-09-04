@@ -12,6 +12,7 @@ import 'package:biz_erp_mobile/products/data/product_repository.dart';
 import 'package:biz_erp_mobile/sales/data/sales_sync_repository.dart';
 import 'package:biz_erp_mobile/products/domain/product.dart';
 import 'package:biz_erp_mobile/customers/data/customer_repository.dart';
+import 'package:biz_erp_mobile/suppliers/data/supplier_repository.dart';
 import 'package:biz_erp_mobile/core/sync/sync_models.dart';
 import 'package:biz_erp_mobile/core/sync/network_monitor.dart';
 import 'package:biz_erp_mobile/core/auth/auth_secure_storage.dart';
@@ -40,6 +41,7 @@ void main() {
       products: productRepo,
       salesSync: salesSyncRepo,
       customers: CustomerRepository(db),
+      suppliers: SupplierRepository(db),
       businessId: businessId,
     );
 

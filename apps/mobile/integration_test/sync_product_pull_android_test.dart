@@ -10,6 +10,7 @@ import 'package:biz_erp_mobile/core/sync/sync_outbox_repository.dart';
 import 'package:biz_erp_mobile/products/data/product_repository.dart';
 import 'package:biz_erp_mobile/sales/data/sales_sync_repository.dart';
 import 'package:biz_erp_mobile/customers/data/customer_repository.dart';
+import 'package:biz_erp_mobile/suppliers/data/supplier_repository.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -45,6 +46,7 @@ void main() {
       products: productRepo,
       salesSync: salesSyncRepo,
       customers: CustomerRepository(db),
+      suppliers: SupplierRepository(db),
       businessId: businessId,
     );
 
