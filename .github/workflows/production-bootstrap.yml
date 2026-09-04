@@ -131,7 +131,7 @@ jobs:
                     if (res.statusCode === 200) {
                       try {
                         const data = JSON.parse(body);
-                        if (data.access_token && data.user && data.user.platform_role === "SUPER_ADMIN") {
+                        if (data.access_token && data.role === "SUPER_ADMIN") {
                           console.log("[VERIFY SUCCESS] Platform login HTTP 200 OK. Valid SUPER_ADMIN platform token issued.");
                           process.exit(0);
                         } else {
