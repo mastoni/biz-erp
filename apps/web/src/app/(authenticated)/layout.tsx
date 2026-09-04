@@ -8,6 +8,7 @@ import { BranchProvider } from '@/features/branches/BranchContext';
 import { canAccessRoute, Role } from '@/lib/rbac';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
+import { AiCsChatWidget } from '@/features/ai-cs/components/AiCsChatWidget';
 
 import { TenantStatusScreen } from '@/features/auth/components/TenantStatusScreen';
 
@@ -83,6 +84,7 @@ export default function AuthenticatedLayout({ children }: { children: React.Reac
                </div>
              </main>
            </div>
+           <AiCsChatWidget />
         </div>
       </BranchProvider>
     </TenantGuard>
