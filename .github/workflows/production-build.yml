@@ -34,16 +34,29 @@ jobs:
           --health-timeout 5s
           --health-retries 20
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.inputs.git_ref }}
+          ref: main
+          fetch-depth: 0
+
+      - name: Checkout requested ref
+        run: |
+          REQUESTED_REF="${{ github.event.inputs.git_ref }}"
+          REQUESTED_REF="${REQUESTED_REF#git_ref:}"
+          REQUESTED_REF="${REQUESTED_REF#git_ref =}"
+          REQUESTED_REF="$(printf '%s' "$REQUESTED_REF" | xargs)"
+          echo "Requested ref: $REQUESTED_REF"
+          git fetch --all --tags --prune
+          git rev-parse "$REQUESTED_REF^{commit}" > /dev/null
+          git checkout --detach "$REQUESTED_REF"
 
       - name: Get Exact SHA
         id: exact_sha
         run: |
           EXACT_SHA=$(git rev-parse HEAD)
           echo "sha=$EXACT_SHA" >> $GITHUB_OUTPUT
+          echo "Exact SHA: $EXACT_SHA"
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
