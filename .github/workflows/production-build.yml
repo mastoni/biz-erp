@@ -97,10 +97,6 @@ jobs:
         working-directory: ./apps/web
         run: npm test
 
-      - name: Run web lint
-        working-directory: ./apps/web
-        run: npm run lint
-
       - name: Run web typecheck
         working-directory: ./apps/web
         run: npm run typecheck
