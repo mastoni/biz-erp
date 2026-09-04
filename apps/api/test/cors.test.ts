@@ -192,7 +192,7 @@ describe('CORS Compatibility', () => {
       originalNodeEnv = process.env.NODE_ENV
       originalCors = process.env.CORS_ALLOWED_ORIGINS
       process.env.NODE_ENV = 'production'
-      process.env.CORS_ALLOWED_ORIGINS = 'https://erp.skmnetwork.com'
+      delete process.env.CORS_ALLOWED_ORIGINS
       app = createApp(pool)
     })
 
@@ -209,6 +209,35 @@ describe('CORS Compatibility', () => {
 
       expect(res.headers['access-control-allow-origin']).toBe('https://erp.skmnetwork.com')
       expect(res.status).toBe(204)
+    })
+
+    it('CORS-013: production landing apex origin allowed', async () => {
+      const res = await request(app)
+        .options('/v1/public/showcase?section=ERP_PLANS')
+        .set('Origin', 'https://skmnetwork.com')
+        .set('Access-Control-Request-Method', 'GET')
+
+      expect(res.headers['access-control-allow-origin']).toBe('https://skmnetwork.com')
+      expect(res.status).toBe(204)
+    })
+
+    it('CORS-014: production landing www origin allowed', async () => {
+      const res = await request(app)
+        .options('/v1/public/showcase?section=ERP_PLANS')
+        .set('Origin', 'https://www.skmnetwork.com')
+        .set('Access-Control-Request-Method', 'GET')
+
+      expect(res.headers['access-control-allow-origin']).toBe('https://www.skmnetwork.com')
+      expect(res.status).toBe(204)
+    })
+
+    it('CORS-015: unauthorized origin rejected in production', async () => {
+      const res = await request(app)
+        .get('/v1/public/showcase?section=ERP_PLANS')
+        .set('Origin', 'https://unauthorized-domain.com')
+
+      expect(res.headers['access-control-allow-origin']).toBeUndefined()
+      expect(res.status).toBe(500)
     })
   })
 })

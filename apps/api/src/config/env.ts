@@ -19,9 +19,18 @@ export function loadEnv(): Env {
 
   let defaultCorsOrigins: string[]
   if (nodeEnv === 'production') {
-    defaultCorsOrigins = ['https://erp.skmnetwork.com']
+    defaultCorsOrigins = [
+      'https://erp.skmnetwork.com',
+      'https://skmnetwork.com',
+      'https://www.skmnetwork.com',
+    ]
   } else if (nodeEnv === 'staging') {
-    defaultCorsOrigins = ['http://localhost:3000', 'https://staging-erp.skmnetwork.com']
+    defaultCorsOrigins = [
+      'http://localhost:3000',
+      'https://staging-erp.skmnetwork.com',
+      'https://skmnetwork.com',
+      'https://www.skmnetwork.com',
+    ]
   } else {
     defaultCorsOrigins = ['http://localhost:3000']
   }
