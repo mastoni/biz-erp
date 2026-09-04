@@ -34,6 +34,11 @@ describe('Phase SA-2.5 Platform Service Registry API', () => {
 
   beforeEach(async () => {
     await pool.query('DELETE FROM service_dependencies')
+    await pool.query('DELETE FROM plan_modules')
+    await pool.query('DELETE FROM platform_payments')
+    await pool.query('DELETE FROM platform_invoices')
+    await pool.query('DELETE FROM subscriptions')
+    await pool.query('DELETE FROM plans')
     await pool.query('DELETE FROM services')
     await pool.query('DELETE FROM user_businesses')
     await pool.query('DELETE FROM users')
