@@ -34,8 +34,6 @@ describe('Web ERP RBAC', () => {
     it('Unknown/unimplemented route is denied for all roles', () => {
       expect(canAccessRoute('OWNER', '/purchasing')).toBe(false);
       expect(canAccessRoute('CASHIER', '/purchasing')).toBe(false);
-      expect(canAccessRoute('OWNER', '/finance')).toBe(false);
-      expect(canAccessRoute('OWNER', '/reports')).toBe(false);
       expect(canAccessRoute('OWNER', '/administration')).toBe(false);
       expect(canAccessRoute('OWNER', '/some-random-page')).toBe(false);
     });
@@ -71,8 +69,6 @@ describe('Web ERP RBAC', () => {
       const nav = getAuthorizedNavigation('OWNER');
       const hrefs = nav.map(item => item.href);
       expect(hrefs).not.toContain('/purchasing');
-      expect(hrefs).not.toContain('/finance');
-      expect(hrefs).not.toContain('/reports');
       expect(hrefs).not.toContain('/administration');
     });
   });

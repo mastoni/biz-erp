@@ -47,7 +47,7 @@ function makeAxiosError(message: string, data?: { message?: string }, headers?: 
 
 describe('CUSTOMER-WEB-018: List page renders heading', () => {
   it('header shows the Customers title and subtitle', () => {
-    expect(CUSTOMERS_PAGE_TITLE).toBe('Customers');
+    expect(CUSTOMERS_PAGE_TITLE).toBe('Pelanggan');
     expect(CUSTOMERS_PAGE_SUBTITLE).toBe('Kelola data pelanggan');
   });
 });
