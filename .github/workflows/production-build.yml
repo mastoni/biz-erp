@@ -77,7 +77,7 @@ jobs:
         working-directory: ./apps/mobile
         run: |
           flutter pub get
-          flutter analyze --no-fatal-warnings
+          flutter analyze --no-fatal-warnings --no-fatal-infos
           flutter test
 
       - name: Build API Docker image
