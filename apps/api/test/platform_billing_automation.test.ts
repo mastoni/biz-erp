@@ -453,19 +453,33 @@ describe('Phase 5C: Platform Billing Automation', () => {
       expect(salesCountBefore).toBe(salesCountAfter)
     })
 
-    // AUTO-011: Concurrent execution is protected by advisory lock.
-    it('AUTO-011: Returns skipped = true when advisory lock is already held', async () => {
+    // AUTO-011: Concurrent execution is protected by transaction-scoped advisory lock.
+    it('AUTO-011: Concurrent execution is protected by pg_try_advisory_xact_lock and auto-releases on tx end', async () => {
       const lockClient = await pool.connect()
       try {
-        await lockClient.query(`SELECT pg_advisory_lock(hashtext('platform_billing_automation'))`)
+        await lockClient.query('BEGIN')
+        const lockRes = await lockClient.query(
+          `SELECT pg_try_advisory_xact_lock(hashtext('platform_billing_automation')) AS acquired`
+        )
+        expect(lockRes.rows[0].acquired).toBe(true)
 
+        // Concurrent execution must detect lock held and return skipped
         const result = await billingAutomationService.runBillingAutomation()
         expect(result.skipped).toBe(true)
         expect(result.reason).toBe('AUTOMATION_ALREADY_RUNNING')
+
+        // End holding transaction (COMMIT automatically releases xact-scoped lock)
+        await lockClient.query('COMMIT')
+      } catch (e) {
+        await lockClient.query('ROLLBACK')
+        throw e
       } finally {
-        await lockClient.query(`SELECT pg_advisory_unlock(hashtext('platform_billing_automation'))`)
         lockClient.release()
       }
+
+      // Subsequent execution after transaction end acquires lock and runs normally
+      const subsequentResult = await billingAutomationService.runBillingAutomation()
+      expect(subsequentResult.skipped).toBe(false)
     })
 
     // AUTO-012: Required audit events are created.

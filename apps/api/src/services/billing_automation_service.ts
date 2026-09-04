@@ -43,17 +43,22 @@ export function createBillingAutomationService(pool: Pool) {
         failures: [],
       }
 
-      // Acquire advisory lock using a dedicated client to ensure multi-worker safety
+      // Acquire transaction-scoped advisory lock using a dedicated client to ensure multi-worker safety
       const lockClient = await pool.connect()
-      let lockAcquired = false
+      let inTransaction = false
 
       try {
+        await lockClient.query('BEGIN')
+        inTransaction = true
+
         const lockRes = await lockClient.query(
-          `SELECT pg_try_advisory_lock(hashtext('platform_billing_automation')) AS acquired`
+          `SELECT pg_try_advisory_xact_lock(hashtext('platform_billing_automation')) AS acquired`
         )
-        lockAcquired = !!lockRes.rows[0]?.acquired
+        const lockAcquired = !!lockRes.rows[0]?.acquired
 
         if (!lockAcquired) {
+          await lockClient.query('ROLLBACK')
+          inTransaction = false
           logger.warn('Billing automation execution skipped: lock already held by another worker')
           return {
             ...result,
@@ -244,17 +249,21 @@ export function createBillingAutomationService(pool: Pool) {
           }
         }
 
+        await lockClient.query('COMMIT')
+        inTransaction = false
+
         return result
-      } finally {
-        if (lockAcquired) {
+      } catch (err) {
+        if (inTransaction) {
           try {
-            await lockClient.query(
-              `SELECT pg_advisory_unlock(hashtext('platform_billing_automation'))`
-            )
-          } catch (unlockErr) {
-            logger.error({ err: unlockErr }, 'Failed to release billing automation advisory lock')
+            await lockClient.query('ROLLBACK')
+          } catch (rbErr) {
+            // ignore rollback error if client closed
           }
+          inTransaction = false
         }
+        throw err
+      } finally {
         lockClient.release()
       }
     },
