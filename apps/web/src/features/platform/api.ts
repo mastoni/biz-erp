@@ -26,6 +26,12 @@ import {
   PlatformShowcaseItem,
   PlatformShowcaseResponse,
   PlatformSubscription,
+  PlatformInvoice,
+  PlatformInvoiceStatus,
+  PlatformPayment,
+  PlatformPaymentMethod,
+  InvoiceListSummary,
+  PlatformInvoicesResponse,
   BusinessLifecycleStatus,
   PlatformSupportTicket,
   PlatformSupportTicketDetail,
@@ -50,6 +56,7 @@ import {
 } from './types';
 
 export type {
+  PlatformPaginated,
   PlatformBusinessesResponse,
   PlatformBusinessDetail,
   PlatformBusiness,
@@ -57,9 +64,13 @@ export type {
   PlatformPlan,
   PlatformPlansResponse,
   PlatformBundle,
-  PlatformBundlesResponse,
-  PlatformShowcaseItem,
-  PlatformShowcaseResponse,
+  PlatformSubscription,
+  PlatformInvoice,
+  PlatformInvoiceStatus,
+  PlatformPayment,
+  PlatformPaymentMethod,
+  InvoiceListSummary,
+  PlatformInvoicesResponse,
   PlatformSupportTicket,
   PlatformSupportTicketDetail,
   PlatformTicketsResponse,
@@ -391,13 +402,106 @@ export async function getPlatformModules(limit = PLATFORM_PAGE_SIZE, offset = 0)
   return res.data;
 }
 
+export interface GetSubscriptionsParams {
+  limit?: number;
+  offset?: number;
+  status?: string;
+  plan_code?: string;
+  business_id?: string;
+  search?: string;
+}
+
 export async function getPlatformSubscriptions(
-  limit = PLATFORM_PAGE_SIZE,
-  offset = 0
+  paramsOrLimit?: GetSubscriptionsParams | number,
+  offsetArg?: number
 ): Promise<PlatformPaginated<PlatformSubscription>> {
+  let limit = PLATFORM_PAGE_SIZE;
+  let offset = 0;
+  let status: string | undefined;
+  let plan_code: string | undefined;
+  let business_id: string | undefined;
+  let search: string | undefined;
+
+  if (typeof paramsOrLimit === 'number') {
+    limit = paramsOrLimit;
+    offset = offsetArg ?? 0;
+  } else if (paramsOrLimit && typeof paramsOrLimit === 'object') {
+    limit = paramsOrLimit.limit ?? PLATFORM_PAGE_SIZE;
+    offset = paramsOrLimit.offset ?? 0;
+    status = paramsOrLimit.status;
+    plan_code = paramsOrLimit.plan_code;
+    business_id = paramsOrLimit.business_id;
+    search = paramsOrLimit.search;
+  }
+
   const res = await api.get<PlatformPaginated<PlatformSubscription>>('/v1/platform/subscriptions', {
-    params: { limit, offset },
+    params: { limit, offset, status, plan_code, business_id, search },
   });
+  return res.data;
+}
+
+// =============================================================================
+// 5B. PLATFORM BILLING & INVOICES (PHASE PLATFORM BILLING LIFECYCLE)
+// =============================================================================
+export interface GetInvoicesParams {
+  limit?: number;
+  offset?: number;
+  status?: PlatformInvoiceStatus | 'ALL';
+  business_id?: string;
+  subscription_id?: string;
+  search?: string;
+}
+
+export async function getPlatformInvoices(
+  params?: GetInvoicesParams
+): Promise<PlatformInvoicesResponse> {
+  const res = await api.get<PlatformInvoicesResponse>('/v1/platform/invoices', {
+    params: {
+      limit: params?.limit ?? PLATFORM_PAGE_SIZE,
+      offset: params?.offset ?? 0,
+      status: params?.status === 'ALL' ? undefined : params?.status,
+      business_id: params?.business_id?.trim() || undefined,
+      subscription_id: params?.subscription_id?.trim() || undefined,
+      search: params?.search?.trim() || undefined,
+    },
+  });
+  return res.data;
+}
+
+export async function getPlatformInvoiceById(id: string): Promise<PlatformInvoice> {
+  const res = await api.get<PlatformInvoice>(`/v1/platform/invoices/${id}`);
+  return res.data;
+}
+
+export async function generatePlatformInvoice(payload: {
+  subscription_id: string;
+  billing_period_start?: string;
+  billing_period_end?: string;
+  due_date?: string;
+  notes?: string;
+}): Promise<{ message: string; invoice: PlatformInvoice; is_new: boolean }> {
+  const res = await api.post<{ message: string; invoice: PlatformInvoice; is_new: boolean }>(
+    '/v1/platform/invoices/generate',
+    payload
+  );
+  return res.data;
+}
+
+export async function recordPlatformPayment(
+  invoiceId: string,
+  payload: {
+    amount?: number;
+    payment_method: PlatformPaymentMethod;
+    payment_reference?: string;
+    notes?: string;
+  }
+): Promise<{ message: string; payment: PlatformPayment; invoice: PlatformInvoice; subscription_status: string }> {
+  const res = await api.post<{
+    message: string;
+    payment: PlatformPayment;
+    invoice: PlatformInvoice;
+    subscription_status: string;
+  }>(`/v1/platform/invoices/${invoiceId}/payments`, payload);
   return res.data;
 }
 

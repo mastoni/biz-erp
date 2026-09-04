@@ -1748,30 +1748,571 @@ export function createPlatformService(pool: Pool) {
     },
 
     // =========================================================================
-    // 8. SUBSCRIPTIONS (List)
+    // 8. SUBSCRIPTIONS & PLATFORM BILLING LIFECYCLE
     // =========================================================================
     async listSubscriptions(query?: Record<string, unknown>): Promise<PlatformPaginated<Record<string, unknown>>> {
       const { limit, offset } = parsePagination(query)
-      return listPage(
-        `s.id,
-         s.business_id,
-         s.account_customer_id,
-         s.plan_code,
-         p.family AS plan_family,
-         s.family_code,
-         s.source,
-         s.status,
-         s.starts_at,
-         s.ends_at,
-         s.billing_cycle,
-         s.final_price,
-         s.currency,
-         s.created_at`,
-        'subscriptions s JOIN plans p ON s.plan_code = p.code',
-        's.created_at DESC',
+      const q = query ?? {}
+      const statusFilter = typeof q.status === 'string' && q.status.trim() !== '' ? q.status.trim().toUpperCase() : undefined
+      const planFilter = typeof q.plan_code === 'string' && q.plan_code.trim() !== '' ? q.plan_code.trim() : undefined
+      const businessFilter = typeof q.business_id === 'string' && q.business_id.trim() !== '' ? q.business_id.trim() : undefined
+      const searchFilter = typeof q.search === 'string' && q.search.trim() !== '' ? q.search.trim().toLowerCase() : undefined
+
+      const conditions: string[] = []
+      const params: any[] = []
+      let paramIdx = 1
+
+      if (statusFilter && statusFilter !== 'ALL') {
+        conditions.push(`s.status = $${paramIdx}`)
+        params.push(statusFilter)
+        paramIdx++
+      }
+
+      if (planFilter && planFilter !== 'ALL') {
+        conditions.push(`s.plan_code = $${paramIdx}`)
+        params.push(planFilter)
+        paramIdx++
+      }
+
+      if (businessFilter) {
+        conditions.push(`s.business_id = $${paramIdx}`)
+        params.push(businessFilter)
+        paramIdx++
+      }
+
+      if (searchFilter) {
+        conditions.push(`(s.plan_code ILIKE $${paramIdx} OR b.name ILIKE $${paramIdx} OR s.family_code ILIKE $${paramIdx})`)
+        params.push(`%${searchFilter}%`)
+        paramIdx++
+      }
+
+      const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
+
+      const countSql = `
+        SELECT 
+          COUNT(*)::int as total,
+          COUNT(*) FILTER (WHERE s.status = 'ACTIVE')::int as active_count,
+          COUNT(*) FILTER (WHERE s.status = 'PENDING')::int as pending_count,
+          COUNT(*) FILTER (WHERE s.status = 'SUSPENDED')::int as suspended_count,
+          COUNT(*) FILTER (WHERE s.status = 'EXPIRED')::int as expired_count,
+          COUNT(*) FILTER (WHERE s.status = 'CANCELLED')::int as cancelled_count
+        FROM subscriptions s
+        JOIN plans p ON s.plan_code = p.code
+        JOIN businesses b ON s.business_id = b.id
+        ${whereClause}
+      `
+      const countRes = await pool.query(countSql, params)
+      const countRow = countRes.rows[0]
+      const total = countRow ? countRow.total : 0
+
+      const selectParams = [...params, limit, offset]
+      const selectSql = `
+        SELECT 
+          s.id,
+          s.business_id,
+          b.name as business_name,
+          s.account_customer_id,
+          s.plan_code,
+          p.name as plan_name,
+          p.family as plan_family,
+          s.family_code,
+          s.source,
+          s.status,
+          s.starts_at,
+          s.ends_at,
+          s.billing_cycle,
+          s.unit_price,
+          s.discount,
+          s.tax,
+          s.final_price,
+          s.currency,
+          s.created_at,
+          (
+            SELECT json_build_object(
+              'id', inv.id,
+              'invoice_number', inv.invoice_number,
+              'status', inv.status,
+              'total_amount', inv.total_amount,
+              'due_date', inv.due_date,
+              'billing_period_start', inv.billing_period_start,
+              'billing_period_end', inv.billing_period_end
+            )
+            FROM platform_invoices inv
+            WHERE inv.subscription_id = s.id
+            ORDER BY inv.created_at DESC
+            LIMIT 1
+          ) as latest_invoice
+        FROM subscriptions s
+        JOIN plans p ON s.plan_code = p.code
+        JOIN businesses b ON s.business_id = b.id
+        ${whereClause}
+        ORDER BY s.created_at DESC
+        LIMIT $${paramIdx++} OFFSET $${paramIdx++}
+      `
+      const selectRes = await pool.query(selectSql, selectParams)
+
+      return {
+        items: selectRes.rows,
+        total,
         limit,
-        offset
-      )
+        offset,
+        has_more: offset + selectRes.rows.length < total,
+        summary: {
+          total,
+          active_count: countRow ? countRow.active_count : 0,
+          pending_count: countRow ? countRow.pending_count : 0,
+          suspended_count: countRow ? countRow.suspended_count : 0,
+          expired_count: countRow ? countRow.expired_count : 0,
+          cancelled_count: countRow ? countRow.cancelled_count : 0,
+        },
+      }
+    },
+
+    async generatePlatformInvoice(
+      subscriptionId: string,
+      customPeriodStart?: string,
+      actorUserId?: string
+    ): Promise<Record<string, unknown>> {
+      if (!isUuid(subscriptionId)) {
+        throw new ValidationError('subscription_id must be a valid UUID')
+      }
+
+      return withTransaction(pool, async (client) => {
+        const subRes = await client.query(
+          `SELECT s.*, p.name as plan_name, b.name as business_name
+           FROM subscriptions s
+           JOIN plans p ON s.plan_code = p.code
+           JOIN businesses b ON s.business_id = b.id
+           WHERE s.id = $1 FOR UPDATE`,
+          [subscriptionId]
+        )
+
+        if (subRes.rows.length === 0) {
+          throw new ApiError(404, 'NOT_FOUND', 'Subscription not found')
+        }
+
+        const sub = subRes.rows[0]
+        if (sub.status === 'CANCELLED') {
+          throw new ApiError(400, 'INVALID_SUBSCRIPTION_STATE', 'Cannot generate invoice for a cancelled subscription')
+        }
+
+        // Determine billing period
+        let periodStart: Date
+        if (customPeriodStart) {
+          periodStart = new Date(customPeriodStart)
+        } else if (sub.ends_at && new Date(sub.ends_at).getTime() > Date.now()) {
+          periodStart = new Date(sub.ends_at)
+        } else if (sub.starts_at) {
+          periodStart = new Date(sub.starts_at)
+        } else {
+          periodStart = new Date()
+        }
+
+        // Calculate cycle duration
+        let months = 1
+        if (sub.billing_cycle === 'QUARTERLY') months = 3
+        else if (sub.billing_cycle === 'ANNUAL') months = 12
+
+        const periodEnd = new Date(periodStart)
+        periodEnd.setMonth(periodEnd.getMonth() + months)
+
+        // Calculate due date (7 days from period start or current date)
+        const dueDate = new Date(periodStart)
+        dueDate.setDate(dueDate.getDate() + 7)
+
+        // Check if invoice for this exact period already exists (idempotency)
+        const existingInv = await client.query(
+          `SELECT * FROM platform_invoices
+           WHERE subscription_id = $1 AND billing_period_start = $2 AND billing_period_end = $3`,
+          [subscriptionId, periodStart.toISOString(), periodEnd.toISOString()]
+        )
+
+        if (existingInv.rows.length > 0) {
+          return existingInv.rows[0]
+        }
+
+        // Generate invoice number: INV-PLT-YYYYMM-XXXX
+        const yearMonth = `${periodStart.getUTCFullYear()}${String(periodStart.getUTCMonth() + 1).padStart(2, '0')}`
+        const randSuffix = Math.floor(1000 + Math.random() * 9000)
+        const invoiceNumber = `INV-PLT-${yearMonth}-${randSuffix}`
+
+        const insertSql = `
+          INSERT INTO platform_invoices (
+            invoice_number,
+            subscription_id,
+            business_id,
+            plan_code,
+            billing_period_start,
+            billing_period_end,
+            subtotal_amount,
+            discount_amount,
+            tax_amount,
+            total_amount,
+            currency,
+            status,
+            due_date,
+            metadata
+          ) VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'ISSUED', $12, $13
+          )
+          ON CONFLICT (subscription_id, billing_period_start, billing_period_end) DO NOTHING
+          RETURNING *
+        `
+        const insertRes = await client.query(insertSql, [
+          invoiceNumber,
+          subscriptionId,
+          sub.business_id,
+          sub.plan_code,
+          periodStart.toISOString(),
+          periodEnd.toISOString(),
+          sub.unit_price,
+          sub.discount,
+          sub.tax,
+          sub.final_price,
+          sub.currency || 'IDR',
+          dueDate.toISOString(),
+          JSON.stringify({
+            generated_by: actorUserId || 'SYSTEM',
+            plan_name: sub.plan_name,
+            business_name: sub.business_name,
+            billing_cycle: sub.billing_cycle,
+          }),
+        ])
+
+        if (insertRes.rows.length === 0) {
+          // If conflict occurred concurrently, return the existing row
+          const fallback = await client.query(
+            `SELECT * FROM platform_invoices
+             WHERE subscription_id = $1 AND billing_period_start = $2 AND billing_period_end = $3`,
+            [subscriptionId, periodStart.toISOString(), periodEnd.toISOString()]
+          )
+          return fallback.rows[0]
+        }
+
+        const invoice = insertRes.rows[0]
+
+        // Audit log event
+        const auditService = createAuditService(pool)
+        await auditService.recordAudit({
+          actor_id: actorUserId || null,
+          actor_scope: 'platform',
+          action: 'PLATFORM_INVOICE_GENERATED',
+          target_type: 'platform_invoices',
+          target_id: invoice.id,
+          after_state: {
+            invoice_number: invoice.invoice_number,
+            total_amount: invoice.total_amount,
+            subscription_id: subscriptionId,
+            business_id: sub.business_id,
+          },
+          status: 'SUCCESS',
+        })
+
+        return invoice
+      })
+    },
+
+    async listPlatformInvoices(query?: Record<string, unknown>): Promise<PlatformPaginated<Record<string, unknown>>> {
+      const { limit, offset } = parsePagination(query)
+      const q = query ?? {}
+      const statusFilter = typeof q.status === 'string' && q.status.trim() !== '' ? q.status.trim().toUpperCase() : undefined
+      const businessFilter = typeof q.business_id === 'string' && q.business_id.trim() !== '' ? q.business_id.trim() : undefined
+      const subscriptionFilter = typeof q.subscription_id === 'string' && q.subscription_id.trim() !== '' ? q.subscription_id.trim() : undefined
+      const searchFilter = typeof q.search === 'string' && q.search.trim() !== '' ? q.search.trim().toLowerCase() : undefined
+
+      const validStatuses = ['DRAFT', 'ISSUED', 'PAID', 'OVERDUE', 'CANCELLED', 'VOID']
+      if (statusFilter && statusFilter !== 'ALL' && !validStatuses.includes(statusFilter)) {
+        throw new ApiError(400, 'VALIDATION_ERROR', `Invalid status filter: ${statusFilter}`)
+      }
+
+      const conditions: string[] = []
+      const params: any[] = []
+      let paramIdx = 1
+
+      if (statusFilter && statusFilter !== 'ALL') {
+        conditions.push(`inv.status = $${paramIdx}`)
+        params.push(statusFilter)
+        paramIdx++
+      }
+
+      if (businessFilter) {
+        conditions.push(`inv.business_id = $${paramIdx}`)
+        params.push(businessFilter)
+        paramIdx++
+      }
+
+      if (subscriptionFilter) {
+        conditions.push(`inv.subscription_id = $${paramIdx}`)
+        params.push(subscriptionFilter)
+        paramIdx++
+      }
+
+      if (searchFilter) {
+        conditions.push(`(inv.invoice_number ILIKE $${paramIdx} OR b.name ILIKE $${paramIdx} OR inv.plan_code ILIKE $${paramIdx})`)
+        params.push(`%${searchFilter}%`)
+        paramIdx++
+      }
+
+      const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
+
+      const countSql = `
+        SELECT 
+          COUNT(*)::int as total,
+          COUNT(*) FILTER (WHERE inv.status = 'PAID')::int as paid_count,
+          COUNT(*) FILTER (WHERE inv.status = 'ISSUED')::int as issued_count,
+          COUNT(*) FILTER (WHERE inv.status = 'OVERDUE')::int as overdue_count,
+          COUNT(*) FILTER (WHERE inv.status = 'CANCELLED' OR inv.status = 'VOID')::int as cancelled_count,
+          COALESCE(SUM(inv.total_amount), 0)::bigint as total_amount,
+          COALESCE(SUM(inv.total_amount) FILTER (WHERE inv.status = 'PAID'), 0)::bigint as paid_amount
+        FROM platform_invoices inv
+        JOIN businesses b ON inv.business_id = b.id
+        ${whereClause}
+      `
+      const countRes = await pool.query(countSql, params)
+      const countRow = countRes.rows[0]
+      const total = countRow ? countRow.total : 0
+
+      const selectParams = [...params, limit, offset]
+      const selectSql = `
+        SELECT 
+          inv.id,
+          inv.invoice_number,
+          inv.subscription_id,
+          inv.business_id,
+          b.name as business_name,
+          inv.plan_code,
+          p.name as plan_name,
+          inv.billing_period_start,
+          inv.billing_period_end,
+          inv.subtotal_amount,
+          inv.discount_amount,
+          inv.tax_amount,
+          inv.total_amount,
+          inv.currency,
+          inv.status,
+          inv.due_date,
+          inv.paid_at,
+          inv.payment_reference,
+          inv.created_at,
+          inv.updated_at
+        FROM platform_invoices inv
+        JOIN businesses b ON inv.business_id = b.id
+        JOIN plans p ON inv.plan_code = p.code
+        ${whereClause}
+        ORDER BY inv.created_at DESC
+        LIMIT $${paramIdx++} OFFSET $${paramIdx++}
+      `
+      const selectRes = await pool.query(selectSql, selectParams)
+
+      return {
+        items: selectRes.rows,
+        total,
+        limit,
+        offset,
+        has_more: offset + selectRes.rows.length < total,
+        summary: {
+          total,
+          paid_count: countRow ? countRow.paid_count : 0,
+          issued_count: countRow ? countRow.issued_count : 0,
+          overdue_count: countRow ? countRow.overdue_count : 0,
+          cancelled_count: countRow ? countRow.cancelled_count : 0,
+          total_amount: countRow ? Number(countRow.total_amount) : 0,
+          paid_amount: countRow ? Number(countRow.paid_amount) : 0,
+        },
+      }
+    },
+
+    async getPlatformInvoiceById(id: string): Promise<Record<string, unknown>> {
+      if (!isUuid(id)) {
+        throw new ValidationError('id must be a valid UUID')
+      }
+
+      const invSql = `
+        SELECT 
+          inv.*,
+          b.name as business_name,
+          p.name as plan_name,
+          p.family as plan_family,
+          s.billing_cycle,
+          s.status as subscription_status
+        FROM platform_invoices inv
+        JOIN businesses b ON inv.business_id = b.id
+        JOIN plans p ON inv.plan_code = p.code
+        JOIN subscriptions s ON inv.subscription_id = s.id
+        WHERE inv.id = $1
+      `
+      const invRes = await pool.query(invSql, [id])
+      if (invRes.rows.length === 0) {
+        throw new ApiError(404, 'NOT_FOUND', 'Platform invoice not found')
+      }
+
+      const invoice = invRes.rows[0]
+
+      // Fetch payment history
+      const paymentsSql = `
+        SELECT 
+          pay.id,
+          pay.amount,
+          pay.currency,
+          pay.payment_method,
+          pay.payment_reference,
+          pay.notes,
+          pay.recorded_by,
+          u.email as recorded_by_email,
+          pay.created_at
+        FROM platform_payments pay
+        LEFT JOIN users u ON pay.recorded_by = u.id
+        WHERE pay.invoice_id = $1
+        ORDER BY pay.created_at ASC
+      `
+      const payRes = await pool.query(paymentsSql, [id])
+      invoice.payments = payRes.rows
+
+      return invoice
+    },
+
+    async recordPlatformPayment(
+      invoiceId: string,
+      input: {
+        amount?: number
+        payment_method?: string
+        payment_reference?: string
+        notes?: string
+      },
+      actorUserId: string
+    ): Promise<Record<string, unknown>> {
+      if (!isUuid(invoiceId)) {
+        throw new ValidationError('invoiceId must be a valid UUID')
+      }
+
+      const method = input.payment_method ? input.payment_method.toUpperCase() : 'MANUAL_BANK_TRANSFER'
+      const allowedMethods = ['MANUAL_BANK_TRANSFER', 'CASH', 'INTERNAL_CREDIT', 'GATEWAY_PENDING']
+      if (!allowedMethods.includes(method)) {
+        throw new ValidationError(`Invalid payment_method. Allowed: ${allowedMethods.join(', ')}`)
+      }
+
+      return withTransaction(pool, async (client) => {
+        const invRes = await client.query(
+          `SELECT * FROM platform_invoices WHERE id = $1 FOR UPDATE`,
+          [invoiceId]
+        )
+        if (invRes.rows.length === 0) {
+          throw new ApiError(404, 'NOT_FOUND', 'Platform invoice not found')
+        }
+
+        const invoice = invRes.rows[0]
+        if (invoice.status === 'PAID') {
+          throw new ApiError(400, 'INVOICE_ALREADY_PAID', 'This platform invoice has already been paid')
+        }
+        if (invoice.status === 'CANCELLED' || invoice.status === 'VOID') {
+          throw new ApiError(400, 'INVALID_INVOICE_STATE', 'Cannot record payment for a cancelled or void invoice')
+        }
+
+        const paymentAmount = input.amount !== undefined ? Number(input.amount) : Number(invoice.total_amount)
+        if (paymentAmount <= 0) {
+          throw new ValidationError('Payment amount must be greater than zero')
+        }
+
+        // 1. Insert payment record
+        const paySql = `
+          INSERT INTO platform_payments (
+            invoice_id,
+            business_id,
+            amount,
+            currency,
+            payment_method,
+            payment_reference,
+            notes,
+            recorded_by,
+            created_at
+          ) VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, now()
+          ) RETURNING *
+        `
+        const payRes = await client.query(paySql, [
+          invoiceId,
+          invoice.business_id,
+          paymentAmount,
+          invoice.currency,
+          method,
+          input.payment_reference || null,
+          input.notes || null,
+          actorUserId || null,
+        ])
+        const payment = payRes.rows[0]
+
+        // 2. Update invoice status to PAID
+        const updateInvSql = `
+          UPDATE platform_invoices
+          SET 
+            status = 'PAID',
+            paid_at = now(),
+            payment_reference = COALESCE($1, payment_reference),
+            updated_at = now()
+          WHERE id = $2
+          RETURNING *
+        `
+        const updatedInvRes = await client.query(updateInvSql, [
+          input.payment_reference || null,
+          invoiceId,
+        ])
+        const updatedInvoice = updatedInvRes.rows[0]
+
+        // 3. Update subscription status & period
+        const subRes = await client.query(
+          `SELECT * FROM subscriptions WHERE id = $1 FOR UPDATE`,
+          [invoice.subscription_id]
+        )
+
+        if (subRes.rows.length > 0) {
+          const sub = subRes.rows[0]
+          let nextSubStatus = sub.status
+
+          // Transition to ACTIVE if PENDING or SUSPENDED
+          if (sub.status === 'PENDING' || sub.status === 'SUSPENDED') {
+            nextSubStatus = 'ACTIVE'
+          }
+
+          await client.query(
+            `UPDATE subscriptions
+             SET 
+               status = $1,
+               starts_at = LEAST(starts_at, $2::timestamptz),
+               ends_at = $3::timestamptz,
+               updated_at = now()
+             WHERE id = $4`,
+            [
+              nextSubStatus,
+              invoice.billing_period_start,
+              invoice.billing_period_end,
+              invoice.subscription_id,
+            ]
+          )
+        }
+
+        // 4. Record Audit Log
+        const auditService = createAuditService(pool)
+        await auditService.recordAudit({
+          actor_id: actorUserId || null,
+          actor_scope: 'platform',
+          action: 'PLATFORM_PAYMENT_RECORDED',
+          target_type: 'platform_invoices',
+          target_id: invoiceId,
+          before_state: { status: invoice.status },
+          after_state: {
+            status: 'PAID',
+            payment_id: payment.id,
+            amount: paymentAmount,
+            subscription_id: invoice.subscription_id,
+          },
+          status: 'SUCCESS',
+        })
+
+        return {
+          invoice: updatedInvoice,
+          payment,
+        }
+      })
     },
 
     // =========================================================================

@@ -198,11 +198,70 @@ export interface PlatformShowcaseItem {
 
 export interface PlatformShowcaseResponse extends PlatformPaginated<PlatformShowcaseItem> {}
 
+export type PlatformInvoiceStatus = 'DRAFT' | 'ISSUED' | 'PAID' | 'OVERDUE' | 'CANCELLED' | 'VOID';
+export type PlatformPaymentMethod = 'MANUAL_BANK_TRANSFER' | 'CASH' | 'INTERNAL_CREDIT' | 'GATEWAY_PENDING';
+
+export interface PlatformPayment {
+  id: string;
+  invoice_id: string;
+  business_id: string;
+  amount: number;
+  currency: string;
+  payment_method: PlatformPaymentMethod;
+  payment_reference: string | null;
+  notes: string | null;
+  recorded_by: string | null;
+  created_at: string;
+}
+
+export interface PlatformInvoice {
+  id: string;
+  invoice_number: string;
+  subscription_id: string;
+  business_id: string;
+  business_name?: string | null;
+  plan_code: string;
+  plan_name?: string | null;
+  billing_period_start: string;
+  billing_period_end: string;
+  subtotal_amount: number;
+  discount_amount: number;
+  tax_amount: number;
+  total_amount: number;
+  currency: string;
+  status: PlatformInvoiceStatus;
+  due_date: string;
+  paid_at: string | null;
+  payment_reference: string | null;
+  notes: string | null;
+  metadata?: Record<string, unknown>;
+  payments?: PlatformPayment[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InvoiceListSummary {
+  total: number;
+  paid_count: number;
+  issued_count: number;
+  overdue_count: number;
+  draft_count: number;
+  total_amount: number;
+  paid_amount: number;
+  [key: string]: unknown;
+}
+
+export interface PlatformInvoicesResponse extends PlatformPaginated<PlatformInvoice> {
+  summary?: InvoiceListSummary;
+}
+
 export interface PlatformSubscription {
   id: string;
   business_id: string;
+  business_name?: string | null;
   account_customer_id: string | null;
   plan_code: string;
+  plan_name?: string | null;
   plan_family: string | null;
   family_code: string | null;
   source: string | null;
@@ -213,6 +272,7 @@ export interface PlatformSubscription {
   final_price: number;
   currency: string;
   created_at: string;
+  latest_invoice?: PlatformInvoice | null;
 }
 
 // ── Overview View-Model Types ────────────────────────────────────────────────

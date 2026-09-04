@@ -401,7 +401,7 @@ export function createPlatformRoutes(pool: Pool): Router {
   )
 
   // =========================================================================
-  // 7. SUBSCRIPTIONS (List)
+  // 7. SUBSCRIPTIONS & PLATFORM BILLING LIFECYCLE
   // =========================================================================
   router.get(
     '/subscriptions',
@@ -411,6 +411,60 @@ export function createPlatformRoutes(pool: Pool): Router {
       res.status(200).json(result)
     })
   )
+
+  router.get(
+    '/invoices',
+    requirePlatformRole() as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const result = await platformService.listPlatformInvoices(req.query as Record<string, unknown>)
+      res.status(200).json(result)
+    })
+  )
+
+  router.post(
+    '/invoices/generate',
+    requirePlatformRole() as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const actorUserId = req.platformUser!.userId
+      const { subscription_id, custom_period_start } = req.body || {}
+      const result = await platformService.generatePlatformInvoice(
+        subscription_id,
+        custom_period_start,
+        actorUserId
+      )
+      res.status(201).json({
+        message: 'Platform invoice generated successfully',
+        invoice: result,
+      })
+    })
+  )
+
+  router.get(
+    '/invoices/:id',
+    requirePlatformRole() as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const result = await platformService.getPlatformInvoiceById(req.params.id)
+      res.status(200).json(result)
+    })
+  )
+
+  router.post(
+    '/invoices/:id/payments',
+    requirePlatformRole() as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const actorUserId = req.platformUser!.userId
+      const result = await platformService.recordPlatformPayment(
+        req.params.id,
+        req.body || {},
+        actorUserId
+      )
+      res.status(200).json({
+        message: 'Payment recorded and subscription renewed/activated successfully',
+        ...result,
+      })
+    })
+  )
+
 
   // =========================================================================
   // 8. AUDIT LOGS & OBSERVABILITY (SA-2.8)

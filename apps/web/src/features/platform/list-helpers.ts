@@ -78,7 +78,8 @@ export function getApiErrorInfo(err: unknown, fallback: string): ApiErrorInfo {
 
 // ── Formatting (existing id-ID conventions) ─────────────────────────────────
 
-export function formatPlatformDate(iso: string): string {
+export function formatPlatformDate(iso: string | null | undefined): string {
+  if (!iso) return '-';
   return new Date(iso).toLocaleString('id-ID', {
     year: 'numeric',
     month: 'short',
