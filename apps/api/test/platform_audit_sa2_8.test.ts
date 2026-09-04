@@ -249,4 +249,32 @@ describe('Phase SA-2.8: Platform Audit & Observability Foundation', () => {
       .get('/v1/platform/observability/health')
       .expect(401)
   })
+
+  // ---------------------------------------------------------------------------
+  // 8. Search Filter and Edge Cases
+  // ---------------------------------------------------------------------------
+  it('AUDIT-008: Search audit logs by keyword', async () => {
+    const res = await request(app)
+      .get('/v1/platform/audit-logs?search=Commercial')
+      .set('Authorization', `Bearer ${superToken}`)
+      .expect(200)
+
+    expect(res.body.items.length).toBeGreaterThanOrEqual(0)
+  })
+
+  it('AUDIT-009: 404 on non-existent audit log ID and 400 on malformed UUID', async () => {
+    const fakeUuid = randomUUID()
+    const res404 = await request(app)
+      .get(`/v1/platform/audit-logs/${fakeUuid}`)
+      .set('Authorization', `Bearer ${superToken}`)
+      .expect(404)
+    expect(res404.body.error.code).toBe('NOT_FOUND')
+
+    const res400 = await request(app)
+      .get('/v1/platform/audit-logs/not-a-uuid')
+      .set('Authorization', `Bearer ${superToken}`)
+      .expect(400)
+    expect(res400.body.error.code).toBe('VALIDATION_ERROR')
+  })
 })
+

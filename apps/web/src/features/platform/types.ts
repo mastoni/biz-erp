@@ -304,3 +304,63 @@ export interface PlatformTicketsResponse extends PlatformPaginated<PlatformSuppo
   assignees: PlatformTicketAssignee[];
 }
 
+// ── Audit Logs & Observability (SA-2.8 / Control Plane) ──────────────────────
+export type AuditStatus = 'SUCCESS' | 'FAILURE';
+export type AuditScope = 'platform' | 'tenant' | 'system';
+
+export interface PlatformAuditLog {
+  id: string;
+  actor_id: string | null;
+  actor_email: string | null;
+  actor_scope: AuditScope;
+  actor_role: string | null;
+  action: string;
+  service_code: string | null;
+  target_type: string;
+  target_id: string | null;
+  before_state: Record<string, unknown> | null;
+  after_state: Record<string, unknown> | null;
+  diff: Record<string, unknown> | null;
+  request_id: string | null;
+  ip_address: string | null;
+  user_agent: string | null;
+  status: AuditStatus;
+  error_message: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface AuditListSummary {
+  total: number;
+  success_count: number;
+  failure_count: number;
+  [key: string]: unknown;
+}
+
+export interface PlatformAuditLogsResponse extends PlatformPaginated<PlatformAuditLog> {
+  summary?: AuditListSummary;
+}
+
+export interface EcosystemHealth {
+  status: 'healthy' | 'degraded' | 'unhealthy';
+  version: string;
+  environment: string;
+  uptime_seconds: number;
+  timestamp: string;
+  database: {
+    status: 'connected' | 'disconnected';
+    latency_ms: number;
+    pool: {
+      total: number;
+      idle: number;
+      waiting: number;
+    };
+  };
+  memory: {
+    heap_used_mb: number;
+    heap_total_mb: number;
+    rss_mb: number;
+  };
+}
+
+

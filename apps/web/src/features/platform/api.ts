@@ -34,6 +34,12 @@ import {
   TicketStatus,
   TicketPriority,
   TicketListSummary,
+  PlatformAuditLog,
+  PlatformAuditLogsResponse,
+  AuditStatus,
+  AuditScope,
+  AuditListSummary,
+  EcosystemHealth,
 } from './types';
 
 export type {
@@ -54,6 +60,12 @@ export type {
   TicketStatus,
   TicketPriority,
   TicketListSummary,
+  PlatformAuditLog,
+  PlatformAuditLogsResponse,
+  AuditStatus,
+  AuditScope,
+  AuditListSummary,
+  EcosystemHealth,
 };
 
 export const PLATFORM_PAGE_SIZE = 20;
@@ -419,4 +431,51 @@ export async function updatePlatformTicketStatus(
   );
   return res.data;
 }
+
+// =============================================================================
+// 7. AUDIT LOGS & OBSERVABILITY (SA-2.8 / CONTROL PLANE)
+// =============================================================================
+export interface GetAuditLogsParams {
+  limit?: number;
+  offset?: number;
+  status?: AuditStatus | 'ALL';
+  actor_scope?: AuditScope | 'ALL';
+  action?: string;
+  service_code?: string;
+  target_type?: string;
+  from_date?: string;
+  to_date?: string;
+  search?: string;
+}
+
+export async function getPlatformAuditLogs(
+  params?: GetAuditLogsParams
+): Promise<PlatformAuditLogsResponse> {
+  const res = await api.get<PlatformAuditLogsResponse>('/v1/platform/audit-logs', {
+    params: {
+      limit: params?.limit ?? PLATFORM_PAGE_SIZE,
+      offset: params?.offset ?? 0,
+      status: params?.status === 'ALL' ? undefined : params?.status,
+      actor_scope: params?.actor_scope === 'ALL' ? undefined : params?.actor_scope,
+      action: params?.action?.trim() || undefined,
+      service_code: params?.service_code?.trim() || undefined,
+      target_type: params?.target_type?.trim() || undefined,
+      from_date: params?.from_date?.trim() || undefined,
+      to_date: params?.to_date?.trim() || undefined,
+      search: params?.search?.trim() || undefined,
+    },
+  });
+  return res.data;
+}
+
+export async function getPlatformAuditLogById(id: string): Promise<PlatformAuditLog> {
+  const res = await api.get<PlatformAuditLog>(`/v1/platform/audit-logs/${id}`);
+  return res.data;
+}
+
+export async function getPlatformHealth(): Promise<EcosystemHealth> {
+  const res = await api.get<EcosystemHealth>('/v1/platform/observability/health');
+  return res.data;
+}
+
 

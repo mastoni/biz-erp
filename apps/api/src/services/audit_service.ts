@@ -84,6 +84,11 @@ export function createAuditService(pool: Pool) {
       limit: number
       offset: number
       has_more: boolean
+      summary?: {
+        total: number
+        success_count: number
+        failure_count: number
+      }
     }> {
       const limit = Math.min(parseInt(String(query.limit ?? '50')), 500)
       const offset = Math.max(parseInt(String(query.offset ?? '0')), 0)
@@ -142,13 +147,26 @@ export function createAuditService(pool: Pool) {
         params.push(query.to_date)
       }
 
+      if (query.search && typeof query.search === 'string' && query.search.trim().length > 0) {
+        const pattern = `%${query.search.trim()}%`
+        whereClauses.push(`(action ILIKE $${paramIdx} OR target_type ILIKE $${paramIdx} OR actor_email ILIKE $${paramIdx} OR target_id ILIKE $${paramIdx} OR request_id ILIKE $${paramIdx})`)
+        params.push(pattern)
+        paramIdx++
+      }
+
       const whereStr = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : ''
 
       const countRes = await pool.query(
-        `SELECT COUNT(*) FROM platform_audit_logs ${whereStr}`,
+        `SELECT 
+           COUNT(*) as total,
+           COUNT(*) FILTER (WHERE status = 'SUCCESS') as success_count,
+           COUNT(*) FILTER (WHERE status = 'FAILURE') as failure_count
+         FROM platform_audit_logs ${whereStr}`,
         params
       )
-      const total = parseInt(countRes.rows[0].count, 10)
+      const total = parseInt(countRes.rows[0].total, 10)
+      const successCount = parseInt(countRes.rows[0].success_count || '0', 10)
+      const failureCount = parseInt(countRes.rows[0].failure_count || '0', 10)
 
       const selectParams = [...params, limit, offset]
       const selectQuery = `
@@ -166,6 +184,11 @@ export function createAuditService(pool: Pool) {
         limit,
         offset,
         has_more: offset + items.length < total,
+        summary: {
+          total,
+          success_count: successCount,
+          failure_count: failureCount,
+        },
       }
     },
 

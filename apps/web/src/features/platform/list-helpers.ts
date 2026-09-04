@@ -141,4 +141,43 @@ export const PLATFORM_NAVIGATION: PlatformNavItem[] = [
   { name: 'Modules', href: '/platform/modules' },
   { name: 'Subscriptions', href: '/platform/subscriptions' },
   { name: 'Support Tickets', href: '/platform/tickets' },
+  { name: 'Audit Logs', href: '/platform/audit' },
 ];
+
+// ── Sensitive Payload Masking ────────────────────────────────────────────────
+const SENSITIVE_KEY_PATTERNS = [
+  /password/i,
+  /secret/i,
+  /token/i,
+  /api[_-]?key/i,
+  /auth/i,
+  /credential/i,
+  /bearer/i,
+  /private[_-]?key/i,
+];
+
+export function maskSensitivePayload(data: unknown): unknown {
+  if (data === null || data === undefined) return data;
+  if (typeof data === 'string') {
+    if (/^[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+$/.test(data.trim())) {
+      return '[REDACTED_JWT]';
+    }
+    return data;
+  }
+  if (Array.isArray(data)) {
+    return data.map((item) => maskSensitivePayload(item));
+  }
+  if (typeof data === 'object') {
+    const masked: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(data as Record<string, unknown>)) {
+      if (SENSITIVE_KEY_PATTERNS.some((pattern) => pattern.test(key))) {
+        masked[key] = '[REDACTED]';
+      } else {
+        masked[key] = maskSensitivePayload(value);
+      }
+    }
+    return masked;
+  }
+  return data;
+}
+
