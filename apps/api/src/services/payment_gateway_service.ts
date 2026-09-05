@@ -597,7 +597,7 @@ export function createPaymentGatewayService(pool: Pool): PaymentGatewayService {
         const paidAmount = Number(payload.gross_amount)
         const paymentRef = String(payload.transaction_id || payload.order_id)
 
-        await topUpService.settleIntent({
+        const settleRes = await topUpService.settleIntent({
           intent_number: intentNumber,
           payment_reference: paymentRef,
           gateway_transaction_id: payload.transaction_id ? String(payload.transaction_id) : undefined,
@@ -606,17 +606,21 @@ export function createPaymentGatewayService(pool: Pool): PaymentGatewayService {
           actor_scope: 'system'
         })
 
+        const webhookStatus = settleRes.already_processed ? 'ALREADY_PROCESSED' : 'PROCESSED'
+
         await pool.query(
           `INSERT INTO platform_payment_webhook_events (
             gateway, event_id, invoice_id, event_type, raw_payload, status
-          ) VALUES ($1, $2, NULL, $3, $4, 'PROCESSED')
+          ) VALUES ($1, $2, NULL, $3, $4, $5)
           ON CONFLICT (gateway, event_id) DO NOTHING`,
-          ['MIDTRANS', eventId, rawStatus, JSON.stringify(safePayload)]
+          ['MIDTRANS', eventId, rawStatus, JSON.stringify(safePayload), webhookStatus]
         )
 
         return {
-          status: 'PROCESSED',
-          message: 'Top-up intent settled and wallet credited successfully',
+          status: webhookStatus,
+          message: settleRes.already_processed
+            ? 'Top-up intent already settled (idempotent)'
+            : 'Top-up intent settled and wallet credited successfully',
           intent_id: intentId,
           event_id: eventId,
         }
