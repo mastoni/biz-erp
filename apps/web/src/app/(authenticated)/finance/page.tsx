@@ -13,7 +13,7 @@ export default function FinanceOverviewRoute() {
   return (
     <FinanceOverviewPage
       businessId={business.id}
-      role={role === 'OWNER' ? 'OWNER' : 'CASHIER'}
+      role={role || 'CASHIER'}
     />
   );
 }

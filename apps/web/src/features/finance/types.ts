@@ -1,5 +1,5 @@
 /**
- * Phase 9C.9D & 9C.9E — Finance & Bookkeeping Domain Types
+ * Phase 9C.9D & 9C.9E & Phase 4.1.41 — Finance & Bookkeeping Domain Types
  */
 
 export type BookkeepingTab = 'jurnal' | 'piutang' | 'hutang';
@@ -44,6 +44,47 @@ export interface ReceivableItem {
   status: 'OPEN' | 'PARTIAL' | 'PAID' | 'REVERSED';
   due_date?: string | null;
   created_at: string;
+}
+
+export type AgingBucket = '0-30' | '31-60' | '61-90' | '>90';
+
+export interface CustomerPaymentItem {
+  id: string;
+  business_id: string;
+  receivable_id: string;
+  customer_id?: string | null;
+  sale_id?: string | null;
+  amount_minor: number;
+  method: PaymentMethod;
+  reference: string | null;
+  date: string;
+  created_at: string;
+}
+
+export interface PurchasePaymentItem {
+  id: string;
+  business_id: string;
+  purchase_id: string;
+  branch_id?: string;
+  amount_minor: number;
+  method: PaymentMethod;
+  reference: string | null;
+  created_at: string;
+}
+
+export interface PurchaseDetailsDto extends PayableItem {
+  note?: string | null;
+  items?: Array<{
+    id: string;
+    purchase_id: string;
+    product_id: string;
+    product_name: string;
+    ordered_qty: number;
+    received_qty: number;
+    unit_cost_minor: number;
+    subtotal_minor: number;
+  }>;
+  payments?: PurchasePaymentItem[];
 }
 
 export interface PayableItem {
@@ -138,4 +179,194 @@ export interface FinanceOverviewViewModel {
   kpis: FinanceOverviewKPIs;
   monthly_cashflow: MonthlyCashflowPoint[];
   recent_expenses: RecentExpenseItem[];
+}
+
+// ----------------------------------------------------
+// Phase 4.1.41 — Canonical Finance & Accounting DTOs
+// ----------------------------------------------------
+
+export type AccountType =
+  | 'cash'
+  | 'bank'
+  | 'mobile'
+  | 'receivable'
+  | 'payable'
+  | 'inventory'
+  | 'revenue'
+  | 'cogs'
+  | 'expense'
+  | 'income';
+
+export interface AccountDto {
+  id: string;
+  code: string;
+  name: string;
+  type: AccountType;
+  currency: string;
+  active: boolean;
+  created_at: string;
+}
+
+export interface AccountsListResponse {
+  items: AccountDto[];
+  total: number;
+}
+
+export type JournalStatus = 'draft' | 'posted' | 'reversed';
+
+export type JournalSourceType =
+  | 'SALE'
+  | 'PURCHASE_PAYMENT'
+  | 'EXPENSE'
+  | 'INCOME'
+  | 'RECEIVABLE'
+  | 'CUSTOMER_PAYMENT'
+  | 'PAYABLE'
+  | 'PURCHASE'
+  | 'REVERSAL';
+
+export interface JournalLineDto {
+  id: string;
+  journal_entry_id: string;
+  account_id: string;
+  account_code?: string;
+  account_name?: string;
+  debit_minor: number;
+  credit_minor: number;
+  description: string | null;
+  created_at: string;
+}
+
+export interface JournalEntryDto {
+  id: string;
+  business_id: string;
+  branch_id: string | null;
+  date: string;
+  source_type: JournalSourceType;
+  source_id: string;
+  reference: string | null;
+  description: string;
+  status: JournalStatus;
+  reversed_by: string | null;
+  reversed_at: string | null;
+  reversal_of: string | null;
+  created_at: string;
+  server_version: number;
+  lines?: JournalLineDto[];
+}
+
+export interface JournalsListResponse {
+  items: JournalEntryDto[];
+  total: number;
+  has_more?: boolean;
+}
+
+export interface JournalQueryParams {
+  limit?: number;
+  offset?: number;
+  branch_id?: string;
+  status?: JournalStatus;
+}
+
+export interface CreateReversalRequest {
+  journal_id: string;
+}
+
+export interface JournalReversalResponse {
+  reversalId: string;
+}
+
+export interface ProfitLossReportDto {
+  revenue_minor: number;
+  cogs_minor: number;
+  operating_expense_minor: number;
+  expense_minor: number;
+  net_income_minor: number;
+}
+
+export interface BalanceSheetReportDto {
+  total_assets_minor: number;
+  total_liabilities_minor: number;
+  total_equity_minor: number;
+}
+
+export interface CashflowStatementReportDto {
+  entries: CashflowEntry[];
+  total_inflow: number;
+  total_outflow: number;
+  net_cash_flow: number;
+}
+
+export interface GeneralLedgerEntryDto {
+  account_id: string;
+  account_code: string;
+  account_name: string;
+  account_type: AccountType;
+  opening_balance: number;
+  journal_entry_id: string;
+  date: string;
+  source_type: JournalSourceType;
+  description: string;
+  debit_minor: number;
+  credit_minor: number;
+  running_balance: number;
+}
+
+export interface GeneralLedgerReportDto {
+  opening_balance: number;
+  period_movements: number;
+  closing_balance: number;
+  entries: GeneralLedgerEntryDto[];
+}
+
+export interface TrialBalanceItemDto {
+  account_id: string;
+  account_code: string;
+  account_name: string;
+  account_type: AccountType;
+  debit_total: number;
+  credit_total: number;
+  balance: number;
+}
+
+export type TrialBalanceReportDto = TrialBalanceItemDto[];
+
+export interface FinanceReportFilterParams {
+  from?: string;
+  to?: string;
+  as_of?: string;
+  branch_id?: string;
+  account_id?: string;
+}
+
+export interface ArAgingBucketDto {
+  bucket: string;
+  amount_minor: number;
+}
+
+export interface ArAgingReportDto {
+  total_outstanding_minor: number;
+  buckets: ArAgingBucketDto[];
+  customers: Array<{
+    customer_id: string;
+    customer_name: string;
+    outstanding_minor: number;
+    bucket: string;
+  }>;
+}
+
+export interface ApAgingBucketDto {
+  bucket: string;
+  amount_minor: number;
+}
+
+export interface ApAgingReportDto {
+  total_outstanding_minor: number;
+  buckets: ApAgingBucketDto[];
+  suppliers: Array<{
+    supplier_id: string;
+    supplier_name: string;
+    outstanding_minor: number;
+    bucket: string;
+  }>;
 }

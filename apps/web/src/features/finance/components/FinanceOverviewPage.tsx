@@ -1,7 +1,8 @@
 'use client';
 
 import React from 'react';
-import { Download, CalendarClock } from 'lucide-react';
+import { Download, CalendarClock, FileText } from 'lucide-react';
+import Link from 'next/link';
 import { useFinanceOverviewViewModel } from '../use-finance-overview-viewmodel';
 import { FinanceKPICards } from './FinanceKPICards';
 import { FinanceCashflowChart } from './FinanceCashflowChart';
@@ -10,7 +11,7 @@ import { RecentExpensesWidget } from './RecentExpensesWidget';
 interface FinanceOverviewPageProps {
   businessId?: string;
   branchId?: string;
-  role?: 'OWNER' | 'CASHIER';
+  role?: 'OWNER' | 'STAFF' | 'CASHIER';
 }
 
 function idr(val: number): string {
@@ -35,7 +36,7 @@ export function FinanceOverviewPage({
     exportRekeningKoran,
   } = useFinanceOverviewViewModel({ businessId, branchId });
 
-  const isOwner = role === 'OWNER';
+  const isStaffOrOwner = role === 'OWNER' || role === 'STAFF';
 
   return (
     <div className="space-y-5">
@@ -50,13 +51,25 @@ export function FinanceOverviewPage({
           </p>
         </div>
 
-        <button
-          onClick={exportRekeningKoran}
-          className="flex items-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-xs font-bold text-ink shadow-2xs transition hover:bg-paper cursor-pointer"
-        >
-          <Download className="h-4 w-4 text-fog" />
-          <span>Rekening Koran</span>
-        </button>
+        <div className="flex items-center gap-2">
+          {isStaffOrOwner && (
+            <Link
+              href="/finance/reports"
+              className="flex items-center gap-1.5 rounded-xl bg-pine px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-pine-deep cursor-pointer"
+            >
+              <FileText className="h-4 w-4" />
+              <span>Laporan Keuangan</span>
+            </Link>
+          )}
+
+          <button
+            onClick={exportRekeningKoran}
+            className="flex items-center gap-2 rounded-xl border border-line bg-surface px-4 py-2 text-xs font-bold text-ink shadow-2xs transition hover:bg-paper cursor-pointer"
+          >
+            <Download className="h-4 w-4 text-fog" />
+            <span>Rekening Koran</span>
+          </button>
+        </div>
       </div>
 
       {error && (
