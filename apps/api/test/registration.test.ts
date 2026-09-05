@@ -29,10 +29,12 @@ describe('Phase 4.1.38 Registration API', () => {
   beforeEach(async () => {
     await pool.query(`
       TRUNCATE TABLE
+        account_customer_users,
+        account_customers,
         user_businesses,
         refresh_tokens,
-        users,
-        businesses
+        businesses,
+        users
       RESTART IDENTITY CASCADE
     `)
   })
@@ -59,6 +61,14 @@ describe('Phase 4.1.38 Registration API', () => {
     const business = await pool.query('SELECT * FROM businesses WHERE id = $1', [res.body.business_id])
     expect(business.rows.length).toBe(1)
     expect(business.rows[0].name).toBe('Toko Baru')
+    expect(business.rows[0].account_customer_id).toBeDefined()
+    expect(business.rows[0].account_customer_id).not.toBeNull()
+
+    const accountCustomer = await pool.query('SELECT * FROM account_customers WHERE id = $1', [business.rows[0].account_customer_id])
+    expect(accountCustomer.rows.length).toBe(1)
+    expect(accountCustomer.rows[0].name).toBe('Toko Baru')
+    expect(accountCustomer.rows[0].account_type).toBe('BUSINESS')
+    expect(accountCustomer.rows[0].status).toBe('ACTIVE')
 
     const membership = await pool.query(
       'SELECT * FROM user_businesses WHERE user_id = $1 AND business_id = $2',

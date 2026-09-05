@@ -7,7 +7,7 @@ import { JwtService, PlatformRole } from '../services/jwt_service'
 export interface AuthenticatedUser {
   userId: string
   businessId: string
-  role: 'OWNER' | 'CASHIER'
+  role: 'OWNER' | 'STAFF' | 'CASHIER'
   sessionId: string
   jti: string
 }
@@ -98,7 +98,7 @@ export function createJwtAuthMiddleware(jwtService: JwtService, pool?: Pool) {
       req.user = {
         userId: claims.sub,
         businessId: businessId,
-        role: claims.role as 'OWNER' | 'CASHIER',
+        role: claims.role as 'OWNER' | 'STAFF' | 'CASHIER',
         sessionId: claims.session_id,
         jti: claims.jti
       }
@@ -115,7 +115,7 @@ export function createJwtAuthMiddleware(jwtService: JwtService, pool?: Pool) {
   }
 }
 
-export function requireRole(...roles: Array<'OWNER' | 'CASHIER'>) {
+export function requireRole(...roles: Array<'OWNER' | 'STAFF' | 'CASHIER'>) {
   return (req: Request, _res: Response, next: NextFunction): void => {
     const authReq = req as AuthenticatedJwtRequest | SyncAuthenticatedRequest
     if (!authReq.user) {
@@ -249,7 +249,7 @@ export function requireSyncAuth(jwtService: JwtService, pool?: Pool) {
       req.user = {
         userId: claims.sub,
         businessId: businessId,
-        role: claims.role as 'OWNER' | 'CASHIER',
+        role: claims.role as 'OWNER' | 'STAFF' | 'CASHIER',
         sessionId: claims.session_id,
         jti: claims.jti
       }

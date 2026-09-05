@@ -1,9 +1,15 @@
 import { Pool, PoolClient } from 'pg'
-import { randomUUID } from 'crypto'
+import { randomUUID, randomBytes } from 'crypto'
 import { hashPassword } from './password_service'
 import { ApiError } from '../errors/api_error'
 import { ValidationError } from '../errors/validation_error'
 import { RegistrationRequest, RegistrationResponse } from '../dto/registration_dto'
+
+function generateAccountCustomerCode(now = new Date()): string {
+  const yearMonth = `${now.getUTCFullYear()}${String(now.getUTCMonth() + 1).padStart(2, '0')}`
+  const randSuffix = randomBytes(3).toString('hex').toUpperCase()
+  return `ACC-${yearMonth}-${randSuffix}`
+}
 
 export function createRegistrationService(pool: Pool) {
   return {
@@ -87,27 +93,46 @@ export function createRegistrationService(pool: Pool) {
 
           const userId = randomUUID()
           const businessId = randomUUID()
+          const accountCustomerId = randomUUID()
+          const accountCustomerCode = generateAccountCustomerCode()
           const passwordHash = await hashPassword(password)
 
+          // 1. Insert User
           await client.query(
             `INSERT INTO users (id, email, password_hash, status, created_at, updated_at)
              VALUES ($1, $2, $3, 'ACTIVE', now(), now())`,
             [userId, email, passwordHash]
           )
 
+          // 2. Insert Account Customer (Platform Commercial Client)
           await client.query(
-            `INSERT INTO businesses (id, name, status, owner_user_id, created_at, updated_at)
-             VALUES ($1, $2, 'PENDING_REVIEW', $3, now(), now())`,
-            [businessId, businessName, userId]
+            `INSERT INTO account_customers (id, code, name, account_type, billing_email, status, created_at, updated_at)
+             VALUES ($1, $2, $3, 'BUSINESS', $4, 'ACTIVE', now(), now())`,
+            [accountCustomerId, accountCustomerCode, businessName, email]
           )
 
+          // 3. Insert Account Customer User (Identity Bridge)
+          await client.query(
+            `INSERT INTO account_customer_users (account_customer_id, user_id, role, status, created_at, updated_at)
+             VALUES ($1, $2, 'PRIMARY_CONTACT', 'ACTIVE', now(), now())`,
+            [accountCustomerId, userId]
+          )
+
+          // 4. Insert Business (linked to Account Customer and User)
+          await client.query(
+            `INSERT INTO businesses (id, name, status, owner_user_id, account_customer_id, created_at, updated_at)
+             VALUES ($1, $2, 'PENDING_REVIEW', $3, $4, now(), now())`,
+            [businessId, businessName, userId, accountCustomerId]
+          )
+
+          // 5. Insert User Business (Tenant Membership / RBAC)
           await client.query(
             `INSERT INTO user_businesses (user_id, business_id, role, status, created_at, updated_at)
              VALUES ($1, $2, 'OWNER', 'ACTIVE', now(), now())`,
             [userId, businessId]
           )
 
-          // If commercial intent exists (plan or bundle plan), create initial pending subscription
+          // 6. If commercial intent exists (plan or bundle plan), create initial pending subscription
           if (planToBind) {
             const rawPricing = planToBind.pricing || {}
             const unitPrice = Math.max(0, Number(rawPricing.base_price || 0))
@@ -130,12 +155,13 @@ export function createRegistrationService(pool: Pool) {
 
             await client.query(
               `INSERT INTO subscriptions (
-                business_id, plan_code, family_code, source, status,
+                business_id, account_customer_id, plan_code, family_code, source, status,
                 starts_at, ends_at, trial_ends_at,
                 unit_price, discount, tax, final_price, currency, billing_cycle, metadata
-              ) VALUES ($1, $2, $3, $4, 'PENDING', now(), null, $5, $6, $7, $8, $9, $10, $11, $12)`,
+              ) VALUES ($1, $2, $3, $4, $5, 'PENDING', now(), null, $6, $7, $8, $9, $10, $11, $12, $13)`,
               [
                 businessId,
+                accountCustomerId,
                 planToBind.code,
                 planToBind.family,
                 source,

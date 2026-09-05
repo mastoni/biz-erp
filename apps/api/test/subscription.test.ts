@@ -30,25 +30,24 @@ let ownerTokenB!: string
 
 async function resetDatabase(): Promise<void> {
   await pool.query(`
-    TRUNCATE TABLE
-      subscriptions,
-      subscription_families,
-      plans,
-      sale_items,
-      sales,
-      idempotency_keys,
-      products,
-      stocks,
-      stock_movements,
-      branches,
-      refresh_tokens,
-      user_businesses,
-      users,
-      businesses
-    RESTART IDENTITY CASCADE
+    DELETE FROM subscriptions;
+    DELETE FROM subscription_families;
+    DELETE FROM plans;
+    DELETE FROM sale_items;
+    DELETE FROM sales;
+    DELETE FROM idempotency_keys;
+    DELETE FROM products;
+    DELETE FROM stocks;
+    DELETE FROM stock_movements;
+    DELETE FROM branches;
+    DELETE FROM refresh_tokens;
+    DELETE FROM user_businesses;
+    DELETE FROM users;
+    DELETE FROM customers;
+    DELETE FROM businesses;
   `)
 
-await pool.query(
+  await pool.query(
     `INSERT INTO businesses (id, name) VALUES ($1, $2), ($3, $4) ON CONFLICT (id) DO NOTHING`,
     [BUSINESS_A, 'Business A', BUSINESS_B, 'Business B']
   )
@@ -136,7 +135,7 @@ const authA = await (async () => {
   await pool.query(`
     INSERT INTO users (id, email, password_hash, status)
     VALUES ($1, 'cashier@a.com', '$2b$10$ud9WZ4r3QDQ08.KKkh24E.Fpy/oRPpaXQwp0R9ke89VGVVIs0yrfO', 'ACTIVE')
-    ON CONFLICT (id) DO NOTHING
+    ON CONFLICT (email) DO NOTHING
   `, [cashierId])
   await pool.query(`
     INSERT INTO user_businesses (user_id, business_id, role, status)

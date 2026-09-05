@@ -220,6 +220,13 @@ export function createSubscriptionService(pool: Pool) {
         const currency = data.currency
         const billingCycle = data.billing_cycle
 
+        // Resolve canonical account_customer_id from owning business
+        const bizResult = await client.query(
+          'SELECT account_customer_id FROM businesses WHERE id = $1',
+          [data.business_id]
+        )
+        const accountCustomerId = bizResult.rows[0]?.account_customer_id ?? null
+
         // Insert subscription
         const result = await client.query(
           `INSERT INTO subscriptions (
@@ -229,7 +236,7 @@ export function createSubscriptionService(pool: Pool) {
           ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
           RETURNING *`,
           [
-            null, // account_customer_id - will be set in 40F
+            accountCustomerId,
             data.business_id,
             data.plan_code,
             data.family_code,
@@ -374,13 +381,13 @@ export function createSubscriptionService(pool: Pool) {
         }
 
         // Check replaceable family conflict
-        const familyResult = await pool.query(
+        const familyResult = await client.query(
           'SELECT replacement_policy FROM subscription_families WHERE code = (SELECT family_code FROM subscriptions WHERE id = $1)',
           [id]
         )
 
         if (familyResult.rows[0].replacement_policy === 'REPLACEABLE') {
-          const existingActive = await pool.query(
+          const existingActive = await client.query(
             `SELECT 1 FROM subscriptions
              WHERE business_id = $1 AND family_code = (SELECT family_code FROM subscriptions WHERE id = $2)
              AND status = 'ACTIVE' AND id != $2`,
@@ -391,12 +398,12 @@ export function createSubscriptionService(pool: Pool) {
             throw new ConflictError(
               'SUBSCRIPTION_FAMILY_CONFLICT',
               'Business already has an active subscription in this replaceable family',
-              { family_code: (await pool.query('SELECT family_code FROM subscriptions WHERE id = $1', [id])).rows[0].family_code }
+              { family_code: (await client.query('SELECT family_code FROM subscriptions WHERE id = $1', [id])).rows[0].family_code }
             )
           }
         }
 
-        const result = await pool.query(
+        const result = await client.query(
           `UPDATE subscriptions
            SET status = 'ACTIVE', starts_at = COALESCE(starts_at, now()), ends_at = NULL, updated_at = now()
            WHERE id = $1

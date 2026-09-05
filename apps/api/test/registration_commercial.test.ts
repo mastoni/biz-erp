@@ -36,8 +36,10 @@ describe('Registration Commercial Intent & Catalog Resolution Flow', () => {
         showcase_items,
         user_businesses,
         refresh_tokens,
-        users,
-        businesses
+        businesses,
+        account_customer_users,
+        account_customers,
+        users
       RESTART IDENTITY CASCADE
     `)
 
@@ -147,6 +149,8 @@ describe('Registration Commercial Intent & Catalog Resolution Flow', () => {
     expect(sub.plan_code).toBe('ERP_BASIC_MONTHLY')
     expect(sub.family_code).toBe('ERP_PLAN')
     expect(sub.status).toBe('PENDING')
+    expect(sub.account_customer_id).toBeDefined()
+    expect(sub.account_customer_id).not.toBeNull()
     expect(Number(sub.final_price)).toBe(99000)
     expect(sub.trial_ends_at).toBeDefined()
     expect(sub.metadata.registered_via).toBe('LANDING_CONVERSION')
@@ -170,6 +174,8 @@ describe('Registration Commercial Intent & Catalog Resolution Flow', () => {
     expect(subs.rows.length).toBe(1)
     const sub = subs.rows[0]
     expect(sub.plan_code).toBe('ERP_BASIC_MONTHLY')
+    expect(sub.account_customer_id).toBeDefined()
+    expect(sub.account_customer_id).not.toBeNull()
     expect(sub.metadata.bundle_code).toBe('BUNDLE_RETAIL_STARTER')
     expect(sub.metadata.bundle_name).toBe('Bundel Usaha Ritel')
   })

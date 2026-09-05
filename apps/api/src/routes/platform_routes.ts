@@ -10,6 +10,8 @@ import { createPlatformService } from '../services/platform_service'
 import { createPaymentGatewayService } from '../services/payment_gateway_service'
 import { createBillingAutomationService } from '../services/billing_automation_service'
 import { createAuditService } from '../services/audit_service'
+import { createAiCsService } from '../services/ai_cs_service'
+import { createAccountCustomerService } from '../services/account_customer_service'
 import { asyncHandler } from '../utils/async_handler'
 
 export function createPlatformRoutes(pool: Pool): Router {
@@ -29,6 +31,8 @@ export function createPlatformRoutes(pool: Pool): Router {
   const paymentGatewayService = createPaymentGatewayService(pool)
   const billingAutomationService = createBillingAutomationService(pool)
   const auditService = createAuditService(pool)
+  const aiCsService = createAiCsService(pool)
+  const accountCustomerService = createAccountCustomerService(pool)
 
   // Every platform route is gated by the platform auth middleware. Tenant tokens
   // and legacy (no-scope) tokens are rejected with 403 WRONG_SCOPE before any
@@ -599,5 +603,266 @@ export function createPlatformRoutes(pool: Pool): Router {
     })
   )
 
+  // =========================================================================
+  // 10. AI CS CONTROL PLANE (SA-3.0B-1)
+  // =========================================================================
+  router.get(
+    '/ai-cs/settings',
+    requirePlatformRole('SUPER_ADMIN') as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (_req, res) => {
+      const result = await aiCsService.getPlatformSettings()
+      res.status(200).json({
+        settings: result,
+      })
+    })
+  )
+
+  router.patch(
+    '/ai-cs/settings',
+    requirePlatformRole('SUPER_ADMIN') as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const actorUserId = req.platformUser!.userId
+      const requestId = (res.locals?.requestId as string) || (req.headers['x-request-id'] as string) || undefined
+      const result = await aiCsService.updatePlatformSettings(
+        req.body || {},
+        actorUserId,
+        requestId
+      )
+      res.status(200).json({
+        message: 'AI CS platform settings updated successfully',
+        settings: result,
+      })
+    })
+  )
+
+  // =========================================================================
+  // 11. AI CS KNOWLEDGE BASE CONTROL (SA-3.0B-3)
+  // =========================================================================
+  router.get(
+    '/ai-cs/knowledge',
+    requirePlatformRole('SUPER_ADMIN') as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const result = await aiCsService.listKnowledgeArticles(req.query as any)
+      res.status(200).json(result)
+    })
+  )
+
+  router.get(
+    '/ai-cs/knowledge/:id',
+    requirePlatformRole('SUPER_ADMIN') as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const article = await aiCsService.getKnowledgeArticleById(req.params.id)
+      res.status(200).json({ article })
+    })
+  )
+
+  router.post(
+    '/ai-cs/knowledge',
+    requirePlatformRole('SUPER_ADMIN') as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const actorUserId = req.platformUser!.userId
+      const requestId = (res.locals?.requestId as string) || (req.headers['x-request-id'] as string) || undefined
+      const article = await aiCsService.createKnowledgeArticle(
+        req.body || {},
+        actorUserId,
+        requestId
+      )
+      res.status(201).json({
+        message: 'Knowledge article created successfully',
+        article,
+      })
+    })
+  )
+
+  router.patch(
+    '/ai-cs/knowledge/:id',
+    requirePlatformRole('SUPER_ADMIN') as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const actorUserId = req.platformUser!.userId
+      const requestId = (res.locals?.requestId as string) || (req.headers['x-request-id'] as string) || undefined
+      const article = await aiCsService.updateKnowledgeArticle(
+        req.params.id,
+        req.body || {},
+        actorUserId,
+        requestId
+      )
+      res.status(200).json({
+        message: 'Knowledge article updated successfully',
+        article,
+      })
+    })
+  )
+
+  router.delete(
+    '/ai-cs/knowledge/:id',
+    requirePlatformRole('SUPER_ADMIN') as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const actorUserId = req.platformUser!.userId
+      const requestId = (res.locals?.requestId as string) || (req.headers['x-request-id'] as string) || undefined
+      await aiCsService.deleteKnowledgeArticle(
+        req.params.id,
+        actorUserId,
+        requestId
+      )
+      res.status(200).json({
+        message: 'Knowledge article deactivated successfully',
+      })
+    })
+  )
+
+  // =========================================================================
+  // 12. ACCOUNT CUSTOMERS GOVERNANCE (Phase 4.1.40F-4)
+  // =========================================================================
+  router.get(
+    '/account-customers',
+    requirePlatformRole('SUPER_ADMIN') as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const result = await accountCustomerService.list(req.query as Record<string, unknown>)
+      res.status(200).json(result)
+    })
+  )
+
+  router.post(
+    '/account-customers',
+    requirePlatformRole('SUPER_ADMIN') as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const actorUserId = req.platformUser!.userId
+      const requestId = (res.locals?.requestId as string) || (req.headers['x-request-id'] as string) || undefined
+      const result = await accountCustomerService.create(req.body || {}, actorUserId, requestId)
+      res.status(201).json({
+        message: 'Account Customer created successfully',
+        account_customer: result,
+      })
+    })
+  )
+
+  router.get(
+    '/account-customers/:id',
+    requirePlatformRole('SUPER_ADMIN') as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const result = await accountCustomerService.getById(req.params.id)
+      res.status(200).json(result)
+    })
+  )
+
+  router.patch(
+    '/account-customers/:id',
+    requirePlatformRole('SUPER_ADMIN') as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const actorUserId = req.platformUser!.userId
+      const requestId = (res.locals?.requestId as string) || (req.headers['x-request-id'] as string) || undefined
+      const result = await accountCustomerService.update(req.params.id, req.body || {}, actorUserId, requestId)
+      res.status(200).json({
+        message: 'Account Customer updated successfully',
+        account_customer: result,
+      })
+    })
+  )
+
+  router.patch(
+    '/account-customers/:id/status',
+    requirePlatformRole('SUPER_ADMIN') as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const actorUserId = req.platformUser!.userId
+      const requestId = (res.locals?.requestId as string) || (req.headers['x-request-id'] as string) || undefined
+      const result = await accountCustomerService.setStatus(req.params.id, req.body || {}, actorUserId, requestId)
+      res.status(200).json({
+        message: 'Account Customer status updated successfully',
+        account_customer: result,
+      })
+    })
+  )
+
+  router.get(
+    '/account-customers/:id/users',
+    requirePlatformRole('SUPER_ADMIN') as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const users = await accountCustomerService.listUsers(req.params.id)
+      res.status(200).json({ users })
+    })
+  )
+
+  router.post(
+    '/account-customers/:id/users',
+    requirePlatformRole('SUPER_ADMIN') as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const actorUserId = req.platformUser!.userId
+      const requestId = (res.locals?.requestId as string) || (req.headers['x-request-id'] as string) || undefined
+      const user = await accountCustomerService.addUser(req.params.id, req.body || {}, actorUserId, requestId)
+      res.status(201).json({
+        message: 'User added to Account Customer successfully',
+        user,
+      })
+    })
+  )
+
+  router.patch(
+    '/account-customers/:id/users/:userId',
+    requirePlatformRole('SUPER_ADMIN') as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const actorUserId = req.platformUser!.userId
+      const requestId = (res.locals?.requestId as string) || (req.headers['x-request-id'] as string) || undefined
+      const user = await accountCustomerService.updateUser(req.params.id, req.params.userId, req.body || {}, actorUserId, requestId)
+      res.status(200).json({
+        message: 'Account Customer User updated successfully',
+        user,
+      })
+    })
+  )
+
+  router.delete(
+    '/account-customers/:id/users/:userId',
+    requirePlatformRole('SUPER_ADMIN') as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const actorUserId = req.platformUser!.userId
+      const requestId = (res.locals?.requestId as string) || (req.headers['x-request-id'] as string) || undefined
+      const result = await accountCustomerService.removeUser(req.params.id, req.params.userId, actorUserId, requestId)
+      res.status(200).json(result)
+    })
+  )
+
+  router.get(
+    '/account-customers/:id/businesses',
+    requirePlatformRole('SUPER_ADMIN') as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const businesses = await accountCustomerService.listBusinesses(req.params.id)
+      res.status(200).json({ businesses })
+    })
+  )
+
+  router.post(
+    '/account-customers/:id/businesses/reconcile',
+    requirePlatformRole('SUPER_ADMIN') as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const actorUserId = req.platformUser!.userId
+      const requestId = (res.locals?.requestId as string) || (req.headers['x-request-id'] as string) || undefined
+      const result = await accountCustomerService.reconcileBusiness(req.params.id, req.body || {}, actorUserId, requestId)
+      res.status(200).json(result)
+    })
+  )
+
+  router.post(
+    '/account-customers/:id/businesses/:businessId/unlink',
+    requirePlatformRole('SUPER_ADMIN') as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const actorUserId = req.platformUser!.userId
+      const requestId = (res.locals?.requestId as string) || (req.headers['x-request-id'] as string) || undefined
+      const result = await accountCustomerService.unlinkBusiness(req.params.id, req.params.businessId, actorUserId, requestId)
+      res.status(200).json(result)
+    })
+  )
+
+  router.get(
+    '/account-customers/:id/subscriptions',
+    requirePlatformRole('SUPER_ADMIN') as any,
+    asyncHandler<PlatformAuthenticatedRequest>(async (req, res) => {
+      const subscriptions = await accountCustomerService.listSubscriptions(req.params.id)
+      res.status(200).json({ subscriptions })
+    })
+  )
+
   return router
 }
+
+
+

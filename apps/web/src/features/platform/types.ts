@@ -353,6 +353,7 @@ export interface PlatformOverviewState {
 // ── Support Tickets (CS AI Escalation & Control Plane) ───────────────────────
 export type TicketStatus = 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
 export type TicketPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+export type SupportTicketSource = 'MANUAL' | 'AI_CS' | 'SYSTEM' | 'API';
 
 export interface PlatformSupportTicket {
   id: string;
@@ -364,6 +365,7 @@ export interface PlatformSupportTicket {
   description: string;
   priority: TicketPriority;
   status: TicketStatus;
+  source?: SupportTicketSource;
   assigned_to: string | null;
   assignee_name?: string | null;
   assignee_email?: string | null;
@@ -502,6 +504,205 @@ export interface ServiceListSummary {
 export interface PlatformServicesResponse extends PlatformPaginated<PlatformService> {
   summary?: ServiceListSummary;
 }
+
+// ── AI CS Settings & Control (SA-3.0B-1) ──────────────────────────────────────
+export interface PlatformAiCsSettings {
+  id: string;
+  is_enabled: boolean;
+  provider: string;
+  model: string;
+  fallback_behavior: string;
+  human_escalation_enabled: boolean;
+  operational_health: 'HEALTHY' | 'DEGRADED' | 'UNAVAILABLE';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UpdatePlatformAiCsSettingsInput {
+  is_enabled?: boolean;
+  human_escalation_enabled?: boolean;
+}
+
+export interface PlatformAiCsSettingsResponse {
+  settings: PlatformAiCsSettings;
+  message?: string;
+}
+
+// ── AI CS Knowledge Base Control (SA-3.0B-3) ──────────────────────────────────
+export interface PlatformKnowledgeArticle {
+  id: string;
+  code?: string | null;
+  category: string;
+  title: string;
+  content: string;
+  keywords: string[];
+  is_public: boolean;
+  is_active: boolean;
+  priority_order: number;
+  created_by?: string | null;
+  updated_by?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface KnowledgeListSummary {
+  total: number;
+  active_count: number;
+  inactive_count: number;
+  [key: string]: unknown;
+}
+
+export interface PlatformKnowledgeListResponse extends PlatformPaginated<PlatformKnowledgeArticle> {
+  summary?: KnowledgeListSummary;
+}
+
+export interface CreateKnowledgeArticleInput {
+  code?: string | null;
+  category: string;
+  title: string;
+  content: string;
+  keywords?: string[];
+  is_public?: boolean;
+  is_active?: boolean;
+  priority_order?: number;
+}
+
+export interface UpdateKnowledgeArticleInput {
+  code?: string | null;
+  category?: string;
+  title?: string;
+  content?: string;
+  keywords?: string[];
+  is_public?: boolean;
+  is_active?: boolean;
+  priority_order?: number;
+}
+
+// ── Account Customers (SA-4.1.40F-4) ──────────────────────────────────────────
+export type AccountCustomerType = 'INDIVIDUAL' | 'BUSINESS' | 'ENTERPRISE';
+export type AccountCustomerStatus = 'PENDING' | 'ACTIVE' | 'SUSPENDED' | 'TERMINATED';
+export type AccountCustomerUserRole = 'PRIMARY_CONTACT' | 'BILLING_ADMIN' | 'AUTHORIZED_USER';
+
+export interface AccountCustomerListItem {
+  id: string;
+  code: string;
+  name: string;
+  account_type: AccountCustomerType;
+  tax_id: string | null;
+  billing_email: string | null;
+  billing_phone: string | null;
+  status: AccountCustomerStatus;
+  business_count: number;
+  user_count: number;
+  active_subscription_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AccountCustomerListSummary {
+  total: number;
+  active_count: number;
+  suspended_count: number;
+  pending_count: number;
+  terminated_count: number;
+  [key: string]: unknown;
+}
+
+export interface PlatformAccountCustomersResponse extends PlatformPaginated<AccountCustomerListItem> {
+  summary?: AccountCustomerListSummary;
+}
+
+export interface AccountCustomerDetail {
+  id: string;
+  code: string;
+  name: string;
+  account_type: AccountCustomerType;
+  tax_id: string | null;
+  billing_email: string | null;
+  billing_phone: string | null;
+  status: AccountCustomerStatus;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+  business_count: number;
+  user_count: number;
+  active_subscription_count: number;
+}
+
+export interface AccountCustomerUserItem {
+  id: string;
+  account_customer_id: string;
+  user_id: string;
+  role: AccountCustomerUserRole;
+  user_email?: string;
+  user_name?: string;
+  user_status?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AccountCustomerBusinessItem {
+  id: string;
+  name: string;
+  status: string;
+  owner_user_id: string | null;
+  owner_email?: string | null;
+  created_at: string;
+  subscription_count: number;
+  active_subscription_count: number;
+}
+
+export interface AccountCustomerSubscriptionItem {
+  id: string;
+  business_id: string;
+  business_name?: string;
+  plan_code: string;
+  plan_name?: string;
+  bundle_code: string | null;
+  bundle_name?: string | null;
+  status: string;
+  starts_at: string | null;
+  ends_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateAccountCustomerPayload {
+  code?: string;
+  name: string;
+  account_type: AccountCustomerType;
+  tax_id?: string | null;
+  billing_email?: string | null;
+  billing_phone?: string | null;
+  status?: AccountCustomerStatus;
+  metadata?: Record<string, unknown>;
+}
+
+export interface UpdateAccountCustomerPayload {
+  name?: string;
+  tax_id?: string | null;
+  billing_email?: string | null;
+  billing_phone?: string | null;
+  metadata?: Record<string, unknown>;
+}
+
+export interface AddAccountCustomerUserPayload {
+  user_id: string;
+  role: AccountCustomerUserRole;
+}
+
+export interface UpdateAccountCustomerUserPayload {
+  role: AccountCustomerUserRole;
+}
+
+export interface ReconcileBusinessPayload {
+  business_id: string;
+  expected_current_account_customer_id?: string | null;
+  confirm_reassignment?: boolean;
+}
+
+
+
 
 
 

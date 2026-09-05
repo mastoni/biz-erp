@@ -20,7 +20,7 @@ export interface Business {
 }
 
 export type AuthScope = 'tenant' | 'platform' | null;
-export type TenantRole = 'OWNER' | 'CASHIER' | null;
+export type TenantRole = 'OWNER' | 'STAFF' | 'CASHIER' | null;
 export type PlatformRole = 'PLATFORM_ADMIN' | 'SUPER_ADMIN' | null;
 export type TenantStatus = 'loading' | 'available' | 'active' | 'switching' | 'error' | 'empty';
 
@@ -48,6 +48,10 @@ export function isPlatform(state: ScopeState): boolean {
 
 export function isOwner(state: ScopeState): boolean {
   return isTenant(state) && state.role === 'OWNER';
+}
+
+export function isStaff(state: ScopeState): boolean {
+  return isTenant(state) && state.role === 'STAFF';
 }
 
 export function isCashier(state: ScopeState): boolean {

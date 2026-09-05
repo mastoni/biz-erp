@@ -135,6 +135,7 @@ export interface PlatformNavItem {
 
 export const PLATFORM_NAVIGATION: PlatformNavItem[] = [
   { name: 'Overview', href: '/platform' },
+  { name: 'Account Customers', href: '/platform/account-customers' },
   { name: 'Businesses', href: '/platform/businesses' },
   { name: 'Plans & Pricing', href: '/platform/plans' },
   { name: 'Bundle Composer', href: '/platform/bundles' },
@@ -142,6 +143,8 @@ export const PLATFORM_NAVIGATION: PlatformNavItem[] = [
   { name: 'Modules', href: '/platform/modules' },
   { name: 'Subscriptions', href: '/platform/subscriptions' },
   { name: 'Support Tickets', href: '/platform/tickets' },
+  { name: 'AI CS Control', href: '/platform/ai-cs' },
+  { name: 'AI CS Knowledge', href: '/platform/ai-cs/knowledge' },
   { name: 'Audit Logs', href: '/platform/audit' },
   { name: 'Service Registry', href: '/platform/services' },
 ];

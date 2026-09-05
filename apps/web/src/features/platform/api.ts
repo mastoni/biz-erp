@@ -56,6 +56,28 @@ import {
   ServiceDependency,
   ServiceDependencyType,
   ServiceListSummary,
+  PlatformAiCsSettings,
+  PlatformAiCsSettingsResponse,
+  UpdatePlatformAiCsSettingsInput,
+  PlatformKnowledgeArticle,
+  PlatformKnowledgeListResponse,
+  CreateKnowledgeArticleInput,
+  UpdateKnowledgeArticleInput,
+  AccountCustomerType,
+  AccountCustomerStatus,
+  AccountCustomerUserRole,
+  AccountCustomerListItem,
+  AccountCustomerListSummary,
+  PlatformAccountCustomersResponse,
+  AccountCustomerDetail,
+  AccountCustomerUserItem,
+  AccountCustomerBusinessItem,
+  AccountCustomerSubscriptionItem,
+  CreateAccountCustomerPayload,
+  UpdateAccountCustomerPayload,
+  AddAccountCustomerUserPayload,
+  UpdateAccountCustomerUserPayload,
+  ReconcileBusinessPayload,
 } from './types';
 
 export type {
@@ -98,6 +120,28 @@ export type {
   ServiceDependency,
   ServiceDependencyType,
   ServiceListSummary,
+  PlatformAiCsSettings,
+  PlatformAiCsSettingsResponse,
+  UpdatePlatformAiCsSettingsInput,
+  PlatformKnowledgeArticle,
+  PlatformKnowledgeListResponse,
+  CreateKnowledgeArticleInput,
+  UpdateKnowledgeArticleInput,
+  AccountCustomerType,
+  AccountCustomerStatus,
+  AccountCustomerUserRole,
+  AccountCustomerListItem,
+  AccountCustomerListSummary,
+  PlatformAccountCustomersResponse,
+  AccountCustomerDetail,
+  AccountCustomerUserItem,
+  AccountCustomerBusinessItem,
+  AccountCustomerSubscriptionItem,
+  CreateAccountCustomerPayload,
+  UpdateAccountCustomerPayload,
+  AddAccountCustomerUserPayload,
+  UpdateAccountCustomerUserPayload,
+  ReconcileBusinessPayload,
 };
 
 export const PLATFORM_PAGE_SIZE = 20;
@@ -688,6 +732,194 @@ export async function updatePlatformService(
   const res = await api.patch<{ message: string; service: PlatformService }>(`/v1/platform/services/${code}`, payload);
   return res.data;
 }
+
+// ── AI CS Settings & Control (SA-3.0B-1) ──────────────────────────────────────
+export async function getPlatformAiCsSettings(): Promise<PlatformAiCsSettingsResponse> {
+  const res = await api.get<PlatformAiCsSettingsResponse>('/v1/platform/ai-cs/settings');
+  return res.data;
+}
+
+export async function updatePlatformAiCsSettings(
+  input: UpdatePlatformAiCsSettingsInput
+): Promise<PlatformAiCsSettingsResponse> {
+  const res = await api.patch<PlatformAiCsSettingsResponse>('/v1/platform/ai-cs/settings', input);
+  return res.data;
+}
+
+// ── AI CS Knowledge Base Control (SA-3.0B-3) ──────────────────────────────────
+export async function getPlatformKnowledgeList(params?: {
+  limit?: number;
+  offset?: number;
+  search?: string;
+  category?: string;
+  status?: string;
+  is_active?: boolean | string;
+}): Promise<PlatformKnowledgeListResponse> {
+  const res = await api.get<PlatformKnowledgeListResponse>('/v1/platform/ai-cs/knowledge', {
+    params,
+  });
+  return res.data;
+}
+
+export async function getPlatformKnowledgeById(id: string): Promise<PlatformKnowledgeArticle> {
+  const res = await api.get<{ article: PlatformKnowledgeArticle }>(`/v1/platform/ai-cs/knowledge/${id}`);
+  return res.data.article;
+}
+
+export async function createPlatformKnowledgeArticle(
+  payload: CreateKnowledgeArticleInput
+): Promise<{ message: string; article: PlatformKnowledgeArticle }> {
+  const res = await api.post<{ message: string; article: PlatformKnowledgeArticle }>(
+    '/v1/platform/ai-cs/knowledge',
+    payload
+  );
+  return res.data;
+}
+
+export async function updatePlatformKnowledgeArticle(
+  id: string,
+  payload: UpdateKnowledgeArticleInput
+): Promise<{ message: string; article: PlatformKnowledgeArticle }> {
+  const res = await api.patch<{ message: string; article: PlatformKnowledgeArticle }>(
+    `/v1/platform/ai-cs/knowledge/${id}`,
+    payload
+  );
+  return res.data;
+}
+
+export async function deletePlatformKnowledgeArticle(id: string): Promise<{ message: string }> {
+  const res = await api.delete<{ message: string }>(`/v1/platform/ai-cs/knowledge/${id}`);
+  return res.data;
+}
+
+// ── Account Customers (SA-4.1.40F-4) ──────────────────────────────────────────
+
+export async function getPlatformAccountCustomers(params?: {
+  search?: string;
+  status?: string;
+  account_type?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<PlatformAccountCustomersResponse> {
+  const res = await api.get<PlatformAccountCustomersResponse>('/v1/platform/account-customers', {
+    params,
+  });
+  return res.data;
+}
+
+export async function getPlatformAccountCustomerById(id: string): Promise<AccountCustomerDetail> {
+  const res = await api.get<{ account_customer: AccountCustomerDetail }>(`/v1/platform/account-customers/${id}`);
+  return res.data.account_customer;
+}
+
+export async function createPlatformAccountCustomer(
+  payload: CreateAccountCustomerPayload
+): Promise<{ message: string; account_customer: AccountCustomerDetail }> {
+  const res = await api.post<{ message: string; account_customer: AccountCustomerDetail }>(
+    '/v1/platform/account-customers',
+    payload
+  );
+  return res.data;
+}
+
+export async function updatePlatformAccountCustomer(
+  id: string,
+  payload: UpdateAccountCustomerPayload
+): Promise<{ message: string; account_customer: AccountCustomerDetail }> {
+  const res = await api.patch<{ message: string; account_customer: AccountCustomerDetail }>(
+    `/v1/platform/account-customers/${id}`,
+    payload
+  );
+  return res.data;
+}
+
+export async function setPlatformAccountCustomerStatus(
+  id: string,
+  status: AccountCustomerStatus,
+  reason?: string
+): Promise<{ message: string; account_customer: AccountCustomerDetail }> {
+  const res = await api.patch<{ message: string; account_customer: AccountCustomerDetail }>(
+    `/v1/platform/account-customers/${id}/status`,
+    { status, reason }
+  );
+  return res.data;
+}
+
+export async function getPlatformAccountCustomerUsers(id: string): Promise<AccountCustomerUserItem[]> {
+  const res = await api.get<{ users: AccountCustomerUserItem[] }>(`/v1/platform/account-customers/${id}/users`);
+  return res.data.users;
+}
+
+export async function addPlatformAccountCustomerUser(
+  id: string,
+  payload: AddAccountCustomerUserPayload
+): Promise<{ message: string; user: AccountCustomerUserItem }> {
+  const res = await api.post<{ message: string; user: AccountCustomerUserItem }>(
+    `/v1/platform/account-customers/${id}/users`,
+    payload
+  );
+  return res.data;
+}
+
+export async function updatePlatformAccountCustomerUser(
+  id: string,
+  userId: string,
+  payload: UpdateAccountCustomerUserPayload
+): Promise<{ message: string; user: AccountCustomerUserItem }> {
+  const res = await api.patch<{ message: string; user: AccountCustomerUserItem }>(
+    `/v1/platform/account-customers/${id}/users/${userId}`,
+    payload
+  );
+  return res.data;
+}
+
+export async function removePlatformAccountCustomerUser(
+  id: string,
+  userId: string
+): Promise<{ message: string }> {
+  const res = await api.delete<{ message: string }>(
+    `/v1/platform/account-customers/${id}/users/${userId}`
+  );
+  return res.data;
+}
+
+export async function getPlatformAccountCustomerBusinesses(id: string): Promise<AccountCustomerBusinessItem[]> {
+  const res = await api.get<{ businesses: AccountCustomerBusinessItem[] }>(
+    `/v1/platform/account-customers/${id}/businesses`
+  );
+  return res.data.businesses;
+}
+
+export async function reconcilePlatformAccountCustomerBusiness(
+  id: string,
+  payload: ReconcileBusinessPayload
+): Promise<{ message: string; business: any; updated_subscriptions_count: number }> {
+  const res = await api.post<{ message: string; business: any; updated_subscriptions_count: number }>(
+    `/v1/platform/account-customers/${id}/businesses/reconcile`,
+    payload
+  );
+  return res.data;
+}
+
+export async function unlinkPlatformAccountCustomerBusiness(
+  id: string,
+  businessId: string
+): Promise<{ message: string; business: any; updated_subscriptions_count: number }> {
+  const res = await api.post<{ message: string; business: any; updated_subscriptions_count: number }>(
+    `/v1/platform/account-customers/${id}/businesses/${businessId}/unlink`
+  );
+  return res.data;
+}
+
+export async function getPlatformAccountCustomerSubscriptions(id: string): Promise<AccountCustomerSubscriptionItem[]> {
+  const res = await api.get<{ subscriptions: AccountCustomerSubscriptionItem[] }>(
+    `/v1/platform/account-customers/${id}/subscriptions`
+  );
+  return res.data.subscriptions;
+}
+
+
+
 
 
 
