@@ -1065,4 +1065,94 @@ class PaymentCollectionResultDto {
   });
 }
 
+// ============================================================================
+// MOB-EXPENSE-1: Operational Expense DTOs
+// ============================================================================
+
+class ExpenseDto {
+  final String id;
+  final String businessId;
+  final String? branchId;
+  final String date;
+  final int amountMinor;
+  final String method;
+  final String? category;
+  final String? reference;
+  final String description;
+  final String status;
+  final int serverVersion;
+  final String createdAt;
+  final String updatedAt;
+  final String? deletedAt;
+
+  const ExpenseDto({
+    required this.id,
+    required this.businessId,
+    this.branchId,
+    required this.date,
+    required this.amountMinor,
+    required this.method,
+    this.category,
+    this.reference,
+    required this.description,
+    required this.status,
+    required this.serverVersion,
+    required this.createdAt,
+    required this.updatedAt,
+    this.deletedAt,
+  });
+
+  factory ExpenseDto.fromJson(Map<String, dynamic> j) => ExpenseDto(
+        id: j['id'] as String,
+        businessId: j['business_id'] as String,
+        branchId: j['branch_id'] as String?,
+        date: j['date'] as String,
+        amountMinor: (j['amount_minor'] as num).toInt(),
+        method: j['method'] as String,
+        category: j['category'] as String?,
+        reference: j['reference'] as String?,
+        description: j['description'] as String? ?? '',
+        status: j['status'] as String? ?? 'draft',
+        serverVersion: (j['server_version'] as num?)?.toInt() ?? 1,
+        createdAt: j['created_at'] as String? ?? '',
+        updatedAt: j['updated_at'] as String? ?? '',
+        deletedAt: j['deleted_at'] as String?,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'business_id': businessId,
+        'branch_id': branchId,
+        'date': date,
+        'amount_minor': amountMinor,
+        'method': method,
+        'category': category,
+        'reference': reference,
+        'description': description,
+        'status': status,
+        'server_version': serverVersion,
+        'created_at': createdAt,
+        'updated_at': updatedAt,
+        'deleted_at': deletedAt,
+      };
+}
+
+class PullExpensesResponse {
+  final List<ExpenseDto> items;
+  final int total;
+
+  const PullExpensesResponse(this.items, this.total);
+
+  factory PullExpensesResponse.fromJson(Map<String, dynamic> j) {
+    final rawList = j['rows'] as List? ?? j['items'] as List? ?? [];
+    return PullExpensesResponse(
+      rawList
+          .map((e) => ExpenseDto.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      (j['total'] as num?)?.toInt() ?? rawList.length,
+    );
+  }
+}
+
+
 

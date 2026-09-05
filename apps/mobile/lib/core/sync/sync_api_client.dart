@@ -192,4 +192,32 @@ abstract class SyncApiClient {
     String? date,
     required String idempotencyKey,
   });
+
+  Future<PullExpensesResponse> pullExpenses({
+    required String businessId,
+    String? branchId,
+    String? status,
+    String? category,
+    String? dateFrom,
+    String? dateTo,
+    String? search,
+    int limit = 50,
+    int offset = 0,
+  });
+
+  Future<ExpenseDto?> getExpense({
+    required String id,
+  });
+
+  Future<ExpenseDto> createExpense({
+    required String businessId,
+    String? branchId,
+    required String date,
+    required int amountMinor,
+    required String method,
+    String? category,
+    String? reference,
+    required String description,
+  });
 }
+

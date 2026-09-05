@@ -18,6 +18,8 @@ import 'package:biz_erp_mobile/sales/data/sale_repository.dart';
 import 'package:biz_erp_mobile/sales/presentation/sale_list_screen.dart';
 import 'package:biz_erp_mobile/receivables/data/receivable_repository.dart';
 import 'package:biz_erp_mobile/receivables/presentation/receivable_list_screen.dart';
+import 'package:biz_erp_mobile/expenses/data/expense_repository.dart';
+import 'package:biz_erp_mobile/expenses/presentation/expense_list_screen.dart';
 import 'package:biz_erp_mobile/core/hardware/printing/printing_service.dart';
 import 'widgets/conflict_list_sheet.dart';
 import 'package:biz_erp_mobile/core/auth/auth_state_notifier.dart';
@@ -34,6 +36,7 @@ class PosScreen extends StatefulWidget {
   final StockRepository? stockRepo;
   final SaleRepository? saleRepo;
   final ReceivableRepository? receivableRepo;
+  final ExpenseRepository? expenseRepo;
   final PrintingService? printingService;
 
   const PosScreen({
@@ -47,6 +50,7 @@ class PosScreen extends StatefulWidget {
     this.stockRepo,
     this.saleRepo,
     this.receivableRepo,
+    this.expenseRepo,
     this.printingService,
     this.outboxRepo,
     this.authStateNotifier,
@@ -327,6 +331,33 @@ class _PosScreenState extends State<PosScreen> {
                     businessId: bizId,
                     branchId: widget.controller.branchId,
                     receivableRepo: widget.receivableRepo!,
+                    printingService: widget.printingService,
+                    userRole: widget.authStateNotifier?.session?.role ?? 'CASHIER',
+                  ),
+                ),
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.receipt_long, color: Color(0xFFC62828)),
+            title: const Text('Pengeluaran Operasional'),
+            subtitle: const Text('Catat & pantau biaya toko'),
+            onTap: () {
+              Navigator.pop(context);
+              if (widget.expenseRepo == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Layanan pengeluaran operasional belum diaktifkan')),
+                );
+                return;
+              }
+              final bizId = widget.authStateNotifier?.businessId ?? widget.controller.businessId;
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ExpenseListScreen(
+                    businessId: bizId,
+                    branchId: widget.controller.branchId,
+                    expenseRepo: widget.expenseRepo!,
                     printingService: widget.printingService,
                     userRole: widget.authStateNotifier?.session?.role ?? 'CASHIER',
                   ),

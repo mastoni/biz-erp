@@ -1763,6 +1763,183 @@ Map<String, dynamic> _saleDtoToBatchItem(SaleDto sale) {
     }
   }
 
+  @override
+  Future<PullExpensesResponse> pullExpenses({
+    required String businessId,
+    String? branchId,
+    String? status,
+    String? category,
+    String? dateFrom,
+    String? dateTo,
+    String? search,
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    final qp = <String, String>{
+      'business_id': businessId,
+      'limit': limit.toString(),
+      'offset': offset.toString(),
+    };
+    if (branchId != null && branchId.isNotEmpty) qp['branch_id'] = branchId;
+    if (status != null && status.isNotEmpty) qp['status'] = status;
+    if (category != null && category.isNotEmpty) qp['category'] = category;
+    if (dateFrom != null && dateFrom.isNotEmpty) qp['date_from'] = dateFrom;
+    if (dateTo != null && dateTo.isNotEmpty) qp['date_to'] = dateTo;
+    if (search != null && search.isNotEmpty) qp['search'] = search;
+
+    final uri = Uri.parse('$baseUrl/v1/expenses').replace(queryParameters: qp);
+
+    try {
+      final response = await _client.get(uri, headers: _headers).timeout(_timeout);
+
+      if (response.statusCode == 200) {
+        final json = jsonDecode(response.body) as Map<String, dynamic>;
+        return PullExpensesResponse.fromJson(json);
+      } else if (response.statusCode == 401) {
+        final refresh = await _onRefresh?.call();
+        if (refresh == RefreshResult.success) {
+          return pullExpenses(
+            businessId: businessId,
+            branchId: branchId,
+            status: status,
+            category: category,
+            dateFrom: dateFrom,
+            dateTo: dateTo,
+            search: search,
+            limit: limit,
+            offset: offset,
+          );
+        }
+        throw HttpException(
+          'Unauthorized while pulling expenses: session expired',
+          statusCode: 401,
+          requestId: response.headers['x-request-id'],
+        );
+      } else {
+        throw HttpException(
+          'Failed to pull expenses: HTTP ${response.statusCode}',
+          statusCode: response.statusCode,
+          requestId: response.headers['x-request-id'],
+        );
+      }
+    } catch (e) {
+      if (e is HttpException) rethrow;
+      throw NetworkException('Network error while pulling expenses', e);
+    }
+  }
+
+  @override
+  Future<ExpenseDto?> getExpense({required String id}) async {
+    final uri = Uri.parse('$baseUrl/v1/expenses/$id');
+
+    try {
+      final response = await _client.get(uri, headers: _headers).timeout(_timeout);
+
+      if (response.statusCode == 200) {
+        final json = jsonDecode(response.body) as Map<String, dynamic>;
+        return ExpenseDto.fromJson(json);
+      } else if (response.statusCode == 404) {
+        return null;
+      } else if (response.statusCode == 401) {
+        final refresh = await _onRefresh?.call();
+        if (refresh == RefreshResult.success) {
+          return getExpense(id: id);
+        }
+        throw HttpException(
+          'Unauthorized while getting expense: session expired',
+          statusCode: 401,
+          requestId: response.headers['x-request-id'],
+        );
+      } else {
+        throw HttpException(
+          'Failed to get expense: HTTP ${response.statusCode}',
+          statusCode: response.statusCode,
+          requestId: response.headers['x-request-id'],
+        );
+      }
+    } catch (e) {
+      if (e is HttpException) rethrow;
+      throw NetworkException('Network error while getting expense', e);
+    }
+  }
+
+  @override
+  Future<ExpenseDto> createExpense({
+    required String businessId,
+    String? branchId,
+    required String date,
+    required int amountMinor,
+    required String method,
+    String? category,
+    String? reference,
+    required String description,
+  }) async {
+    final uri = Uri.parse('$baseUrl/v1/expenses');
+
+    final body = jsonEncode({
+      'business_id': businessId,
+      if (branchId != null && branchId.isNotEmpty) 'branch_id': branchId,
+      'date': date,
+      'amount_minor': amountMinor,
+      'method': method,
+      if (category != null && category.isNotEmpty) 'category': category,
+      if (reference != null && reference.isNotEmpty) 'reference': reference,
+      'description': description,
+    });
+
+    try {
+      final response = await _client.post(uri, headers: _headers, body: body).timeout(_timeout);
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        final json = jsonDecode(response.body) as Map<String, dynamic>;
+        return ExpenseDto.fromJson(json);
+      } else if (response.statusCode == 401) {
+        final refresh = await _onRefresh?.call();
+        if (refresh == RefreshResult.success) {
+          return createExpense(
+            businessId: businessId,
+            branchId: branchId,
+            date: date,
+            amountMinor: amountMinor,
+            method: method,
+            category: category,
+            reference: reference,
+            description: description,
+          );
+        }
+        throw HttpException(
+          'Unauthorized while creating expense: session expired',
+          statusCode: 401,
+          requestId: response.headers['x-request-id'],
+        );
+      } else {
+        String errorMsg = 'Failed to create expense: HTTP ${response.statusCode}';
+        try {
+          final errJson = jsonDecode(response.body) as Map<String, dynamic>;
+          if (errJson.containsKey('message')) {
+            errorMsg = errJson['message'] as String;
+          } else if (errJson.containsKey('error')) {
+            final err = errJson['error'];
+            if (err is Map<String, dynamic> && err.containsKey('message')) {
+              errorMsg = err['message'] as String;
+            } else if (err is String) {
+              errorMsg = err;
+            }
+          }
+        } catch (_) {}
+
+        throw HttpException(
+          errorMsg,
+          statusCode: response.statusCode,
+          requestId: response.headers['x-request-id'],
+        );
+      }
+    } catch (e) {
+      if (e is HttpException) rethrow;
+      throw NetworkException('Network error while creating expense', e);
+    }
+  }
+
   void close() {
     _client.close();
   }
