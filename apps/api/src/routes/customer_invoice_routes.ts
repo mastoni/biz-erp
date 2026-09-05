@@ -26,11 +26,11 @@ export function createCustomerInvoiceRoutes(pool: Pool): Router {
 
   // -------------------------------------------------------------------------
   // GET /v1/customer-invoices
-  // RBAC: OWNER, STAFF, CASHIER
+  // RBAC: OWNER, STAFF, CASHIER, CUSTOMER
   // -------------------------------------------------------------------------
   router.get(
     '/',
-    requireRole('OWNER', 'STAFF', 'CASHIER') as RequestHandler,
+    requireRole('OWNER', 'STAFF', 'CASHIER', 'CUSTOMER') as RequestHandler,
     asyncHandler<SyncAuthenticatedRequest>(async (req, res) => {
       const query = validateInvoiceQuery(req.query)
       const result = await billingService.listInvoices(req.tenantId!, query)
@@ -48,11 +48,11 @@ export function createCustomerInvoiceRoutes(pool: Pool): Router {
 
   // -------------------------------------------------------------------------
   // GET /v1/customer-invoices/:id
-  // RBAC: OWNER, STAFF, CASHIER
+  // RBAC: OWNER, STAFF, CASHIER, CUSTOMER
   // -------------------------------------------------------------------------
   router.get(
     '/:id',
-    requireRole('OWNER', 'STAFF', 'CASHIER') as RequestHandler,
+    requireRole('OWNER', 'STAFF', 'CASHIER', 'CUSTOMER') as RequestHandler,
     asyncHandler<SyncAuthenticatedRequest>(async (req, res) => {
       if (!isUuid(req.params.id)) {
         throw new ValidationError('Invoice ID must be a valid UUID')
@@ -64,11 +64,11 @@ export function createCustomerInvoiceRoutes(pool: Pool): Router {
 
   // -------------------------------------------------------------------------
   // POST /v1/customer-invoices/:id/payments
-  // RBAC: OWNER, STAFF, CASHIER
+  // RBAC: OWNER, STAFF, CASHIER, CUSTOMER
   // -------------------------------------------------------------------------
   router.post(
     '/:id/payments',
-    requireRole('OWNER', 'STAFF', 'CASHIER') as RequestHandler,
+    requireRole('OWNER', 'STAFF', 'CASHIER', 'CUSTOMER') as RequestHandler,
     asyncHandler<SyncAuthenticatedRequest>(async (req, res) => {
       if (!isUuid(req.params.id)) {
         throw new ValidationError('Invoice ID must be a valid UUID')

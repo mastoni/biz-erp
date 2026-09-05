@@ -1,4 +1,4 @@
-import { Pool } from 'pg'
+import { Pool, PoolClient } from 'pg'
 import {
   WalletAccountDto,
   WalletLedgerDto,
@@ -210,7 +210,7 @@ export function createWalletService(
       return updated
     },
 
-    async debit(input: DebitWalletInput): Promise<WalletMutationResult> {
+    async debit(input: DebitWalletInput, client?: PoolClient): Promise<WalletMutationResult> {
       const result = await walletRepo.executeMutation({
         wallet_id: input.wallet_id,
         transaction_type: input.transaction_type ?? 'DEBIT',
@@ -224,7 +224,7 @@ export function createWalletService(
         actor_scope: input.actor_scope,
         description: input.description,
         metadata: input.metadata
-      })
+      }, client)
 
       // Record audit only for new mutations
       if (auditService && !result.already_processed) {
@@ -250,7 +250,7 @@ export function createWalletService(
       return result
     },
 
-    async credit(input: CreditWalletInput): Promise<WalletMutationResult> {
+    async credit(input: CreditWalletInput, client?: PoolClient): Promise<WalletMutationResult> {
       const result = await walletRepo.executeMutation({
         wallet_id: input.wallet_id,
         transaction_type: input.transaction_type ?? 'CREDIT',
@@ -264,7 +264,7 @@ export function createWalletService(
         actor_scope: input.actor_scope,
         description: input.description,
         metadata: input.metadata
-      })
+      }, client)
 
       // Record audit only for new mutations
       if (auditService && !result.already_processed) {

@@ -9,6 +9,7 @@ export type WalletTransactionType =
   | 'REVERSAL'
   | 'FEE'
   | 'ADJUSTMENT'
+  | 'INVOICE_PAYMENT'
 
 export type WalletEntryType = 'DEBIT' | 'CREDIT'
 

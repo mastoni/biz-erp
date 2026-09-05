@@ -28,6 +28,8 @@ import { tenantInvoiceCounterRepository } from '../repositories/tenant_invoice_c
 import { customerRepository } from '../repositories/customer_repository'
 import { accountRepository } from '../repositories/account_repository'
 import { journalRepository } from '../repositories/journal_repository'
+import { createWalletService } from './wallet_service'
+import { createAuditService } from './audit_service'
 
 export interface ActorContext {
   userId?: string
@@ -135,7 +137,13 @@ async function recordAuditLog(
   }
 }
 
-export function createCustomerBillingService(pool: Pool) {
+export function createCustomerBillingService(
+  pool: Pool,
+  walletServiceInstance?: ReturnType<typeof createWalletService>
+) {
+  const auditService = createAuditService(pool)
+  const walletService = walletServiceInstance ?? createWalletService(pool, auditService)
+
   return {
     /**
      * Creates a new customer recurring subscription agreement.
@@ -631,21 +639,61 @@ export function createCustomerBillingService(pool: Pool) {
       actorContext?: ActorContext
     ): Promise<CustomerInvoiceDto> {
       return withTransaction(pool, async (client) => {
-        // 1. Lock invoice
+        // 1. Role enforcement for wallet settlement
+        if (request.method === 'wallet') {
+          if (actorContext?.role === 'STAFF' || actorContext?.role === 'CASHIER') {
+            throw new ApiError(
+              403,
+              'INSUFFICIENT_PERMISSIONS',
+              'Staff and Cashier roles cannot perform digital wallet invoice settlement'
+            )
+          }
+        }
+
+        // 2. Lock invoice FOR UPDATE
         const invoice = await customerInvoiceRepository.lockById(client, businessId, invoiceId)
         if (!invoice) {
           throw new ApiError(404, 'INVOICE_NOT_FOUND', 'Customer invoice not found')
         }
 
-        // 2. Validate invoice status
+        // 3. Check idempotency FIRST before checking status (for deterministic replay)
+        const existingPaymentRes = await client.query(
+          'SELECT * FROM customer_payments WHERE business_id = $1 AND idempotency_key = $2',
+          [businessId, request.idempotency_key]
+        )
+        if (existingPaymentRes.rows.length > 0) {
+          const existingPayment = existingPaymentRes.rows[0]
+          const matches =
+            existingPayment.receivable_id === invoice.receivable_id &&
+            existingPayment.customer_id === invoice.customer_id &&
+            BigInt(existingPayment.amount_minor) === BigInt(request.amount_minor) &&
+            existingPayment.method === request.method
+
+          if (!matches) {
+            throw new ApiError(
+              409,
+              'IDEMPOTENCY_PAYLOAD_MISMATCH',
+              'Idempotency key has already been used with a different payment payload'
+            )
+          }
+
+          // Idempotent retry: return current invoice state
+          const currentInv = await customerInvoiceRepository.findById(client, businessId, invoiceId)
+          return currentInv!
+        }
+
+        // 4. Validate invoice status
         if (invoice.status === 'CANCELLED') {
           throw new ApiError(409, 'INVALID_STATE', 'Cannot record payment against a cancelled invoice')
         }
         if (invoice.status === 'PAID') {
           throw new ApiError(409, 'ALREADY_PAID', 'Invoice is already fully paid')
         }
+        if (invoice.status !== 'ISSUED' && invoice.status !== 'OVERDUE') {
+          throw new ApiError(409, 'INVALID_STATE', `Invoice is not in payable state (current: ${invoice.status})`)
+        }
 
-        // 3. Lock linked receivable
+        // 5. Lock linked receivable
         const recRes = await client.query(
           'SELECT * FROM receivables WHERE id = $1 AND business_id = $2 FOR UPDATE',
           [invoice.receivable_id, businessId]
@@ -664,30 +712,157 @@ export function createCustomerBillingService(pool: Pool) {
           throw new ApiError(400, 'OVERPAYMENT', `Payment amount (${request.amount_minor}) exceeds outstanding balance (${outstandingMinor})`)
         }
 
-        // 4. Check idempotency
-        const existingPaymentRes = await client.query(
-          'SELECT * FROM customer_payments WHERE business_id = $1 AND idempotency_key = $2',
-          [businessId, request.idempotency_key]
-        )
-        if (existingPaymentRes.rows.length > 0) {
-          // Idempotent retry: return current invoice
-          const currentInv = await customerInvoiceRepository.findById(client, businessId, invoiceId)
-          return currentInv!
+        // 6. Digital Wallet settlement
+        let walletLedgerId: string | null = null
+        if (request.method === 'wallet') {
+          let targetWallet: { id: string; balance: string; status: string; currency: string; account_customer_id: string; business_id: string | null } | null = null
+
+          if (request.wallet_id) {
+            const wRes = await client.query(
+              `SELECT id, balance, status, currency, account_customer_id, business_id FROM wallet_accounts WHERE id = $1`,
+              [request.wallet_id]
+            )
+            if (wRes.rows.length === 0) {
+              throw new ApiError(404, 'WALLET_NOT_FOUND', 'Specified wallet account not found')
+            }
+            const foundWallet = wRes.rows[0]
+            targetWallet = foundWallet
+
+            if (actorContext?.role === 'CUSTOMER') {
+              const linkRes = await client.query(
+                `SELECT 1 FROM account_customer_users
+                 WHERE account_customer_id = $1 AND user_id = $2 AND status = 'ACTIVE'`,
+                [foundWallet.account_customer_id, actorContext.userId]
+              )
+              if (linkRes.rows.length === 0) {
+                throw new ApiError(403, 'INSUFFICIENT_PERMISSIONS', 'Customer is not authorized for this wallet')
+              }
+            } else if (actorContext?.role === 'OWNER') {
+              if (foundWallet.business_id && foundWallet.business_id !== businessId) {
+                const bizLink = await client.query(
+                  `SELECT 1 FROM businesses WHERE id = $1 AND account_customer_id = $2`,
+                  [businessId, foundWallet.account_customer_id]
+                )
+                if (bizLink.rows.length === 0) {
+                  throw new ApiError(404, 'WALLET_NOT_FOUND', 'Wallet account not found for this tenant')
+                }
+              }
+            }
+          } else {
+            if (actorContext?.role === 'CUSTOMER') {
+              const acRes = await client.query(
+                `SELECT acu.account_customer_id
+                 FROM account_customer_users acu
+                 WHERE acu.user_id = $1 AND acu.status = 'ACTIVE'`,
+                [actorContext.userId]
+              )
+              if (acRes.rows.length === 0) {
+                throw new ApiError(404, 'WALLET_NOT_FOUND', 'No active Account Customer linkage found for customer user')
+              }
+
+              const accountCustomerId = acRes.rows[0].account_customer_id
+              const wRes = await client.query(
+                `SELECT id, balance, status, currency, account_customer_id, business_id
+                 FROM wallet_accounts
+                 WHERE account_customer_id = $1 AND currency = $2 AND status = 'ACTIVE'`,
+                [accountCustomerId, invoice.currency ?? 'IDR']
+              )
+              if (wRes.rows.length === 0) {
+                throw new ApiError(404, 'WALLET_NOT_FOUND', 'No active digital wallet found for customer')
+              }
+              targetWallet = wRes.rows[0]
+            } else {
+              const wRes = await client.query(
+                `SELECT w.id, w.balance, w.status, w.currency, w.account_customer_id, w.business_id
+                 FROM wallet_accounts w
+                 JOIN businesses b ON b.account_customer_id = w.account_customer_id
+                 WHERE b.id = $1 AND w.currency = $2 AND w.status = 'ACTIVE'`,
+                [businessId, invoice.currency ?? 'IDR']
+              )
+              if (wRes.rows.length > 0) {
+                targetWallet = wRes.rows[0]
+              } else {
+                const wBizRes = await client.query(
+                  `SELECT id, balance, status, currency, account_customer_id, business_id
+                   FROM wallet_accounts
+                   WHERE business_id = $1 AND currency = $2 AND status = 'ACTIVE'`,
+                  [businessId, invoice.currency ?? 'IDR']
+                )
+                if (wBizRes.rows.length > 0) {
+                  targetWallet = wBizRes.rows[0]
+                } else {
+                  throw new ApiError(404, 'WALLET_NOT_FOUND', 'No active digital wallet found for settlement')
+                }
+              }
+            }
+          }
+
+          if (!targetWallet) {
+            throw new ApiError(404, 'WALLET_NOT_FOUND', 'Target wallet account not found')
+          }
+
+          if (BigInt(targetWallet.balance) < BigInt(request.amount_minor)) {
+            throw new ApiError(400, 'INSUFFICIENT_BALANCE', `Insufficient wallet balance (${targetWallet.balance}) for invoice payment of ${request.amount_minor}`)
+          }
+
+          try {
+            const debitResult = await walletService.debit(
+              {
+                wallet_id: targetWallet.id,
+                amount: request.amount_minor,
+                currency: invoice.currency ?? 'IDR',
+                transaction_type: 'INVOICE_PAYMENT',
+                reference_type: 'CUSTOMER_INVOICE',
+                reference_id: invoice.id,
+                idempotency_key: request.idempotency_key,
+                actor_id: actorContext?.userId ?? null,
+                actor_scope: actorContext?.role === 'CUSTOMER' ? 'customer' : 'tenant',
+                description: `Digital wallet settlement for invoice ${invoice.invoice_number}`,
+                metadata: {
+                  invoice_id: invoice.id,
+                  invoice_number: invoice.invoice_number,
+                  business_id: businessId
+                }
+              },
+              client
+            )
+            walletLedgerId = debitResult.ledger.id
+          } catch (err: any) {
+            if (err.code === 'INSUFFICIENT_FUNDS' || err.message?.includes('Insufficient wallet balance')) {
+              throw new ApiError(400, 'INSUFFICIENT_BALANCE', 'Insufficient wallet balance for invoice settlement')
+            }
+            throw err
+          }
         }
 
-        // 5. Resolve payment cash/bank account and AR account
-        const paymentAccountType = request.method === 'cash' ? 'cash' : 'bank'
-        const paymentAccount = await accountRepository.findByType(client, businessId, paymentAccountType)
-        const arAccount = await accountRepository.findByType(client, businessId, 'receivable')
+        // 7. Resolve payment account and AR account
+        let paymentAccountType: 'mobile' | 'bank' | 'cash' = 'bank'
+        if (request.method === 'cash') {
+          paymentAccountType = 'cash'
+        } else if (request.method === 'wallet') {
+          paymentAccountType = 'mobile'
+        }
 
+        let paymentAccount = await accountRepository.findByType(client, businessId, paymentAccountType)
+        if (!paymentAccount && request.method === 'wallet') {
+          paymentAccount = (await accountRepository.findByType(client, businessId, 'bank')) || (await accountRepository.findByType(client, businessId, 'cash'))
+        }
+        if (!paymentAccount && request.method === 'cash') {
+          paymentAccount = await accountRepository.findByType(client, businessId, 'bank')
+        }
+        if (!paymentAccount && request.method !== 'cash') {
+          paymentAccount = await accountRepository.findByType(client, businessId, 'cash')
+        }
+
+        const arAccount = await accountRepository.findByType(client, businessId, 'receivable')
         if (!paymentAccount || !arAccount) {
           throw new ApiError(500, 'CONFIG_ERROR', 'Payment or Receivable account not configured')
         }
 
-        // 6. Create customer payment record
+        // 8. Create customer payment record
         const paymentId = randomUUID()
         const paymentDate = new Date().toISOString().slice(0, 10)
-        const paymentRef = request.reference ?? invoice.invoice_number
+        const paymentRef = request.reference ?? walletLedgerId ?? invoice.invoice_number
 
         await client.query(
           `INSERT INTO customer_payments (
@@ -709,7 +884,7 @@ export function createCustomerBillingService(pool: Pool) {
           ]
         )
 
-        // 7. Post customer payment general ledger journal (Dr Cash/Bank / Cr AR)
+        // 9. Post customer payment general ledger journal (Dr Cash/Bank/Mobile / Cr AR)
         const journalId = randomUUID()
         await journalRepository.createDraftJournal(client, businessId, {
           id: journalId,
@@ -726,7 +901,7 @@ export function createCustomerBillingService(pool: Pool) {
           account_id: paymentAccount.id,
           debit_minor: request.amount_minor,
           credit_minor: 0,
-          description: 'Cash inflow from customer invoice payment'
+          description: request.method === 'wallet' ? 'Digital wallet inflow from customer invoice payment' : 'Inflow from customer invoice payment'
         })
 
         await journalRepository.addJournalLine(client, {
@@ -740,7 +915,7 @@ export function createCustomerBillingService(pool: Pool) {
 
         await journalRepository.postJournal(client, journalId)
 
-        // 8. Update receivable settlement
+        // 10. Update receivable settlement
         const newPaid = Number(receivable.paid_minor) + request.amount_minor
         const newOutstanding = outstandingMinor - request.amount_minor
         const newRecStatus = newOutstanding === 0 ? 'PAID' : 'PARTIAL'
@@ -753,8 +928,10 @@ export function createCustomerBillingService(pool: Pool) {
           [newPaid, newOutstanding, newRecStatus, invoice.receivable_id, businessId]
         )
 
-        // 9. Synchronize invoice status
+        // 11. Synchronize invoice status
         let updatedInvoice: CustomerInvoiceDto | null
+        const auditAction = request.method === 'wallet' ? 'CUSTOMER_INVOICE_WALLET_PAID' : 'CUSTOMER_INVOICE_PAID'
+
         if (newOutstanding === 0) {
           // Full payment: ISSUED or OVERDUE -> PAID
           updatedInvoice = await customerInvoiceRepository.updateStatus(
@@ -767,7 +944,7 @@ export function createCustomerBillingService(pool: Pool) {
           )
           await recordAuditLog(
             client,
-            'CUSTOMER_INVOICE_PAID',
+            auditAction,
             'customer_invoice',
             invoice.id,
             invoice as any,
@@ -784,6 +961,17 @@ export function createCustomerBillingService(pool: Pool) {
             null,
             paymentRef
           )
+          if (request.method === 'wallet') {
+            await recordAuditLog(
+              client,
+              auditAction,
+              'customer_invoice',
+              invoice.id,
+              invoice as any,
+              updatedInvoice as any,
+              actorContext
+            )
+          }
         }
 
         return updatedInvoice!

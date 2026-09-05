@@ -166,10 +166,13 @@ export function createWalletRepository(pool: Pool) {
      * Uses row-level pessimistic locking (`FOR UPDATE`) to serialize balance mutations.
      * Enforces idempotency via `wallet_ledgers.idempotency_key`.
      */
-    async executeMutation(input: WalletMutationInput): Promise<WalletMutationResult> {
-      const client = await pool.connect()
+    async executeMutation(input: WalletMutationInput, externalClient?: PoolClient): Promise<WalletMutationResult> {
+      const isManagedTx = !externalClient
+      const client = externalClient ?? (await pool.connect())
       try {
-        await client.query('BEGIN')
+        if (isManagedTx) {
+          await client.query('BEGIN')
+        }
 
         // 1. Check idempotency key first
         const existingLedgerRes = await client.query(
@@ -191,7 +194,7 @@ export function createWalletRepository(pool: Pool) {
             existingLedger.reference_id === input.reference_id
 
           if (!matches) {
-            await client.query('ROLLBACK')
+            if (isManagedTx) await client.query('ROLLBACK')
             throw new ApiError(
               409,
               'IDEMPOTENCY_PAYLOAD_MISMATCH',
@@ -201,7 +204,7 @@ export function createWalletRepository(pool: Pool) {
 
           // Fetch current wallet account state
           const accountRes = await client.query(`SELECT * FROM wallet_accounts WHERE id = $1`, [input.wallet_id])
-          await client.query('COMMIT')
+          if (isManagedTx) await client.query('COMMIT')
           return {
             account: mapRowToAccountDto(accountRes.rows[0]),
             ledger: mapRowToLedgerDto(existingLedger),
@@ -216,7 +219,7 @@ export function createWalletRepository(pool: Pool) {
         )
 
         if (accountRes.rows.length === 0) {
-          await client.query('ROLLBACK')
+          if (isManagedTx) await client.query('ROLLBACK')
           throw new ApiError(404, 'WALLET_NOT_FOUND', 'Wallet account not found')
         }
 
@@ -228,28 +231,28 @@ export function createWalletRepository(pool: Pool) {
 
         // 3. Validate lifecycle state
         if (status === 'CLOSED') {
-          await client.query('ROLLBACK')
+          if (isManagedTx) await client.query('ROLLBACK')
           throw new ApiError(400, 'WALLET_CLOSED', 'Wallet account is closed; operations are blocked')
         }
 
         if (status === 'PENDING') {
-          await client.query('ROLLBACK')
+          if (isManagedTx) await client.query('ROLLBACK')
           throw new ApiError(400, 'WALLET_NOT_ACTIVE', 'Wallet account is pending activation')
         }
 
         if (status === 'FROZEN' && input.entry_type === 'DEBIT') {
-          await client.query('ROLLBACK')
+          if (isManagedTx) await client.query('ROLLBACK')
           throw new ApiError(400, 'WALLET_FROZEN', 'Wallet account is frozen; debits are blocked')
         }
 
         if (status !== 'ACTIVE' && status !== 'FROZEN') {
-          await client.query('ROLLBACK')
+          if (isManagedTx) await client.query('ROLLBACK')
           throw new ApiError(400, 'WALLET_NOT_ACTIVE', `Wallet account is not active (current: ${status})`)
         }
 
         // 4. Validate currency
         if (input.currency && input.currency !== currency) {
-          await client.query('ROLLBACK')
+          if (isManagedTx) await client.query('ROLLBACK')
           throw new ApiError(
             400,
             'CURRENCY_MISMATCH',
@@ -259,13 +262,13 @@ export function createWalletRepository(pool: Pool) {
 
         // 5. Validate amount > 0
         if (mutationAmount <= 0n) {
-          await client.query('ROLLBACK')
+          if (isManagedTx) await client.query('ROLLBACK')
           throw new ApiError(400, 'INVALID_AMOUNT', 'Mutation amount must be strictly greater than zero')
         }
 
         // 6. Validate balance for DEBIT
         if (input.entry_type === 'DEBIT' && currentBalance < mutationAmount) {
-          await client.query('ROLLBACK')
+          if (isManagedTx) await client.query('ROLLBACK')
           throw new ApiError(
             400,
             'INSUFFICIENT_FUNDS',
@@ -281,7 +284,7 @@ export function createWalletRepository(pool: Pool) {
 
         // 8. Update wallet balance and server version
         const updatedAccountRes = await client.query(
-          `UPDATE wallet_accounts
+            `UPDATE wallet_accounts
            SET balance = $1, server_version = server_version + 1, updated_at = now()
            WHERE id = $2
            RETURNING *`,
@@ -319,7 +322,7 @@ export function createWalletRepository(pool: Pool) {
           )
         } catch (insertErr: any) {
           if (insertErr.code === '23505' && (insertErr.constraint?.includes('idempotency') || insertErr.message?.includes('idempotency'))) {
-            await client.query('ROLLBACK')
+            if (isManagedTx) await client.query('ROLLBACK')
             const recheckLedger = await pool.query(
               `SELECT * FROM wallet_ledgers WHERE idempotency_key = $1`,
               [input.idempotency_key]
@@ -354,7 +357,9 @@ export function createWalletRepository(pool: Pool) {
           throw insertErr
         }
 
-        await client.query('COMMIT')
+        if (isManagedTx) {
+          await client.query('COMMIT')
+        }
 
         return {
           account: mapRowToAccountDto(updatedAccountRes.rows[0]),
@@ -362,14 +367,18 @@ export function createWalletRepository(pool: Pool) {
           already_processed: false
         }
       } catch (err) {
-        try {
-          await client.query('ROLLBACK')
-        } catch (_) {
-          // Ignore rollback errors on already closed/failed client
+        if (isManagedTx) {
+          try {
+            await client.query('ROLLBACK')
+          } catch (_) {
+            // Ignore rollback errors on already closed/failed client
+          }
         }
         throw err
       } finally {
-        client.release()
+        if (isManagedTx) {
+          client.release()
+        }
       }
     },
 

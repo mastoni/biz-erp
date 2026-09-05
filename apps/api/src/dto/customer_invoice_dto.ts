@@ -17,6 +17,7 @@ export type CustomerPaymentMethod =
   | 'bank_transfer'
   | 'debit'
   | 'credit'
+  | 'wallet'
 
 export const VALID_INVOICE_STATUSES: CustomerInvoiceStatus[] = [
   'DRAFT',
@@ -30,7 +31,8 @@ export const VALID_PAYMENT_METHODS: CustomerPaymentMethod[] = [
   'cash',
   'bank_transfer',
   'debit',
-  'credit'
+  'credit',
+  'wallet'
 ]
 
 // ---------------------------------------------------------------------------
@@ -89,6 +91,7 @@ export interface RecordInvoicePaymentRequest {
   method: CustomerPaymentMethod
   reference?: string | null
   idempotency_key: string
+  wallet_id?: string
 }
 
 export interface CancelInvoiceRequest {
@@ -132,7 +135,7 @@ export function validateRecordInvoicePayment(
   }
   const amount_minor = b.amount_minor
 
-  // method (required, one of cash, bank_transfer, debit, credit)
+  // method (required, one of cash, bank_transfer, debit, credit, wallet)
   if (!b.method || typeof b.method !== 'string') {
     throw new ValidationError('method is required')
   }
@@ -155,11 +158,21 @@ export function validateRecordInvoicePayment(
     reference = b.reference === null ? null : typeof b.reference === 'string' ? b.reference.trim() : String(b.reference)
   }
 
+  // wallet_id (optional valid UUID string)
+  let wallet_id: string | undefined = undefined
+  if (b.wallet_id !== undefined && b.wallet_id !== null && b.wallet_id !== '') {
+    if (typeof b.wallet_id !== 'string' || !isUuid(b.wallet_id)) {
+      throw new ValidationError('wallet_id must be a valid UUID')
+    }
+    wallet_id = b.wallet_id
+  }
+
   return {
     amount_minor,
     method,
     reference,
-    idempotency_key
+    idempotency_key,
+    ...(wallet_id ? { wallet_id } : {})
   }
 }
 
