@@ -47,7 +47,17 @@ describe('Phase 4.1.40F-4: Superadmin Account Customer Management', () => {
 
     // Clean up
     await pool.query('DELETE FROM platform_audit_logs WHERE actor_id = $1', [SUPERADMIN_ID])
-    await pool.query('DELETE FROM subscriptions; DELETE FROM customers; DELETE FROM user_businesses; DELETE FROM businesses; DELETE FROM account_customer_users; DELETE FROM account_customers; DELETE FROM users;')
+    await pool.query(`
+      UPDATE businesses SET account_customer_id = NULL WHERE account_customer_id IS NOT NULL;
+      UPDATE subscriptions SET account_customer_id = NULL WHERE account_customer_id IS NOT NULL;
+      DELETE FROM account_customer_users;
+      DELETE FROM account_customers;
+      DELETE FROM subscriptions WHERE business_id IN ('${BUSINESS_1_ID}', '${BUSINESS_2_ID}');
+      DELETE FROM customers WHERE business_id IN ('${BUSINESS_1_ID}', '${BUSINESS_2_ID}');
+      DELETE FROM user_businesses WHERE business_id IN ('${BUSINESS_1_ID}', '${BUSINESS_2_ID}');
+      DELETE FROM businesses WHERE id IN ('${BUSINESS_1_ID}', '${BUSINESS_2_ID}');
+      DELETE FROM users WHERE id IN ('${SUPERADMIN_ID}', '${USER_A_ID}', '${USER_B_ID}');
+    `)
 
     // 1. Seed Superadmin User
     const superAdminEmail = `superadmin_ac_${Date.now()}@skmnetwork.com`
@@ -105,6 +115,17 @@ describe('Phase 4.1.40F-4: Superadmin Account Customer Management', () => {
 
   afterAll(async () => {
     await pool.query('DELETE FROM platform_audit_logs WHERE actor_id = $1', [SUPERADMIN_ID])
+    await pool.query(`
+      UPDATE businesses SET account_customer_id = NULL WHERE account_customer_id IS NOT NULL;
+      UPDATE subscriptions SET account_customer_id = NULL WHERE account_customer_id IS NOT NULL;
+      DELETE FROM account_customer_users;
+      DELETE FROM account_customers;
+      DELETE FROM subscriptions WHERE business_id IN ('${BUSINESS_1_ID}', '${BUSINESS_2_ID}');
+      DELETE FROM customers WHERE business_id IN ('${BUSINESS_1_ID}', '${BUSINESS_2_ID}');
+      DELETE FROM user_businesses WHERE business_id IN ('${BUSINESS_1_ID}', '${BUSINESS_2_ID}');
+      DELETE FROM businesses WHERE id IN ('${BUSINESS_1_ID}', '${BUSINESS_2_ID}');
+      DELETE FROM users WHERE id IN ('${SUPERADMIN_ID}', '${USER_A_ID}', '${USER_B_ID}');
+    `)
     await pool.end()
   })
 
@@ -445,20 +466,23 @@ describe('Phase 4.1.40F-4: Superadmin Account Customer Management', () => {
   })
 
   it('AC-ADM-014: verifies CRM customers table remains untouched and unmutated', async () => {
+    // Clean up any stale CRM customer
+    await pool.query('DELETE FROM customers WHERE id = $1', ['cccccccc-4444-4ccc-8ccc-cccccccccccc'])
+
     // Seed CRM customer
     await pool.query(`
       INSERT INTO customers (id, business_id, name, phone, email)
       VALUES ('cccccccc-4444-4ccc-8ccc-cccccccccccc', $1, 'Toko Walk-in Customer', '081234567890', 'crm@retail.com')
     `, [BUSINESS_1_ID])
 
-    const crmBefore = await pool.query('SELECT * FROM customers')
+    const crmBefore = await pool.query('SELECT * FROM customers WHERE business_id = $1', [BUSINESS_1_ID])
     expect(crmBefore.rows.length).toBe(1)
 
     // Execute list, get, and user operations on Account Customer
     await request(app).get('/v1/platform/account-customers').set('Authorization', `Bearer ${superadminToken}`)
     await request(app).get(`/v1/platform/account-customers/${createdAcId}`).set('Authorization', `Bearer ${superadminToken}`)
 
-    const crmAfter = await pool.query('SELECT * FROM customers')
+    const crmAfter = await pool.query('SELECT * FROM customers WHERE business_id = $1', [BUSINESS_1_ID])
     expect(crmAfter.rows.length).toBe(1)
     expect(crmAfter.rows[0].name).toBe('Toko Walk-in Customer')
   })
