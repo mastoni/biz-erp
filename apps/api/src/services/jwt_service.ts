@@ -2,7 +2,7 @@ import jwt from 'jsonwebtoken'
 import { ApiError } from '../errors/api_error'
 
 export type TokenScope = 'tenant' | 'platform'
-export type TenantRole = 'OWNER' | 'STAFF' | 'CASHIER'
+export type TenantRole = 'OWNER' | 'STAFF' | 'CASHIER' | 'CUSTOMER'
 export type PlatformRole = 'PLATFORM_ADMIN' | 'SUPER_ADMIN'
 export type TokenRole = TenantRole | PlatformRole
 
@@ -104,7 +104,7 @@ export function createJwtService(
         if (!decoded.business_id || typeof decoded.business_id !== 'string') {
           throw new Error('Missing business_id')
         }
-        if (decoded.role !== 'OWNER' && decoded.role !== 'STAFF' && decoded.role !== 'CASHIER') {
+        if (decoded.role !== 'OWNER' && decoded.role !== 'STAFF' && decoded.role !== 'CASHIER' && decoded.role !== 'CUSTOMER') {
           throw new Error('Invalid tenant role')
         }
         return {

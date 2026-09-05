@@ -43,6 +43,7 @@ import { createDeviceRoutes } from './routes/device_routes'
 import { createDeviceServiceRoutes } from './routes/device_service_routes'
 import { createCustomerSubscriptionRoutes } from './routes/customer_subscription_routes'
 import { createCustomerInvoiceRoutes } from './routes/customer_invoice_routes'
+import { createWalletRoutes } from './routes/wallet_routes'
 import { httpLogger } from './utils/logger'
 import { initSentry } from './utils/sentry'
 import { loadEnv } from './config/env'
@@ -142,6 +143,7 @@ export function createApp(pool: Pool): Express {
   app.use('/v1/provisioning', createProvisioningRoutes(pool))
   app.use('/v1/isp', createIspRoutes(pool))
   app.use('/v1/ai-cs', createAiCsRoutes(pool))
+  app.use('/v1/wallets', createWalletRoutes(pool))
   app.use('/v1/platform/webhooks', createPlatformWebhookRoutes(pool))
   app.use('/v1/platform', createPlatformRoutes(pool))
   app.use('/v1/public', createPublicRoutes(pool))
