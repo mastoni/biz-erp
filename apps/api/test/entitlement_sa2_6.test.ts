@@ -53,6 +53,15 @@ describe('SA-2.6 Entitlement Enforcer', () => {
     await pool.query("INSERT INTO user_businesses (user_id, business_id, role, status) VALUES ($1, $2, 'OWNER', 'ACTIVE')", [USER_ID, BUSINESS_B])
     await pool.query("INSERT INTO user_businesses (user_id, business_id, role, status) VALUES ($1, $2, 'OWNER', 'ACTIVE')", [USER_ID, BUSINESS_C])
 
+    // Ensure subscription families exist
+    await pool.query(`
+      INSERT INTO subscription_families (code, name, replacement_policy, description)
+      VALUES
+        ('ERP_PLAN', 'ERP Plan', 'REPLACEABLE', 'Core ERP plans'),
+        ('INTERNET_PLAN', 'Internet Plan', 'REPLACEABLE', 'Internet service plans')
+      ON CONFLICT (code) DO NOTHING;
+    `)
+
     // Ensure a plan exists
     await pool.query(`
       INSERT INTO plans (code, name, family, tier, billing_cycle, pricing, type, status, service_code)
