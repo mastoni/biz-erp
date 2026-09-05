@@ -16,6 +16,8 @@ import 'package:biz_erp_mobile/inventory/data/stock_repository.dart';
 import 'package:biz_erp_mobile/inventory/presentation/stock_list_screen.dart';
 import 'package:biz_erp_mobile/sales/data/sale_repository.dart';
 import 'package:biz_erp_mobile/sales/presentation/sale_list_screen.dart';
+import 'package:biz_erp_mobile/receivables/data/receivable_repository.dart';
+import 'package:biz_erp_mobile/receivables/presentation/receivable_list_screen.dart';
 import 'package:biz_erp_mobile/core/hardware/printing/printing_service.dart';
 import 'widgets/conflict_list_sheet.dart';
 import 'package:biz_erp_mobile/core/auth/auth_state_notifier.dart';
@@ -31,6 +33,7 @@ class PosScreen extends StatefulWidget {
   final SupplierRepository? supplierRepo;
   final StockRepository? stockRepo;
   final SaleRepository? saleRepo;
+  final ReceivableRepository? receivableRepo;
   final PrintingService? printingService;
 
   const PosScreen({
@@ -43,6 +46,7 @@ class PosScreen extends StatefulWidget {
     this.supplierRepo,
     this.stockRepo,
     this.saleRepo,
+    this.receivableRepo,
     this.printingService,
     this.outboxRepo,
     this.authStateNotifier,
@@ -298,6 +302,33 @@ class _PosScreenState extends State<PosScreen> {
                     branchId: widget.controller.branchId,
                     saleRepo: widget.saleRepo!,
                     printingService: widget.printingService,
+                  ),
+                ),
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.account_balance_wallet),
+            title: const Text('Piutang Usaha'),
+            subtitle: const Text('Kelola tagihan & terima pembayaran'),
+            onTap: () {
+              Navigator.pop(context);
+              if (widget.receivableRepo == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Layanan piutang usaha belum diaktifkan')),
+                );
+                return;
+              }
+              final bizId = widget.authStateNotifier?.businessId ?? widget.controller.businessId;
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ReceivableListScreen(
+                    businessId: bizId,
+                    branchId: widget.controller.branchId,
+                    receivableRepo: widget.receivableRepo!,
+                    printingService: widget.printingService,
+                    userRole: widget.authStateNotifier?.session?.role ?? 'CASHIER',
                   ),
                 ),
               );

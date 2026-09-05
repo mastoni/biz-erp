@@ -1543,6 +1543,226 @@ Map<String, dynamic> _saleDtoToBatchItem(SaleDto sale) {
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // Receivables (MOB-AR-1)
+  // ---------------------------------------------------------------------------
+
+  @override
+  Future<PullReceivablesResponse> pullReceivables({
+    required String businessId,
+    String? branchId,
+    String? customerId,
+    String? status,
+    String? dateFrom,
+    String? dateTo,
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    final query = <String, String>{
+      'limit': limit.toString(),
+      'offset': offset.toString(),
+      if (branchId != null && branchId.isNotEmpty) 'branch_id': branchId,
+      if (customerId != null && customerId.isNotEmpty) 'customer_id': customerId,
+      if (status != null && status.isNotEmpty) 'status': status,
+      if (dateFrom != null && dateFrom.isNotEmpty) 'date_from': dateFrom,
+      if (dateTo != null && dateTo.isNotEmpty) 'date_to': dateTo,
+    };
+
+    final uri = Uri.parse('$baseUrl/v1/receivables').replace(queryParameters: query);
+
+    try {
+      final response = await _client.get(uri, headers: _headers).timeout(_timeout);
+
+      if (response.statusCode == 200) {
+        final dynamic decoded = jsonDecode(response.body);
+        if (decoded is Map<String, dynamic>) {
+          return PullReceivablesResponse.fromJson(decoded);
+        } else if (decoded is List) {
+          return PullReceivablesResponse(
+            decoded.map((e) => ReceivableDto.fromJson(e as Map<String, dynamic>)).toList(),
+            decoded.length,
+          );
+        }
+        return const PullReceivablesResponse([], 0);
+      } else if (response.statusCode == 401) {
+        final refresh = await _onRefresh?.call();
+        if (refresh == RefreshResult.success) {
+          return pullReceivables(
+            businessId: businessId,
+            branchId: branchId,
+            customerId: customerId,
+            status: status,
+            dateFrom: dateFrom,
+            dateTo: dateTo,
+            limit: limit,
+            offset: offset,
+          );
+        }
+        throw HttpException('Unauthorized', statusCode: 401);
+      } else {
+        throw HttpException(
+          'Failed to fetch receivables: HTTP ${response.statusCode}',
+          statusCode: response.statusCode,
+          requestId: response.headers['x-request-id'],
+        );
+      }
+    } catch (e) {
+      if (e is HttpException) rethrow;
+      throw NetworkException('Network error while fetching receivables', e);
+    }
+  }
+
+  @override
+  Future<ReceivableDto?> getReceivable({
+    required String id,
+  }) async {
+    final uri = Uri.parse('$baseUrl/v1/receivables/$id');
+
+    try {
+      final response = await _client.get(uri, headers: _headers).timeout(_timeout);
+
+      if (response.statusCode == 200) {
+        final json = jsonDecode(response.body) as Map<String, dynamic>;
+        return ReceivableDto.fromJson(json);
+      } else if (response.statusCode == 404) {
+        return null;
+      } else if (response.statusCode == 401) {
+        final refresh = await _onRefresh?.call();
+        if (refresh == RefreshResult.success) {
+          return getReceivable(id: id);
+        }
+        throw HttpException('Unauthorized', statusCode: 401);
+      } else {
+        throw HttpException(
+          'Failed to get receivable: HTTP ${response.statusCode}',
+          statusCode: response.statusCode,
+          requestId: response.headers['x-request-id'],
+        );
+      }
+    } catch (e) {
+      if (e is HttpException) rethrow;
+      throw NetworkException('Network error while getting receivable', e);
+    }
+  }
+
+  @override
+  Future<List<CustomerPaymentDto>> pullCustomerPayments({
+    required String receivableId,
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    final query = <String, String>{
+      'limit': limit.toString(),
+      'offset': offset.toString(),
+    };
+
+    final uri = Uri.parse('$baseUrl/v1/receivables/$receivableId/payments').replace(queryParameters: query);
+
+    try {
+      final response = await _client.get(uri, headers: _headers).timeout(_timeout);
+
+      if (response.statusCode == 200) {
+        final dynamic decoded = jsonDecode(response.body);
+        if (decoded is List) {
+          return decoded.map((e) => CustomerPaymentDto.fromJson(e as Map<String, dynamic>)).toList();
+        } else if (decoded is Map<String, dynamic>) {
+          final list = decoded['rows'] as List? ?? decoded['items'] as List? ?? [];
+          return list.map((e) => CustomerPaymentDto.fromJson(e as Map<String, dynamic>)).toList();
+        }
+        return const [];
+      } else if (response.statusCode == 401) {
+        final refresh = await _onRefresh?.call();
+        if (refresh == RefreshResult.success) {
+          return pullCustomerPayments(receivableId: receivableId, limit: limit, offset: offset);
+        }
+        throw HttpException('Unauthorized', statusCode: 401);
+      } else {
+        throw HttpException(
+          'Failed to get customer payments: HTTP ${response.statusCode}',
+          statusCode: response.statusCode,
+          requestId: response.headers['x-request-id'],
+        );
+      }
+    } catch (e) {
+      if (e is HttpException) rethrow;
+      throw NetworkException('Network error while getting customer payments', e);
+    }
+  }
+
+  @override
+  Future<PaymentCollectionResultDto> collectReceivablePayment({
+    required String receivableId,
+    required int amountMinor,
+    required String method,
+    String? customerId,
+    String? reference,
+    String? date,
+    required String idempotencyKey,
+  }) async {
+    final uri = Uri.parse('$baseUrl/v1/receivables/$receivableId/collections');
+
+    final body = jsonEncode({
+      'amount_minor': amountMinor,
+      'method': method,
+      if (customerId != null) 'customer_id': customerId,
+      'reference': reference ?? idempotencyKey,
+      if (date != null) 'date': date,
+    });
+
+    final headers = {
+      ..._headers,
+      'Idempotency-Key': idempotencyKey,
+    };
+
+    try {
+      final response = await _client.post(uri, headers: headers, body: body).timeout(_timeout);
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        final json = jsonDecode(response.body) as Map<String, dynamic>;
+        return PaymentCollectionResultDto(
+          ok: true,
+          paymentId: json['paymentId'] as String? ?? json['payment_id'] as String?,
+          journalId: json['journalId'] as String? ?? json['journal_id'] as String?,
+          receivableId: json['receivableId'] as String? ?? json['receivable_id'] as String?,
+          newStatus: json['newStatus'] as String? ?? json['new_status'] as String?,
+        );
+      } else if (response.statusCode == 403) {
+        return const PaymentCollectionResultDto(ok: false, error: 'Hanya OWNER yang dapat menerima pembayaran piutang');
+      } else if (response.statusCode == 400 || response.statusCode == 404 || response.statusCode == 409) {
+        try {
+          final json = jsonDecode(response.body) as Map<String, dynamic>;
+          final errorMsg = json['error'] as String? ?? (json['error'] as Map<String, dynamic>?)?['message'] as String? ?? 'Gagal memproses pembayaran';
+          return PaymentCollectionResultDto(ok: false, error: errorMsg);
+        } catch (_) {
+          return PaymentCollectionResultDto(ok: false, error: 'HTTP ${response.statusCode}');
+        }
+      } else if (response.statusCode == 401) {
+        final refresh = await _onRefresh?.call();
+        if (refresh == RefreshResult.success) {
+          return collectReceivablePayment(
+            receivableId: receivableId,
+            amountMinor: amountMinor,
+            method: method,
+            customerId: customerId,
+            reference: reference,
+            date: date,
+            idempotencyKey: idempotencyKey,
+          );
+        }
+        return const PaymentCollectionResultDto(ok: false, error: 'Sesi kedaluwarsa');
+      } else {
+        throw HttpException(
+          'Failed to collect payment: HTTP ${response.statusCode}',
+          statusCode: response.statusCode,
+          requestId: response.headers['x-request-id'],
+        );
+      }
+    } catch (e) {
+      if (e is HttpException) rethrow;
+      throw NetworkException('Network error while collecting payment', e);
+    }
+  }
+
   void close() {
     _client.close();
   }

@@ -17,6 +17,9 @@ import 'package:biz_erp_mobile/suppliers/domain/supplier.dart';
 const biz = '11111111-1111-4111-a111-111111111111';
 
 class MockSyncApi implements SyncApiClient {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+
   bool healthy = true;
 
   PullSuppliersResponse pullSuppliersResp = const PullSuppliersResponse(

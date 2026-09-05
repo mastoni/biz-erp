@@ -911,3 +911,158 @@ class PullStocksResponse {
       );
 }
 
+// ---------------------------------------------------------------------------
+// Receivables DTOs (MOB-AR-1)
+// ---------------------------------------------------------------------------
+
+class ReceivableDto {
+  final String id;
+  final String businessId;
+  final String saleId;
+  final String customerId;
+  final String? branchId;
+  final int amountMinor;
+  final int paidMinor;
+  final int outstandingMinor;
+  final String date;
+  final String? reference;
+  final String description;
+  final String status;
+  final int serverVersion;
+  final String createdAt;
+  final String updatedAt;
+  final String? deletedAt;
+
+  const ReceivableDto({
+    required this.id,
+    required this.businessId,
+    required this.saleId,
+    required this.customerId,
+    this.branchId,
+    required this.amountMinor,
+    required this.paidMinor,
+    required this.outstandingMinor,
+    required this.date,
+    this.reference,
+    required this.description,
+    required this.status,
+    required this.serverVersion,
+    required this.createdAt,
+    required this.updatedAt,
+    this.deletedAt,
+  });
+
+  factory ReceivableDto.fromJson(Map<String, dynamic> j) => ReceivableDto(
+        id: j['id'] as String,
+        businessId: j['business_id'] as String,
+        saleId: j['sale_id'] as String,
+        customerId: j['customer_id'] as String,
+        branchId: j['branch_id'] as String?,
+        amountMinor: (j['amount_minor'] as num).toInt(),
+        paidMinor: (j['paid_minor'] as num).toInt(),
+        outstandingMinor: (j['outstanding_minor'] as num).toInt(),
+        date: j['date'] as String,
+        reference: j['reference'] as String?,
+        description: j['description'] as String? ?? '',
+        status: j['status'] as String,
+        serverVersion: (j['server_version'] as num?)?.toInt() ?? 1,
+        createdAt: j['created_at'] as String,
+        updatedAt: j['updated_at'] as String,
+        deletedAt: j['deleted_at'] as String?,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'business_id': businessId,
+        'sale_id': saleId,
+        'customer_id': customerId,
+        'branch_id': branchId,
+        'amount_minor': amountMinor,
+        'paid_minor': paidMinor,
+        'outstanding_minor': outstandingMinor,
+        'date': date,
+        'reference': reference,
+        'description': description,
+        'status': status,
+        'server_version': serverVersion,
+        'created_at': createdAt,
+        'updated_at': updatedAt,
+        'deleted_at': deletedAt,
+      };
+}
+
+class PullReceivablesResponse {
+  final List<ReceivableDto> items;
+  final int total;
+
+  const PullReceivablesResponse(this.items, this.total);
+
+  factory PullReceivablesResponse.fromJson(Map<String, dynamic> j) {
+    final rawList = j['rows'] as List? ?? j['items'] as List? ?? [];
+    return PullReceivablesResponse(
+      rawList
+          .map((e) => ReceivableDto.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      (j['total'] as num?)?.toInt() ?? rawList.length,
+    );
+  }
+}
+
+class CustomerPaymentDto {
+  final String id;
+  final String businessId;
+  final String receivableId;
+  final String customerId;
+  final String? branchId;
+  final int amountMinor;
+  final String method;
+  final String? reference;
+  final String idempotencyKey;
+  final String createdAt;
+
+  const CustomerPaymentDto({
+    required this.id,
+    required this.businessId,
+    required this.receivableId,
+    required this.customerId,
+    this.branchId,
+    required this.amountMinor,
+    required this.method,
+    this.reference,
+    required this.idempotencyKey,
+    required this.createdAt,
+  });
+
+  factory CustomerPaymentDto.fromJson(Map<String, dynamic> j) => CustomerPaymentDto(
+        id: j['id'] as String,
+        businessId: j['business_id'] as String,
+        receivableId: j['receivable_id'] as String,
+        customerId: j['customer_id'] as String,
+        branchId: j['branch_id'] as String?,
+        amountMinor: (j['amount_minor'] as num).toInt(),
+        method: j['method'] as String,
+        reference: j['reference'] as String?,
+        idempotencyKey: j['idempotency_key'] as String? ?? '',
+        createdAt: j['created_at'] as String,
+      );
+}
+
+class PaymentCollectionResultDto {
+  final bool ok;
+  final String? paymentId;
+  final String? journalId;
+  final String? receivableId;
+  final String? newStatus;
+  final String? error;
+
+  const PaymentCollectionResultDto({
+    this.ok = false,
+    this.paymentId,
+    this.journalId,
+    this.receivableId,
+    this.newStatus,
+    this.error,
+  });
+}
+
+

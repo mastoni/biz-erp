@@ -55,6 +55,9 @@ class _MockBranchRepo extends BranchRepository {
 }
 
 class _MockSyncApi implements SyncApiClient {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+
   Future<bool> health() async => true;
 
   Future<PullProductsResponse> pullProducts({

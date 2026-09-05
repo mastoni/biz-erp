@@ -20,6 +20,9 @@ const biz = '11111111-1111-1111-1111-111111111111';
 
 class MockSyncApi implements SyncApiClient {
   @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+
+  @override
   Future<PullBranchesResponse> pullBranches({required String businessId}) async {
     return const PullBranchesResponse([
       BranchDto(

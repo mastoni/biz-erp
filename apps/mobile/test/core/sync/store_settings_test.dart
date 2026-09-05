@@ -86,6 +86,9 @@ StoreSettingsDto testSettings({
 }
 
 class _FakeSettingsApi implements SyncApiClient {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+
   StoreSettingsDto? settings;
   bool throwOnFetch = false;
   String? lastBusinessId;

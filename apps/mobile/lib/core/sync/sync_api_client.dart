@@ -161,4 +161,35 @@ abstract class SyncApiClient {
     StockAdjustmentRequest request, {
     required String idempotencyKey,
   });
+
+  Future<PullReceivablesResponse> pullReceivables({
+    required String businessId,
+    String? branchId,
+    String? customerId,
+    String? status,
+    String? dateFrom,
+    String? dateTo,
+    int limit = 50,
+    int offset = 0,
+  });
+
+  Future<ReceivableDto?> getReceivable({
+    required String id,
+  });
+
+  Future<List<CustomerPaymentDto>> pullCustomerPayments({
+    required String receivableId,
+    int limit = 50,
+    int offset = 0,
+  });
+
+  Future<PaymentCollectionResultDto> collectReceivablePayment({
+    required String receivableId,
+    required int amountMinor,
+    required String method,
+    String? customerId,
+    String? reference,
+    String? date,
+    required String idempotencyKey,
+  });
 }
