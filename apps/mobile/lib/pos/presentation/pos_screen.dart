@@ -20,6 +20,8 @@ import 'package:biz_erp_mobile/receivables/data/receivable_repository.dart';
 import 'package:biz_erp_mobile/receivables/presentation/receivable_list_screen.dart';
 import 'package:biz_erp_mobile/expenses/data/expense_repository.dart';
 import 'package:biz_erp_mobile/expenses/presentation/expense_list_screen.dart';
+import 'package:biz_erp_mobile/income/data/income_repository.dart';
+import 'package:biz_erp_mobile/income/presentation/income_list_screen.dart';
 import 'package:biz_erp_mobile/core/hardware/printing/printing_service.dart';
 import 'widgets/conflict_list_sheet.dart';
 import 'package:biz_erp_mobile/core/auth/auth_state_notifier.dart';
@@ -37,6 +39,7 @@ class PosScreen extends StatefulWidget {
   final SaleRepository? saleRepo;
   final ReceivableRepository? receivableRepo;
   final ExpenseRepository? expenseRepo;
+  final IncomeRepository? incomeRepo;
   final PrintingService? printingService;
 
   const PosScreen({
@@ -51,6 +54,7 @@ class PosScreen extends StatefulWidget {
     this.saleRepo,
     this.receivableRepo,
     this.expenseRepo,
+    this.incomeRepo,
     this.printingService,
     this.outboxRepo,
     this.authStateNotifier,
@@ -358,6 +362,33 @@ class _PosScreenState extends State<PosScreen> {
                     businessId: bizId,
                     branchId: widget.controller.branchId,
                     expenseRepo: widget.expenseRepo!,
+                    printingService: widget.printingService,
+                    userRole: widget.authStateNotifier?.session?.role ?? 'CASHIER',
+                  ),
+                ),
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.account_balance_wallet, color: Color(0xFF0D9488)),
+            title: const Text('Pendapatan Operasional'),
+            subtitle: const Text('Catat & pantau pendapatan toko'),
+            onTap: () {
+              Navigator.pop(context);
+              if (widget.incomeRepo == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Layanan pendapatan operasional belum diaktifkan')),
+                );
+                return;
+              }
+              final bizId = widget.authStateNotifier?.businessId ?? widget.controller.businessId;
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => IncomeListScreen(
+                    businessId: bizId,
+                    branchId: widget.controller.branchId,
+                    incomeRepo: widget.incomeRepo!,
                     printingService: widget.printingService,
                     userRole: widget.authStateNotifier?.session?.role ?? 'CASHIER',
                   ),

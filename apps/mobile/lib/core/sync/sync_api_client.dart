@@ -219,5 +219,33 @@ abstract class SyncApiClient {
     String? reference,
     required String description,
   });
+
+  Future<PullIncomeResponse> pullIncome({
+    required String businessId,
+    String? branchId,
+    String? status,
+    String? category,
+    String? dateFrom,
+    String? dateTo,
+    String? search,
+    int limit = 50,
+    int offset = 0,
+  });
+
+  Future<IncomeDto?> getIncome({
+    required String id,
+  });
+
+  Future<IncomeDto> createIncome({
+    required String businessId,
+    String? branchId,
+    required String date,
+    required int amountMinor,
+    required String method,
+    String? category,
+    String? reference,
+    required String description,
+  });
 }
+
 
