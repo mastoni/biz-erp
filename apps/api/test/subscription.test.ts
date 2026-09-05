@@ -36,9 +36,9 @@ async function resetDatabase(): Promise<void> {
     DELETE FROM sale_items;
     DELETE FROM sales;
     DELETE FROM idempotency_keys;
-    DELETE FROM products;
-    DELETE FROM stocks;
     DELETE FROM stock_movements;
+    DELETE FROM stocks;
+    DELETE FROM products;
     DELETE FROM branches;
     DELETE FROM refresh_tokens;
     DELETE FROM user_businesses;
