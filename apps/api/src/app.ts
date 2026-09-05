@@ -41,6 +41,8 @@ import { createExpenseRoutes } from './routes/expense_routes'
 import { createIncomeRoutes } from './routes/income_routes'
 import { createDeviceRoutes } from './routes/device_routes'
 import { createDeviceServiceRoutes } from './routes/device_service_routes'
+import { createCustomerSubscriptionRoutes } from './routes/customer_subscription_routes'
+import { createCustomerInvoiceRoutes } from './routes/customer_invoice_routes'
 import { httpLogger } from './utils/logger'
 import { initSentry } from './utils/sentry'
 import { loadEnv } from './config/env'
@@ -133,6 +135,8 @@ export function createApp(pool: Pool): Express {
   app.use('/v1/incomes', requireERP, createIncomeRoutes(pool))
   app.use('/v1/devices', requireERP, createDeviceRoutes(pool))
   app.use('/v1/device-services', requireERP, createDeviceServiceRoutes(pool))
+  app.use('/v1/customer-subscriptions', requireERP, createCustomerSubscriptionRoutes(pool))
+  app.use('/v1/customer-invoices', requireERP, createCustomerInvoiceRoutes(pool))
 
   app.use('/v1/subscriptions', createSubscriptionRoutes(pool))
   app.use('/v1/provisioning', createProvisioningRoutes(pool))
