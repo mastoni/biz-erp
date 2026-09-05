@@ -30,27 +30,12 @@ let ownerTokenB!: string
 
 async function resetDatabase(): Promise<void> {
   await pool.query(`
-    DELETE FROM subscriptions;
-    DELETE FROM subscription_families;
-    DELETE FROM plans;
-    DELETE FROM sale_items;
-    DELETE FROM sales;
-    DELETE FROM idempotency_keys;
-    DELETE FROM stock_movements;
-    DELETE FROM stocks;
-    DELETE FROM products;
-    DELETE FROM branches;
-    DELETE FROM refresh_tokens;
-    DELETE FROM user_businesses;
-    DELETE FROM users;
-    DELETE FROM customers;
-    DELETE FROM businesses;
+    DELETE FROM subscriptions WHERE business_id IN ('${BUSINESS_A}', '${BUSINESS_B}');
+    DELETE FROM refresh_tokens WHERE user_id IN (SELECT id FROM users WHERE email = 'cashier@a.com' OR email LIKE '%@biz-erp.local');
+    DELETE FROM user_businesses WHERE business_id IN ('${BUSINESS_A}', '${BUSINESS_B}');
+    DELETE FROM users WHERE email = 'cashier@a.com' OR email LIKE '%@biz-erp.local';
+    INSERT INTO businesses (id, name) VALUES ('${BUSINESS_A}', 'Business A'), ('${BUSINESS_B}', 'Business B') ON CONFLICT (id) DO NOTHING;
   `)
-
-  await pool.query(
-    `INSERT INTO businesses (id, name) VALUES ($1, $2), ($3, $4) ON CONFLICT (id) DO NOTHING`,
-    [BUSINESS_A, 'Business A', BUSINESS_B, 'Business B']
-  )
 }
 
 async function seedSubscriptionFamilies(): Promise<void> {
