@@ -33,17 +33,18 @@ let walletB: string
 
 async function cleanWalletData(): Promise<void> {
   await pool.query(`
+    UPDATE businesses SET account_customer_id = NULL WHERE account_customer_id IS NOT NULL;
+    UPDATE subscriptions SET account_customer_id = NULL WHERE account_customer_id IS NOT NULL;
     DELETE FROM platform_audit_logs;
     DELETE FROM wallet_ledgers;
     DELETE FROM top_up_intents;
     DELETE FROM wallet_accounts;
     DELETE FROM account_customer_users;
-    DELETE FROM subscriptions;
-    DELETE FROM businesses;
     DELETE FROM account_customers;
-    DELETE FROM user_businesses;
-    DELETE FROM refresh_tokens;
-    DELETE FROM users;
+    DELETE FROM devices WHERE business_id IN ('${BUSINESS_A}', '${BUSINESS_B}');
+    DELETE FROM branches WHERE business_id IN ('${BUSINESS_A}', '${BUSINESS_B}');
+    DELETE FROM user_businesses WHERE business_id IN ('${BUSINESS_A}', '${BUSINESS_B}');
+    DELETE FROM subscriptions WHERE business_id IN ('${BUSINESS_A}', '${BUSINESS_B}');
   `)
 }
 
