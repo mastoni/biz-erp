@@ -27,6 +27,7 @@ import 'package:biz_erp_mobile/core/sync/sync_status_notifier.dart';
 import 'package:biz_erp_mobile/core/sync/branch_repository.dart';
 import 'package:biz_erp_mobile/core/sync/store_settings_repository.dart';
 import 'package:biz_erp_mobile/sales/data/sales_sync_repository.dart';
+import 'package:biz_erp_mobile/sales/data/sale_repository.dart';
 import 'package:biz_erp_mobile/inventory/data/stock_repository.dart';
 
 /// Container yang menyimpan semua instance dependency untuk sebuah sesi tenant/business.
@@ -44,8 +45,9 @@ class TenantDependencyGraph {
   final SyncEngine syncEngine;
   final PrintingService printingService;
   final BranchRepository branchRepo;
-   final StoreSettingsRepository storeSettingsRepo;
+  final StoreSettingsRepository storeSettingsRepo;
   final StockRepository stockRepo;
+  final SaleRepository saleRepo;
 
   TenantDependencyGraph({
     required this.db,
@@ -61,9 +63,10 @@ class TenantDependencyGraph {
     required this.syncEngine,
     required this.printingService,
     required this.branchRepo,
-     required this.storeSettingsRepo,
-     required this.stockRepo,
-   });
+    required this.storeSettingsRepo,
+    required this.stockRepo,
+    required this.saleRepo,
+  });
 
   /// Membersihkan background workers, koneksi API, dan menutup koneksi SQLite terenkripsi.
   Future<void> dispose() async {
@@ -97,6 +100,7 @@ class TenantCompositionRoot {
     final syncOutboxRepo = SyncOutboxRepository(db);
     final salesSyncRepo = SalesSyncRepository(db);
     final stockRepo = StockRepository(db);
+    final saleRepo = SaleRepository(db);
 
     // 2. Synchronization & Network Subsystem
     final apiClient = HttpSyncApiClient(
@@ -206,10 +210,11 @@ class TenantCompositionRoot {
       apiClient: apiClient,
       syncEngine: syncEngine,
       printingService: printingService,
-       branchRepo: branchRepo,
+      branchRepo: branchRepo,
       storeSettingsRepo: storeSettingsRepo,
       supplierRepo: supplierRepo,
       stockRepo: stockRepo,
+      saleRepo: saleRepo,
     );
   }
 }

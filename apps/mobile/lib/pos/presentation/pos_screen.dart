@@ -14,6 +14,9 @@ import 'package:biz_erp_mobile/suppliers/data/supplier_repository.dart';
 import 'package:biz_erp_mobile/suppliers/presentation/supplier_list_screen.dart';
 import 'package:biz_erp_mobile/inventory/data/stock_repository.dart';
 import 'package:biz_erp_mobile/inventory/presentation/stock_list_screen.dart';
+import 'package:biz_erp_mobile/sales/data/sale_repository.dart';
+import 'package:biz_erp_mobile/sales/presentation/sale_list_screen.dart';
+import 'package:biz_erp_mobile/core/hardware/printing/printing_service.dart';
 import 'widgets/conflict_list_sheet.dart';
 import 'package:biz_erp_mobile/core/auth/auth_state_notifier.dart';
 
@@ -27,6 +30,8 @@ class PosScreen extends StatefulWidget {
   final AuthStateNotifier? authStateNotifier;
   final SupplierRepository? supplierRepo;
   final StockRepository? stockRepo;
+  final SaleRepository? saleRepo;
+  final PrintingService? printingService;
 
   const PosScreen({
     super.key,
@@ -37,6 +42,8 @@ class PosScreen extends StatefulWidget {
     this.customerRepo,
     this.supplierRepo,
     this.stockRepo,
+    this.saleRepo,
+    this.printingService,
     this.outboxRepo,
     this.authStateNotifier,
   });
@@ -270,6 +277,32 @@ class _PosScreenState extends State<PosScreen> {
                 );
               },
             ),
+          ListTile(
+            leading: const Icon(Icons.receipt_long),
+            title: const Text('Riwayat Penjualan'),
+            subtitle: const Text('Lihat transaksi & cetak ulang struk'),
+            onTap: () {
+              Navigator.pop(context);
+              if (widget.saleRepo == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Riwayat penjualan belum diaktifkan')),
+                );
+                return;
+              }
+              final bizId = widget.authStateNotifier?.businessId ?? widget.controller.businessId;
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => SaleListScreen(
+                    businessId: bizId,
+                    branchId: widget.controller.branchId,
+                    saleRepo: widget.saleRepo!,
+                    printingService: widget.printingService,
+                  ),
+                ),
+              );
+            },
+          ),
           if (widget.authStateNotifier != null)
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.red),
