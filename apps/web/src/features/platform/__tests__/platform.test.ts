@@ -84,6 +84,7 @@ describe('41C-2 platform navigation', () => {
   it('platform nav entries exist', () => {
     const hrefs = PLATFORM_NAVIGATION.map((n) => n.href);
     expect(hrefs).toContain('/platform');
+    expect(hrefs).toContain('/platform/account-customers');
     expect(hrefs).toContain('/platform/businesses');
     expect(hrefs).toContain('/platform/modules');
     expect(hrefs).toContain('/platform/plans');
@@ -91,24 +92,21 @@ describe('41C-2 platform navigation', () => {
     expect(hrefs).toContain('/platform/subscriptions');
   });
 
-  it('does NOT duplicate tenant navigation and excludes Account Customers', () => {
+  it('does NOT duplicate tenant navigation', () => {
     const hrefs = PLATFORM_NAVIGATION.map((n) => n.href);
     // No tenant routes leaked into the platform shell.
     expect(hrefs).not.toContain('/dashboard');
     expect(hrefs).not.toContain('/products');
     expect(hrefs).not.toContain('/customers');
-    // Account Customers is owned by 40F and must not exist here.
-    expect(hrefs.some((h) => h.toLowerCase().includes('account-customer'))).toBe(false);
-    expect(hrefs).not.toContain('/platform/account-customers');
   });
 });
 
-// ── Account Customers route absence (filesystem) ─────────────────────────────
+// ── Account Customers route presence (filesystem) ────────────────────────────
 
-describe('41C-2 Account Customers route', () => {
-  it('no /platform/account-customers page is created', () => {
+describe('Platform Account Customers route', () => {
+  it('/platform/account-customers page exists', () => {
     const target = join(process.cwd(), 'src', 'app', 'platform', 'account-customers');
-    expect(existsSync(target)).toBe(false);
+    expect(existsSync(target)).toBe(true);
   });
 });
 
