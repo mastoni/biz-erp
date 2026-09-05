@@ -246,6 +246,25 @@ abstract class SyncApiClient {
     String? reference,
     required String description,
   });
+
+  Future<SalesSummaryDto> pullSalesSummary({
+    required String from,
+    required String to,
+    String? branchId,
+  });
+
+  Future<List<ProductSalesReportDto>> pullProductSalesReport({
+    required String from,
+    required String to,
+    String? branchId,
+  });
+
+  Future<List<HourlySalesBucketDto>> pullHourlySalesReport({
+    required String from,
+    required String to,
+    String? branchId,
+  });
 }
+
 
 

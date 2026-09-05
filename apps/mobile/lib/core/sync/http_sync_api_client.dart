@@ -2117,6 +2117,148 @@ Map<String, dynamic> _saleDtoToBatchItem(SaleDto sale) {
     }
   }
 
+  @override
+  Future<SalesSummaryDto> pullSalesSummary({
+    required String from,
+    required String to,
+    String? branchId,
+  }) async {
+    final qp = <String, String>{
+      'from': from,
+      'to': to,
+    };
+    if (branchId != null && branchId.isNotEmpty) {
+      qp['branch_id'] = branchId;
+    }
+
+    final uri = Uri.parse('$baseUrl/v1/reports/sales-summary').replace(queryParameters: qp);
+
+    try {
+      final response = await _client.get(uri, headers: _headers).timeout(_timeout);
+
+      if (response.statusCode == 200) {
+        final json = jsonDecode(response.body) as Map<String, dynamic>;
+        final rawSummary = json['sales_summary'] as Map<String, dynamic>? ?? json;
+        return SalesSummaryDto.fromJson(rawSummary);
+      } else if (response.statusCode == 401) {
+        final refresh = await _onRefresh?.call();
+        if (refresh == RefreshResult.success) {
+          return pullSalesSummary(from: from, to: to, branchId: branchId);
+        }
+        throw HttpException(
+          'Unauthorized while pulling sales summary: session expired',
+          statusCode: 401,
+          requestId: response.headers['x-request-id'],
+        );
+      } else {
+        throw HttpException(
+          'Failed to pull sales summary: HTTP ${response.statusCode}',
+          statusCode: response.statusCode,
+          requestId: response.headers['x-request-id'],
+        );
+      }
+    } catch (e) {
+      if (e is HttpException) rethrow;
+      throw NetworkException('Network error while pulling sales summary', e);
+    }
+  }
+
+  @override
+  Future<List<ProductSalesReportDto>> pullProductSalesReport({
+    required String from,
+    required String to,
+    String? branchId,
+  }) async {
+    final qp = <String, String>{
+      'from': from,
+      'to': to,
+    };
+    if (branchId != null && branchId.isNotEmpty) {
+      qp['branch_id'] = branchId;
+    }
+
+    final uri = Uri.parse('$baseUrl/v1/reports/product-sales').replace(queryParameters: qp);
+
+    try {
+      final response = await _client.get(uri, headers: _headers).timeout(_timeout);
+
+      if (response.statusCode == 200) {
+        final json = jsonDecode(response.body) as Map<String, dynamic>;
+        final rawList = json['product_sales'] as List? ?? json['items'] as List? ?? [];
+        return rawList
+            .map((e) => ProductSalesReportDto.fromJson(e as Map<String, dynamic>))
+            .toList();
+      } else if (response.statusCode == 401) {
+        final refresh = await _onRefresh?.call();
+        if (refresh == RefreshResult.success) {
+          return pullProductSalesReport(from: from, to: to, branchId: branchId);
+        }
+        throw HttpException(
+          'Unauthorized while pulling product sales: session expired',
+          statusCode: 401,
+          requestId: response.headers['x-request-id'],
+        );
+      } else {
+        throw HttpException(
+          'Failed to pull product sales: HTTP ${response.statusCode}',
+          statusCode: response.statusCode,
+          requestId: response.headers['x-request-id'],
+        );
+      }
+    } catch (e) {
+      if (e is HttpException) rethrow;
+      throw NetworkException('Network error while pulling product sales', e);
+    }
+  }
+
+  @override
+  Future<List<HourlySalesBucketDto>> pullHourlySalesReport({
+    required String from,
+    required String to,
+    String? branchId,
+  }) async {
+    final qp = <String, String>{
+      'from': from,
+      'to': to,
+    };
+    if (branchId != null && branchId.isNotEmpty) {
+      qp['branch_id'] = branchId;
+    }
+
+    final uri = Uri.parse('$baseUrl/v1/reports/sales-hourly').replace(queryParameters: qp);
+
+    try {
+      final response = await _client.get(uri, headers: _headers).timeout(_timeout);
+
+      if (response.statusCode == 200) {
+        final json = jsonDecode(response.body) as Map<String, dynamic>;
+        final rawList = json['buckets'] as List? ?? [];
+        return rawList
+            .map((e) => HourlySalesBucketDto.fromJson(e as Map<String, dynamic>))
+            .toList();
+      } else if (response.statusCode == 401) {
+        final refresh = await _onRefresh?.call();
+        if (refresh == RefreshResult.success) {
+          return pullHourlySalesReport(from: from, to: to, branchId: branchId);
+        }
+        throw HttpException(
+          'Unauthorized while pulling hourly sales: session expired',
+          statusCode: 401,
+          requestId: response.headers['x-request-id'],
+        );
+      } else {
+        throw HttpException(
+          'Failed to pull hourly sales: HTTP ${response.statusCode}',
+          statusCode: response.statusCode,
+          requestId: response.headers['x-request-id'],
+        );
+      }
+    } catch (e) {
+      if (e is HttpException) rethrow;
+      throw NetworkException('Network error while pulling hourly sales', e);
+    }
+  }
+
   void close() {
     _client.close();
   }

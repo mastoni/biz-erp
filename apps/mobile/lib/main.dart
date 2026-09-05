@@ -217,6 +217,7 @@ class _MyAppState extends State<MyApp> {
             receivableRepo: _graph!.receivableRepo,
             expenseRepo: _graph!.expenseRepo,
             incomeRepo: _graph!.incomeRepo,
+            reportRepo: _graph!.reportRepo,
             printingService: _graph!.printingService,
           );
         },

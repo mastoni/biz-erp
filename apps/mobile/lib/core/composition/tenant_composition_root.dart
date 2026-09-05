@@ -31,6 +31,7 @@ import 'package:biz_erp_mobile/sales/data/sale_repository.dart';
 import 'package:biz_erp_mobile/receivables/data/receivable_repository.dart';
 import 'package:biz_erp_mobile/expenses/data/expense_repository.dart';
 import 'package:biz_erp_mobile/income/data/income_repository.dart';
+import 'package:biz_erp_mobile/reports/data/report_repository.dart';
 import 'package:biz_erp_mobile/inventory/data/stock_repository.dart';
 
 /// Container yang menyimpan semua instance dependency untuk sebuah sesi tenant/business.
@@ -54,6 +55,7 @@ class TenantDependencyGraph {
   final ReceivableRepository receivableRepo;
   final ExpenseRepository expenseRepo;
   final IncomeRepository incomeRepo;
+  final ReportRepository reportRepo;
 
   TenantDependencyGraph({
     required this.db,
@@ -75,6 +77,7 @@ class TenantDependencyGraph {
     required this.receivableRepo,
     required this.expenseRepo,
     required this.incomeRepo,
+    required this.reportRepo,
   });
 
   /// Membersihkan background workers, koneksi API, dan menutup koneksi SQLite terenkripsi.
@@ -210,6 +213,7 @@ class TenantCompositionRoot {
     final receivableRepo = ReceivableRepository(apiClient, db);
     final expenseRepo = ExpenseRepository(apiClient);
     final incomeRepo = IncomeRepository(apiClient);
+    final reportRepo = ReportRepository(apiClient);
 
     return TenantDependencyGraph(
       db: db,
@@ -231,6 +235,7 @@ class TenantCompositionRoot {
       receivableRepo: receivableRepo,
       expenseRepo: expenseRepo,
       incomeRepo: incomeRepo,
+      reportRepo: reportRepo,
     );
   }
 }

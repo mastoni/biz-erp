@@ -1243,6 +1243,106 @@ class PullIncomeResponse {
   }
 }
 
+// ============================================================================
+// MOB-REPORTS-1: Operational Sales Report DTOs
+// ============================================================================
+
+class PaymentMethodSummaryDto {
+  final String paymentMethod;
+  final int count;
+  final int totalMinor;
+
+  const PaymentMethodSummaryDto({
+    required this.paymentMethod,
+    required this.count,
+    required this.totalMinor,
+  });
+
+  factory PaymentMethodSummaryDto.fromJson(Map<String, dynamic> j) {
+    return PaymentMethodSummaryDto(
+      paymentMethod: j['payment_method'] as String? ?? 'cash',
+      count: (j['count'] as num?)?.toInt() ?? 0,
+      totalMinor: (j['total_minor'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
+class SalesSummaryDto {
+  final int totalSales;
+  final int totalRevenueMinor;
+  final int totalItemsSold;
+  final int averageOrderValueMinor;
+  final List<PaymentMethodSummaryDto> paymentMethods;
+
+  const SalesSummaryDto({
+    required this.totalSales,
+    required this.totalRevenueMinor,
+    required this.totalItemsSold,
+    required this.averageOrderValueMinor,
+    required this.paymentMethods,
+  });
+
+  factory SalesSummaryDto.fromJson(Map<String, dynamic> j) {
+    final rawPm = j['payment_methods'] as List? ?? [];
+    return SalesSummaryDto(
+      totalSales: (j['total_sales'] as num?)?.toInt() ?? 0,
+      totalRevenueMinor: (j['total_revenue_minor'] as num?)?.toInt() ?? 0,
+      totalItemsSold: (j['total_items_sold'] as num?)?.toInt() ?? 0,
+      averageOrderValueMinor: (j['average_order_value_minor'] as num?)?.toInt() ?? 0,
+      paymentMethods: rawPm
+          .map((e) => PaymentMethodSummaryDto.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
+  }
+}
+
+class ProductSalesReportDto {
+  final String productId;
+  final String productName;
+  final String? category;
+  final int totalQuantity;
+  final int totalRevenueMinor;
+
+  const ProductSalesReportDto({
+    required this.productId,
+    required this.productName,
+    this.category,
+    required this.totalQuantity,
+    required this.totalRevenueMinor,
+  });
+
+  factory ProductSalesReportDto.fromJson(Map<String, dynamic> j) {
+    return ProductSalesReportDto(
+      productId: j['product_id'] as String? ?? '',
+      productName: j['product_name'] as String? ?? '',
+      category: j['category'] as String?,
+      totalQuantity: (j['total_quantity'] as num?)?.toInt() ?? 0,
+      totalRevenueMinor: (j['total_revenue_minor'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
+class HourlySalesBucketDto {
+  final int hour;
+  final int totalRevenueMinor;
+  final int transactionCount;
+
+  const HourlySalesBucketDto({
+    required this.hour,
+    required this.totalRevenueMinor,
+    required this.transactionCount,
+  });
+
+  factory HourlySalesBucketDto.fromJson(Map<String, dynamic> j) {
+    return HourlySalesBucketDto(
+      hour: (j['hour'] as num?)?.toInt() ?? 0,
+      totalRevenueMinor: (j['total_revenue_minor'] as num?)?.toInt() ?? 0,
+      transactionCount: (j['transaction_count'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
+
 
 
 

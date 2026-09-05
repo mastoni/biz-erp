@@ -22,6 +22,8 @@ import 'package:biz_erp_mobile/expenses/data/expense_repository.dart';
 import 'package:biz_erp_mobile/expenses/presentation/expense_list_screen.dart';
 import 'package:biz_erp_mobile/income/data/income_repository.dart';
 import 'package:biz_erp_mobile/income/presentation/income_list_screen.dart';
+import 'package:biz_erp_mobile/reports/data/report_repository.dart';
+import 'package:biz_erp_mobile/reports/presentation/sales_report_screen.dart';
 import 'package:biz_erp_mobile/core/hardware/printing/printing_service.dart';
 import 'widgets/conflict_list_sheet.dart';
 import 'package:biz_erp_mobile/core/auth/auth_state_notifier.dart';
@@ -40,6 +42,7 @@ class PosScreen extends StatefulWidget {
   final ReceivableRepository? receivableRepo;
   final ExpenseRepository? expenseRepo;
   final IncomeRepository? incomeRepo;
+  final ReportRepository? reportRepo;
   final PrintingService? printingService;
 
   const PosScreen({
@@ -55,6 +58,7 @@ class PosScreen extends StatefulWidget {
     this.receivableRepo,
     this.expenseRepo,
     this.incomeRepo,
+    this.reportRepo,
     this.printingService,
     this.outboxRepo,
     this.authStateNotifier,
@@ -389,6 +393,33 @@ class _PosScreenState extends State<PosScreen> {
                     businessId: bizId,
                     branchId: widget.controller.branchId,
                     incomeRepo: widget.incomeRepo!,
+                    printingService: widget.printingService,
+                    userRole: widget.authStateNotifier?.session?.role ?? 'CASHIER',
+                  ),
+                ),
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.analytics, color: Color(0xFF2563EB)),
+            title: const Text('Laporan & Rekap Penjualan'),
+            subtitle: const Text('Ringkasan omset & cetak rekap kasir'),
+            onTap: () {
+              Navigator.pop(context);
+              if (widget.reportRepo == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Layanan laporan & rekap penjualan belum diaktifkan')),
+                );
+                return;
+              }
+              final bizId = widget.authStateNotifier?.businessId ?? widget.controller.businessId;
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => SalesReportScreen(
+                    businessId: bizId,
+                    branchId: widget.controller.branchId,
+                    reportRepo: widget.reportRepo!,
                     printingService: widget.printingService,
                     userRole: widget.authStateNotifier?.session?.role ?? 'CASHIER',
                   ),
