@@ -6,6 +6,7 @@ export interface ToolExecutionContext {
   businessId: string
   userId: string
   entitledServices: string[]
+  conversationId?: string
 }
 
 export interface ToolExecutionResult {
@@ -372,11 +373,29 @@ export function createAiToolRegistry(): {
         const priority = String(args.priority || 'MEDIUM').toUpperCase()
         const serviceCode = args.service_code ? String(args.service_code).toUpperCase() : null
 
+        // Idempotency: If conversationId is provided, check for existing active ticket
+        if (ctx.conversationId) {
+          const existingRes = await ctx.pool.query(
+            `SELECT id, business_id, conversation_id, service_code, subject, description, priority, status, source, created_at, updated_at
+             FROM support_tickets
+             WHERE conversation_id = $1 AND business_id = $2 AND status IN ('OPEN', 'IN_PROGRESS')
+             ORDER BY created_at DESC
+             LIMIT 1`,
+            [ctx.conversationId, ctx.businessId]
+          )
+          if (existingRes.rows.length > 0) {
+            return {
+              success: true,
+              data: existingRes.rows[0],
+            }
+          }
+        }
+
         const res = await ctx.pool.query(
-          `INSERT INTO support_tickets (business_id, service_code, subject, description, priority, status)
-           VALUES ($1, $2, $3, $4, $5, 'OPEN')
-           RETURNING id, business_id, service_code, subject, description, priority, status, created_at`,
-          [ctx.businessId, serviceCode, subject, description, priority]
+          `INSERT INTO support_tickets (business_id, conversation_id, service_code, subject, description, priority, status, source)
+           VALUES ($1, $2, $3, $4, $5, $6, 'OPEN', 'AI_CS')
+           RETURNING id, business_id, conversation_id, service_code, subject, description, priority, status, source, created_at, updated_at`,
+          [ctx.businessId, ctx.conversationId || null, serviceCode, subject, description, priority]
         )
 
         return {

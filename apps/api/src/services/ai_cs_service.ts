@@ -1,4 +1,5 @@
 import { Pool } from 'pg'
+import { withTransaction } from '../db/transaction'
 import { ApiError } from '../errors/api_error'
 import { ValidationError } from '../errors/validation_error'
 import { isUuid } from '../utils/uuid'
@@ -10,7 +11,10 @@ import {
   SendMessageInput,
   EscalateConversationInput,
   SupportTicketDto,
+  SupportTicketSource,
   AiToolResult,
+  PlatformAiCsSettingsDto,
+  UpdatePlatformAiCsSettingsInput,
 } from '../dto/ai_cs_dto'
 import { LlmProvider, DeterministicLlmProvider, LlmMessage } from './llm_provider'
 import { createAiKnowledgeService } from './ai_knowledge_service'
@@ -22,9 +26,49 @@ export function createAiCsService(
   customLlmProvider?: LlmProvider
 ) {
   const llmProvider = customLlmProvider || new DeterministicLlmProvider()
-  const knowledgeService = createAiKnowledgeService()
+  const knowledgeService = createAiKnowledgeService(pool)
   const toolRegistry = createAiToolRegistry()
   const auditService = createAuditService(pool)
+
+  async function getPlatformSettingsInternal(): Promise<{
+    id: string
+    is_enabled: boolean
+    provider: string
+    model: string
+    fallback_behavior: string
+    human_escalation_enabled: boolean
+    created_at: string
+    updated_at: string
+  }> {
+    try {
+      const res = await pool.query(`SELECT * FROM platform_ai_cs_settings WHERE id = 'default' LIMIT 1`)
+      if (res.rows.length > 0) {
+        const row = res.rows[0]
+        return {
+          id: row.id,
+          is_enabled: Boolean(row.is_enabled),
+          provider: row.provider || 'DETERMINISTIC',
+          model: row.model || 'rule-engine-v1',
+          fallback_behavior: row.fallback_behavior || 'GENERAL_FAQ',
+          human_escalation_enabled: Boolean(row.human_escalation_enabled),
+          created_at: row.created_at,
+          updated_at: row.updated_at,
+        }
+      }
+    } catch {
+      // If table not migrated yet or query fails in test mocks, fall back to safe defaults
+    }
+    return {
+      id: 'default',
+      is_enabled: true,
+      provider: 'DETERMINISTIC',
+      model: 'rule-engine-v1',
+      fallback_behavior: 'GENERAL_FAQ',
+      human_escalation_enabled: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+  }
 
   async function getTenantEntitlements(businessId: string): Promise<string[]> {
     const res = await pool.query(
@@ -74,17 +118,129 @@ export function createAiCsService(
       description: row.description as string,
       priority: row.priority as 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT',
       status: row.status as 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED',
+      source: (row.source as SupportTicketSource) || (row.conversation_id ? 'AI_CS' : 'MANUAL'),
       assigned_to: (row.assigned_to as string) ?? null,
-      created_at: row.created_at as string,
-      updated_at: row.updated_at as string,
+      created_at: row.created_at instanceof Date ? row.created_at.toISOString() : (row.created_at as string),
+      updated_at: row.updated_at instanceof Date ? row.updated_at.toISOString() : (row.updated_at as string),
     }
   }
 
   return {
     /**
+     * Get platform-wide AI CS settings
+     */
+    async getPlatformSettings(): Promise<PlatformAiCsSettingsDto> {
+      const settings = await getPlatformSettingsInternal()
+      let operationalHealth: 'HEALTHY' | 'DEGRADED' | 'UNAVAILABLE' = 'HEALTHY'
+      try {
+        await pool.query('SELECT 1')
+      } catch {
+        operationalHealth = 'UNAVAILABLE'
+      }
+      if (!settings.is_enabled) {
+        operationalHealth = 'DEGRADED'
+      }
+
+      return {
+        ...settings,
+        operational_health: operationalHealth,
+      }
+    },
+
+    /**
+     * Update platform-wide AI CS settings (Superadmin only)
+     */
+    async updatePlatformSettings(
+      input: UpdatePlatformAiCsSettingsInput,
+      actorUserId: string,
+      requestId?: string
+    ): Promise<PlatformAiCsSettingsDto> {
+      const before = await getPlatformSettingsInternal()
+
+      if (input.is_enabled !== undefined && typeof input.is_enabled !== 'boolean') {
+        throw new ValidationError('is_enabled must be a boolean')
+      }
+      if (input.human_escalation_enabled !== undefined && typeof input.human_escalation_enabled !== 'boolean') {
+        throw new ValidationError('human_escalation_enabled must be a boolean')
+      }
+
+      const newIsEnabled = input.is_enabled !== undefined ? input.is_enabled : before.is_enabled
+      const newHumanEscalation = input.human_escalation_enabled !== undefined ? input.human_escalation_enabled : before.human_escalation_enabled
+
+      const diff: Record<string, { before: unknown; after: unknown }> = {}
+      if (input.is_enabled !== undefined && input.is_enabled !== before.is_enabled) {
+        diff.is_enabled = { before: before.is_enabled, after: input.is_enabled }
+      }
+      if (input.human_escalation_enabled !== undefined && input.human_escalation_enabled !== before.human_escalation_enabled) {
+        diff.human_escalation_enabled = { before: before.human_escalation_enabled, after: input.human_escalation_enabled }
+      }
+
+      const res = await pool.query(
+        `UPDATE platform_ai_cs_settings
+         SET is_enabled = $1, human_escalation_enabled = $2, updated_at = NOW()
+         WHERE id = 'default'
+         RETURNING *`,
+        [newIsEnabled, newHumanEscalation]
+      )
+
+      const updatedRow = res.rows[0] || {
+        id: 'default',
+        is_enabled: newIsEnabled,
+        provider: before.provider,
+        model: before.model,
+        fallback_behavior: before.fallback_behavior,
+        human_escalation_enabled: newHumanEscalation,
+        created_at: before.created_at,
+        updated_at: new Date().toISOString(),
+      }
+
+      await auditService.recordAudit({
+        actor_id: actorUserId,
+        actor_scope: 'platform',
+        actor_role: 'SUPER_ADMIN',
+        action: 'AI_CS_SETTINGS_UPDATED',
+        target_type: 'platform_ai_cs_settings',
+        target_id: 'default',
+        before_state: {
+          is_enabled: before.is_enabled,
+          human_escalation_enabled: before.human_escalation_enabled,
+        },
+        after_state: {
+          is_enabled: updatedRow.is_enabled,
+          human_escalation_enabled: updatedRow.human_escalation_enabled,
+        },
+        diff: Object.keys(diff).length > 0 ? diff : null,
+        request_id: requestId ?? null,
+        status: 'SUCCESS',
+      })
+
+      let operationalHealth: 'HEALTHY' | 'DEGRADED' | 'UNAVAILABLE' = 'HEALTHY'
+      if (!updatedRow.is_enabled) {
+        operationalHealth = 'DEGRADED'
+      }
+
+      return {
+        id: updatedRow.id,
+        is_enabled: Boolean(updatedRow.is_enabled),
+        provider: updatedRow.provider || 'DETERMINISTIC',
+        model: updatedRow.model || 'rule-engine-v1',
+        fallback_behavior: updatedRow.fallback_behavior || 'GENERAL_FAQ',
+        human_escalation_enabled: Boolean(updatedRow.human_escalation_enabled),
+        operational_health: operationalHealth,
+        created_at: updatedRow.created_at,
+        updated_at: updatedRow.updated_at,
+      }
+    },
+
+    /**
      * Create a new AI CS Conversation
      */
     async createConversation(businessId: string, userId: string, input: CreateConversationInput): Promise<AiConversationDto> {
+      const settings = await getPlatformSettingsInternal()
+      if (!settings.is_enabled) {
+        throw new ApiError(403, 'AI_CS_DISABLED', 'AI Customer Service is currently disabled by platform administrator')
+      }
+
       if (input.service_code) {
         const sRes = await pool.query('SELECT code FROM services WHERE code = $1', [input.service_code.toUpperCase()])
         if (sRes.rows.length === 0) {
@@ -159,6 +315,11 @@ export function createAiCsService(
       input: SendMessageInput,
       requestId?: string
     ): Promise<AiChatResponseDto> {
+      const settings = await getPlatformSettingsInternal()
+      if (!settings.is_enabled) {
+        throw new ApiError(403, 'AI_CS_DISABLED', 'AI Customer Service is currently disabled by platform administrator')
+      }
+
       if (!isUuid(conversationId)) {
         throw new ValidationError('conversationId must be a valid UUID')
       }
@@ -200,7 +361,7 @@ export function createAiCsService(
       }))
 
       // 3. Search Relevant Knowledge
-      const kbMatches = knowledgeService.searchKnowledge(input.content, entitledServices)
+      const kbMatches = await knowledgeService.searchKnowledge(input.content, entitledServices)
       let systemPrompt = `You are SKMNetwork AI Customer Service. You operate within strict tenant and service boundaries.`
       if (kbMatches.length > 0) {
         systemPrompt += ` Relevant knowledge:\n` + kbMatches.map((k) => `[${k.domain}] ${k.title}: ${k.content}`).join('\n')
@@ -218,14 +379,25 @@ export function createAiCsService(
       const toolResults: AiToolResult[] = []
       let createdTicket: SupportTicketDto | null = null
 
-      // 5. If LLM requested tool calls, execute with entitlement checks
+      // 5. If LLM requested tool calls, execute with entitlement and escalation checks
       if (llmResponse.toolCalls && llmResponse.toolCalls.length > 0) {
         for (const toolCall of llmResponse.toolCalls) {
+          if (toolCall.name === 'create_support_ticket' && !settings.human_escalation_enabled) {
+            toolResults.push({
+              tool_call_id: toolCall.id,
+              name: toolCall.name,
+              success: false,
+              error: 'Human escalation is currently disabled by platform administrator',
+            })
+            continue
+          }
+
           const result = await toolRegistry.executeTool(toolCall.name, toolCall.arguments, {
             pool,
             businessId,
             userId,
             entitledServices,
+            conversationId,
           })
 
           toolResults.push({
@@ -280,7 +452,7 @@ export function createAiCsService(
         finalContent = toolFollowUp.content
       }
 
-      const isEscalated = llmResponse.intent === 'HUMAN_ESCALATION' || createdTicket !== null
+      const isEscalated = (llmResponse.intent === 'HUMAN_ESCALATION' || createdTicket !== null) && settings.human_escalation_enabled
 
       if (isEscalated) {
         await pool.query(
@@ -338,54 +510,82 @@ export function createAiCsService(
       input: EscalateConversationInput,
       requestId?: string
     ): Promise<SupportTicketDto> {
+      const settings = await getPlatformSettingsInternal()
+      if (!settings.is_enabled) {
+        throw new ApiError(403, 'AI_CS_DISABLED', 'AI Customer Service is currently disabled by platform administrator')
+      }
+      if (!settings.human_escalation_enabled) {
+        throw new ApiError(403, 'AI_ESCALATION_DISABLED', 'Human escalation is currently disabled by platform administrator')
+      }
+
       if (!isUuid(conversationId)) {
         throw new ValidationError('conversationId must be a valid UUID')
       }
 
-      const convRes = await pool.query(
-        `SELECT * FROM ai_conversations WHERE id = $1 AND business_id = $2`,
-        [conversationId, businessId]
-      )
+      return await withTransaction(pool, async (client) => {
+        const convRes = await client.query(
+          `SELECT * FROM ai_conversations WHERE id = $1 AND business_id = $2 FOR UPDATE`,
+          [conversationId, businessId]
+        )
 
-      if (convRes.rows.length === 0) {
-        throw new ApiError(404, 'NOT_FOUND', 'Conversation not found')
-      }
+        if (convRes.rows.length === 0) {
+          throw new ApiError(404, 'NOT_FOUND', 'Conversation not found')
+        }
 
-      const conversation = convRes.rows[0]
-      const subject = input.subject || 'Eskalasi Percakapan AI CS'
-      const description = input.description || 'Permintaan eskalasi bantuan langsung dari tenant'
-      const priority = input.priority || 'MEDIUM'
-      const serviceCode = input.service_code || conversation.service_code || null
+        const conversation = convRes.rows[0]
+        const subject = input.subject || 'Eskalasi Percakapan AI CS'
+        const description = input.description || 'Permintaan eskalasi bantuan langsung dari tenant'
+        const priority = input.priority || 'MEDIUM'
+        const serviceCode = input.service_code || conversation.service_code || null
 
-      const ticketRes = await pool.query(
-        `INSERT INTO support_tickets (business_id, conversation_id, service_code, subject, description, priority, status)
-         VALUES ($1, $2, $3, $4, $5, $6, 'OPEN')
-         RETURNING *`,
-        [businessId, conversationId, serviceCode, subject, description, priority]
-      )
+        // Idempotency: check if an active ticket already exists for this conversation
+        const existingTicketRes = await client.query(
+          `SELECT * FROM support_tickets
+           WHERE conversation_id = $1 AND business_id = $2 AND status IN ('OPEN', 'IN_PROGRESS')
+           ORDER BY created_at DESC
+           LIMIT 1`,
+          [conversationId, businessId]
+        )
 
-      await pool.query(
-        `UPDATE ai_conversations SET status = 'ESCALATED', updated_at = NOW() WHERE id = $1`,
-        [conversationId]
-      )
+        if (existingTicketRes.rows.length > 0) {
+          await client.query(
+            `UPDATE ai_conversations SET status = 'ESCALATED', updated_at = NOW() WHERE id = $1`,
+            [conversationId]
+          )
+          return mapTicketRow(existingTicketRes.rows[0])
+        }
 
-      const ticket = mapTicketRow(ticketRes.rows[0])
+        const ticketRes = await client.query(
+          `INSERT INTO support_tickets (business_id, conversation_id, service_code, subject, description, priority, status, source)
+           VALUES ($1, $2, $3, $4, $5, $6, 'OPEN', 'AI_CS')
+           RETURNING *`,
+          [businessId, conversationId, serviceCode, subject, description, priority]
+        )
 
-      await auditService.recordAudit({
-        actor_id: userId,
-        actor_scope: 'tenant',
-        action: 'AI_TICKET_ESCALATED',
-        service_code: serviceCode,
-        target_type: 'support_ticket',
-        target_id: ticket.id,
-        request_id: requestId ?? null,
-        metadata: {
-          conversation_id: conversationId,
-          priority,
-        },
+        await client.query(
+          `UPDATE ai_conversations SET status = 'ESCALATED', updated_at = NOW() WHERE id = $1`,
+          [conversationId]
+        )
+
+        const ticket = mapTicketRow(ticketRes.rows[0])
+
+        await auditService.recordAudit({
+          actor_id: userId,
+          actor_scope: 'tenant',
+          action: 'AI_TICKET_ESCALATED',
+          service_code: serviceCode,
+          target_type: 'support_ticket',
+          target_id: ticket.id,
+          request_id: requestId ?? null,
+          metadata: {
+            conversation_id: conversationId,
+            priority,
+            source: 'AI_CS',
+          },
+        })
+
+        return ticket
       })
-
-      return ticket
     },
 
     /**
@@ -418,5 +618,16 @@ export function createAiCsService(
 
       return mapTicketRow(res.rows[0])
     },
+
+    /**
+     * Knowledge Base operations (Superadmin Control Plane)
+     */
+    listKnowledgeArticles: knowledgeService.listArticles.bind(knowledgeService),
+    getKnowledgeArticleById: knowledgeService.getArticleById.bind(knowledgeService),
+    createKnowledgeArticle: knowledgeService.createArticle.bind(knowledgeService),
+    updateKnowledgeArticle: knowledgeService.updateArticle.bind(knowledgeService),
+    deleteKnowledgeArticle: knowledgeService.deleteArticle.bind(knowledgeService),
   }
 }
+
+

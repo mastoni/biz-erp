@@ -264,6 +264,22 @@ export default function PlatformTicketsPage() {
     }
   };
 
+  const sourceBadge = (source?: string, conversationId?: string | null) => {
+    if (source === 'AI_CS' || conversationId) {
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 gap-1">
+          <Sparkles className="w-3 h-3 text-emerald-600" />
+          AI CS Escalation
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
+        Manual / Admin
+      </span>
+    );
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -430,6 +446,7 @@ export default function PlatformTicketsPage() {
                 <TableRow>
                   <TableHead className="w-[120px]">ID Tiket</TableHead>
                   <TableHead>Bisnis / Tenant</TableHead>
+                  <TableHead className="w-[150px]">Sumber</TableHead>
                   <TableHead>Subjek & Deskripsi</TableHead>
                   <TableHead className="w-[100px]">Prioritas</TableHead>
                   <TableHead className="w-[130px]">Status</TableHead>
@@ -454,6 +471,9 @@ export default function PlatformTicketsPage() {
                           Layanan: {ticket.service_code}
                         </span>
                       )}
+                    </TableCell>
+                    <TableCell>
+                      {sourceBadge(ticket.source, ticket.conversation_id)}
                     </TableCell>
                     <TableCell className="max-w-xs">
                       <div className="font-medium text-sm text-ink truncate">{ticket.subject}</div>
@@ -571,7 +591,7 @@ export default function PlatformTicketsPage() {
                   )}
 
                   {/* Tenant & Service Info */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-3.5 rounded-lg border border-ink/5 text-xs">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-slate-50 p-3.5 rounded-lg border border-ink/5 text-xs">
                     <div>
                       <span className="text-ink/50 block font-medium">Bisnis / Penyewa:</span>
                       <span className="text-ink font-semibold text-sm">
@@ -584,7 +604,22 @@ export default function PlatformTicketsPage() {
                         {detailData?.service_code || 'CS_AI'}
                       </span>
                     </div>
+                    <div>
+                      <span className="text-ink/50 block font-medium">Sumber Tiket:</span>
+                      <div className="mt-1">
+                        {sourceBadge(detailData?.source, detailData?.conversation_id)}
+                      </div>
+                    </div>
                   </div>
+
+                  {/* Linked Conversation ID Traceability */}
+                  {detailData?.conversation_id && (
+                    <div className="flex items-center gap-2 p-2.5 bg-emerald-50/60 rounded-md border border-emerald-200/60 text-xs text-emerald-900">
+                      <Sparkles className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                      <span className="font-medium">Tertaut ke Sesi Percakapan AI CS:</span>
+                      <span className="font-mono font-semibold">{detailData.conversation_id}</span>
+                    </div>
+                  )}
 
                   {/* Description */}
                   <div>

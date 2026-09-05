@@ -2,6 +2,7 @@ export type AiMessageSender = 'USER' | 'ASSISTANT' | 'SYSTEM' | 'TOOL';
 export type AiConversationStatus = 'ACTIVE' | 'ESCALATED' | 'CLOSED';
 export type SupportTicketPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
 export type SupportTicketStatus = 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
+export type SupportTicketSource = 'MANUAL' | 'AI_CS' | 'SYSTEM' | 'API';
 
 export interface AiToolCall {
   id: string;
@@ -59,6 +60,7 @@ export interface SupportTicket {
   description: string;
   priority: SupportTicketPriority;
   status: SupportTicketStatus;
+  source?: SupportTicketSource;
   assigned_to: string | null;
   created_at: string;
   updated_at: string;

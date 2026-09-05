@@ -135,6 +135,7 @@ describe('Phase SA-3.0A: Customer CS AI Chat UI & Client Integration', () => {
         description: 'Permintaan bantuan manual dari sesi percakapan AI CS.',
         priority: 'MEDIUM' as const,
         status: 'OPEN' as const,
+        source: 'AI_CS' as const,
         assigned_to: null,
         created_at: '2026-09-04T12:02:00Z',
         updated_at: '2026-09-04T12:02:00Z',
@@ -155,6 +156,7 @@ describe('Phase SA-3.0A: Customer CS AI Chat UI & Client Integration', () => {
       });
       expect(res.ticket.id).toBe('ticket-999');
       expect(res.ticket.status).toBe('OPEN');
+      expect(res.ticket.source).toBe('AI_CS');
     });
   });
 

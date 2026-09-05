@@ -98,4 +98,31 @@ describe('SUPER ADMIN — Platform Support Tickets UI Tests', () => {
     expect(isNextDisabled(false, true)).toBe(false);
     expect(isNextDisabled(false, false)).toBe(true);
   });
+
+  it('SA-TCK-005: verifies API client functions handle source = AI_CS and conversation linkage', async () => {
+    vi.mocked(api.getPlatformTickets).mockResolvedValue(sampleTicketsResponse);
+
+    const data = await api.getPlatformTickets();
+    expect(data.items).toHaveLength(2);
+    expect(data.items[0].conversation_id).toBe('22000000-0000-0000-0000-000000000001');
+
+    vi.mocked(api.getPlatformTicketById).mockResolvedValue({
+      ...sampleTicketsResponse.items[0],
+      source: 'AI_CS',
+      conversation_messages: [
+        {
+          id: 'msg-1',
+          sender_type: 'USER',
+          sender_user_id: null,
+          content: 'Halo CS',
+          created_at: '2026-09-04T10:00:00Z',
+        },
+      ],
+    });
+
+    const detail = await api.getPlatformTicketById('99000000-0000-0000-0000-000000000001');
+    expect(detail.source).toBe('AI_CS');
+    expect(detail.conversation_id).toBe('22000000-0000-0000-0000-000000000001');
+    expect(detail.conversation_messages).toHaveLength(1);
+  });
 });

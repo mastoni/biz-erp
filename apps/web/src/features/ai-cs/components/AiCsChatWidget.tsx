@@ -146,11 +146,15 @@ export function AiCsChatWidget() {
               <CheckCircle2 className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" />
               <div>
                 <p className="font-semibold">
-                  Percakapan telah diteruskan ke tim CS.
+                  Permintaan Anda telah diteruskan ke tim bantuan.
                 </p>
-                {chat.escalatedTicket && (
+                {chat.escalatedTicket ? (
+                  <p className="text-[11px] text-amber-800/80 mt-0.5 font-mono">
+                    Support Ticket #{chat.escalatedTicket.id.slice(0, 8)} • Status: {chat.escalatedTicket.status}
+                  </p>
+                ) : (
                   <p className="text-[11px] text-amber-800/80 mt-0.5">
-                    Tiket #{chat.escalatedTicket.id.slice(0, 8)} telah dibuat.
+                    Tiket dukungan bantuan manusia aktif.
                   </p>
                 )}
               </div>

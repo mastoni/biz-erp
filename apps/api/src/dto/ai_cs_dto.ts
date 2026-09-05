@@ -2,6 +2,7 @@ export type AiMessageSender = 'USER' | 'ASSISTANT' | 'SYSTEM' | 'TOOL'
 export type AiConversationStatus = 'ACTIVE' | 'ESCALATED' | 'CLOSED'
 export type SupportTicketPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'
 export type SupportTicketStatus = 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED'
+export type SupportTicketSource = 'MANUAL' | 'AI_CS' | 'SYSTEM' | 'API'
 
 export interface AiToolCall {
   id: string
@@ -75,7 +76,65 @@ export interface SupportTicketDto {
   description: string
   priority: SupportTicketPriority
   status: SupportTicketStatus
+  source: SupportTicketSource
   assigned_to: string | null
   created_at: string
   updated_at: string
 }
+
+export interface PlatformAiCsSettingsDto {
+  id: string
+  is_enabled: boolean
+  provider: string
+  model: string
+  fallback_behavior: string
+  human_escalation_enabled: boolean
+  operational_health: 'HEALTHY' | 'DEGRADED' | 'UNAVAILABLE'
+  created_at: string
+  updated_at: string
+}
+
+export interface UpdatePlatformAiCsSettingsInput {
+  is_enabled?: boolean
+  human_escalation_enabled?: boolean
+}
+
+export interface KnowledgeArticleDto {
+  id: string
+  code: string | null
+  category: string
+  title: string
+  content: string
+  keywords: string[]
+  is_public: boolean
+  is_active: boolean
+  priority_order: number
+  created_by: string | null
+  updated_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateKnowledgeArticleInput {
+  code?: string | null
+  category: string
+  title: string
+  content: string
+  keywords?: string[]
+  is_public?: boolean
+  is_active?: boolean
+  priority_order?: number
+}
+
+export interface UpdateKnowledgeArticleInput {
+  code?: string | null
+  category?: string
+  title?: string
+  content?: string
+  keywords?: string[]
+  is_public?: boolean
+  is_active?: boolean
+  priority_order?: number
+}
+
+
