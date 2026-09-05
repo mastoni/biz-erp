@@ -5,6 +5,7 @@ import { ValidationError } from '../errors/validation_error'
 import { isUuid } from '../utils/uuid'
 import { createPlatformService } from './platform_service'
 import { createAuditService } from './audit_service'
+import { createTopUpIntentService } from './top_up_intent_service'
 
 export interface GatewayTransactionResult {
   order_id: string
@@ -33,6 +34,7 @@ export interface WebhookProcessingResult {
   message: string
   invoice_id?: string
   payment_id?: string
+  intent_id?: string
   event_id: string
 }
 
@@ -42,9 +44,19 @@ export interface PaymentGatewayService {
     actorUserId: string,
     requestId?: string
   ): Promise<GatewayTransactionResult>
+  createTopUpTransaction(
+    intentId: string,
+    actorUserId: string,
+    requestId?: string
+  ): Promise<GatewayTransactionResult>
   verifyMidtransSignature(payload: MidtransWebhookPayload): boolean
   processMidtransWebhook(
     payload: MidtransWebhookPayload,
+    requestId?: string
+  ): Promise<WebhookProcessingResult>
+  processTopUpWebhook(
+    payload: MidtransWebhookPayload,
+    intentRow: Record<string, unknown>,
     requestId?: string
   ): Promise<WebhookProcessingResult>
 }
@@ -183,6 +195,93 @@ export function createPaymentGatewayService(pool: Pool): PaymentGatewayService {
       }
     },
 
+    async createTopUpTransaction(
+      intentId: string,
+      actorUserId: string,
+      requestId?: string
+    ): Promise<GatewayTransactionResult> {
+      if (!isUuid(intentId)) {
+        throw new ValidationError('intentId must be a valid UUID')
+      }
+
+      const intentRes = await pool.query(
+        `SELECT * FROM top_up_intents WHERE id = $1`,
+        [intentId]
+      )
+
+      if (intentRes.rows.length === 0) {
+        throw new ApiError(404, 'NOT_FOUND', 'Top-up intent not found')
+      }
+
+      const intent = intentRes.rows[0]
+      if (intent.status === 'SUCCEEDED') {
+        throw new ApiError(400, 'INTENT_ALREADY_SETTLED', 'Cannot create payment transaction for an already settled intent')
+      }
+      if (intent.status === 'CANCELLED' || intent.status === 'EXPIRED' || intent.status === 'FAILED') {
+        throw new ApiError(400, 'INVALID_INTENT_STATE', `Cannot create payment transaction for a ${intent.status} intent`)
+      }
+
+      const orderId = intent.intent_number
+      const grossAmount = Number(intent.total_payable)
+      const expiresAt = typeof intent.expires_at === 'string' ? intent.expires_at : intent.expires_at.toISOString()
+
+      const tokenHash = crypto
+        .createHash('sha256')
+        .update(`${orderId}-${grossAmount}-${serverKey}`)
+        .digest('hex')
+        .slice(0, 36)
+      const snapToken = `snap-token-${tokenHash}`
+      const snapRedirectUrl = isProduction
+        ? `https://app.midtrans.com/snap/v2/vtweb/${snapToken}`
+        : `https://app.sandbox.midtrans.com/snap/v2/vtweb/${snapToken}`
+
+      const existingMeta = (intent.metadata as Record<string, unknown>) || {}
+      const updatedMeta = {
+        ...existingMeta,
+        gateway: 'MIDTRANS',
+        gateway_order_id: orderId,
+        gateway_token: snapToken,
+        gateway_redirect_url: snapRedirectUrl,
+        gateway_initiated_at: new Date().toISOString(),
+        gateway_initiated_by: actorUserId,
+      }
+
+      await pool.query(
+        `UPDATE top_up_intents
+         SET metadata = $1, status = 'PROCESSING', updated_at = now()
+         WHERE id = $2`,
+        [JSON.stringify(updatedMeta), intentId]
+      )
+
+      await auditService.recordAudit({
+        actor_id: actorUserId,
+        actor_scope: 'platform',
+        action: 'WALLET_TOPUP_PAYMENT_INITIATED',
+        service_code: 'DIGITAL_WALLET',
+        target_type: 'top_up_intent',
+        target_id: intentId,
+        request_id: requestId ?? null,
+        status: 'SUCCESS',
+        metadata: {
+          intent_id: intentId,
+          intent_number: orderId,
+          amount: grossAmount,
+          currency: intent.currency,
+          gateway: 'MIDTRANS',
+          token_preview: snapToken.slice(0, 15) + '...',
+        },
+      })
+
+      return {
+        order_id: orderId,
+        token: snapToken,
+        redirect_url: snapRedirectUrl,
+        gross_amount: grossAmount,
+        currency: intent.currency,
+        expires_at: expiresAt,
+      }
+    },
+
     verifyMidtransSignature(payload: MidtransWebhookPayload): boolean {
       return verifySignature(payload)
     },
@@ -219,13 +318,23 @@ export function createPaymentGatewayService(pool: Pool): PaymentGatewayService {
 
       const eventId = String(payload.transaction_id || `${payload.order_id}:${payload.status_code}:${payload.transaction_status}`)
 
-      // 3. Resolve platform invoice by order_id (which is invoice_number)
+      // 3. Resolve target entity: platform invoice or top-up intent
       const invRes = await pool.query(
         `SELECT * FROM platform_invoices WHERE invoice_number = $1`,
         [payload.order_id]
       )
 
       if (invRes.rows.length === 0) {
+        // Check if order_id is a top_up_intent
+        const topUpRes = await pool.query(
+          `SELECT * FROM top_up_intents WHERE intent_number = $1`,
+          [payload.order_id]
+        )
+
+        if (topUpRes.rows.length > 0) {
+          return this.processTopUpWebhook(payload, topUpRes.rows[0], requestId)
+        }
+
         await auditService.recordAudit({
           actor_id: null,
           actor_scope: 'platform',
@@ -235,14 +344,14 @@ export function createPaymentGatewayService(pool: Pool): PaymentGatewayService {
           target_id: null,
           request_id: requestId ?? null,
           status: 'FAILURE',
-          error_message: `Platform invoice not found for order_id ${payload.order_id}`,
+          error_message: `Platform invoice or top-up intent not found for order_id ${payload.order_id}`,
           metadata: {
             order_id: payload.order_id,
             event_id: eventId,
             gateway: 'MIDTRANS',
           },
         })
-        throw new ApiError(404, 'NOT_FOUND', `Platform invoice not found for order_id ${payload.order_id}`)
+        throw new ApiError(404, 'NOT_FOUND', `Platform invoice or top-up intent not found for order_id ${payload.order_id}`)
       }
 
       const invoice = invRes.rows[0]
@@ -412,6 +521,160 @@ export function createPaymentGatewayService(pool: Pool): PaymentGatewayService {
         status: 'PROCESSED',
         message: `Webhook received for status: ${rawStatus}`,
         invoice_id: invoiceId,
+        event_id: eventId,
+      }
+    },
+
+    async processTopUpWebhook(
+      payload: MidtransWebhookPayload,
+      intentRow: Record<string, unknown>,
+      requestId?: string
+    ): Promise<WebhookProcessingResult> {
+      const topUpService = createTopUpIntentService(pool, auditService)
+      const eventId = String(payload.transaction_id || `${payload.order_id}:${payload.status_code}:${payload.transaction_status}`)
+      const intentId = intentRow.id as string
+      const intentNumber = String(intentRow.intent_number)
+
+      // 1. Webhook Idempotency Check
+      const existingEvent = await pool.query(
+        `SELECT * FROM platform_payment_webhook_events WHERE gateway = 'MIDTRANS' AND event_id = $1`,
+        [eventId]
+      )
+
+      if (existingEvent.rows.length > 0) {
+        return {
+          status: 'ALREADY_PROCESSED',
+          message: 'Webhook event already processed (idempotent)',
+          intent_id: intentId,
+          event_id: eventId,
+        }
+      }
+
+      // 2. Evaluate Transaction Status
+      const rawStatus = (payload.transaction_status || '').toLowerCase()
+      const fraudStatus = (payload.fraud_status || '').toLowerCase()
+
+      const isSettled =
+        rawStatus === 'settlement' ||
+        (rawStatus === 'capture' && (fraudStatus === 'accept' || fraudStatus === ''))
+
+      const isPending = rawStatus === 'pending'
+      const isFailedOrExpired =
+        rawStatus === 'deny' ||
+        rawStatus === 'expire' ||
+        rawStatus === 'cancel' ||
+        rawStatus === 'failure'
+
+      const safePayload = {
+        order_id: payload.order_id,
+        status_code: payload.status_code,
+        gross_amount: payload.gross_amount,
+        transaction_status: payload.transaction_status,
+        fraud_status: payload.fraud_status,
+        transaction_id: payload.transaction_id,
+        payment_type: payload.payment_type,
+        transaction_time: payload.transaction_time,
+      }
+
+      if (isSettled) {
+        if (intentRow.status === 'SUCCEEDED') {
+          await pool.query(
+            `INSERT INTO platform_payment_webhook_events (
+              gateway, event_id, invoice_id, event_type, raw_payload, status
+            ) VALUES ($1, $2, NULL, $3, $4, 'IGNORED_ALREADY_PAID')
+            ON CONFLICT (gateway, event_id) DO NOTHING`,
+            ['MIDTRANS', eventId, rawStatus, JSON.stringify(safePayload)]
+          )
+
+          return {
+            status: 'IGNORED_ALREADY_PAID',
+            message: 'Top-up intent is already settled. Duplicate payment ignored.',
+            intent_id: intentId,
+            event_id: eventId,
+          }
+        }
+
+        const paidAmount = Number(payload.gross_amount)
+        const paymentRef = String(payload.transaction_id || payload.order_id)
+
+        await topUpService.settleIntent({
+          intent_number: intentNumber,
+          payment_reference: paymentRef,
+          gateway_transaction_id: payload.transaction_id ? String(payload.transaction_id) : undefined,
+          paid_amount: paidAmount,
+          payment_method: payload.payment_type ? String(payload.payment_type) : undefined,
+          actor_scope: 'system'
+        })
+
+        await pool.query(
+          `INSERT INTO platform_payment_webhook_events (
+            gateway, event_id, invoice_id, event_type, raw_payload, status
+          ) VALUES ($1, $2, NULL, $3, $4, 'PROCESSED')
+          ON CONFLICT (gateway, event_id) DO NOTHING`,
+          ['MIDTRANS', eventId, rawStatus, JSON.stringify(safePayload)]
+        )
+
+        return {
+          status: 'PROCESSED',
+          message: 'Top-up intent settled and wallet credited successfully',
+          intent_id: intentId,
+          event_id: eventId,
+        }
+      }
+
+      if (isPending) {
+        await pool.query(
+          `INSERT INTO platform_payment_webhook_events (
+            gateway, event_id, invoice_id, event_type, raw_payload, status
+          ) VALUES ($1, $2, NULL, $3, $4, 'PENDING')
+          ON CONFLICT (gateway, event_id) DO NOTHING`,
+          ['MIDTRANS', eventId, rawStatus, JSON.stringify(safePayload)]
+        )
+
+        return {
+          status: 'PENDING',
+          message: 'Top-up payment pending completion by customer',
+          intent_id: intentId,
+          event_id: eventId,
+        }
+      }
+
+      if (isFailedOrExpired) {
+        if (rawStatus === 'expire') {
+          await topUpService.expireIntent(intentNumber, { actor_scope: 'system' }).catch(() => {})
+        } else {
+          await topUpService.failIntent(intentNumber, `Gateway status: ${rawStatus}`, { actor_scope: 'system' }).catch(() => {})
+        }
+
+        await pool.query(
+          `INSERT INTO platform_payment_webhook_events (
+            gateway, event_id, invoice_id, event_type, raw_payload, status
+          ) VALUES ($1, $2, NULL, $3, $4, $5)
+          ON CONFLICT (gateway, event_id) DO NOTHING`,
+          ['MIDTRANS', eventId, rawStatus, JSON.stringify(safePayload), rawStatus.toUpperCase()]
+        )
+
+        return {
+          status: rawStatus === 'expire' ? 'EXPIRED' : 'FAILED',
+          message: `Top-up payment ${rawStatus}`,
+          intent_id: intentId,
+          event_id: eventId,
+        }
+      }
+
+      // Default unhandled
+      await pool.query(
+        `INSERT INTO platform_payment_webhook_events (
+          gateway, event_id, invoice_id, event_type, raw_payload, status
+        ) VALUES ($1, $2, NULL, $3, $4, 'PROCESSED')
+        ON CONFLICT (gateway, event_id) DO NOTHING`,
+        ['MIDTRANS', eventId, rawStatus, JSON.stringify(safePayload)]
+      )
+
+      return {
+        status: 'PROCESSED',
+        message: `Webhook received for status: ${rawStatus}`,
+        intent_id: intentId,
         event_id: eventId,
       }
     },

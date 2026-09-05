@@ -124,3 +124,70 @@ export interface WalletLedgerQueryFilter {
   limit?: number
   offset?: number
 }
+
+export type TopUpIntentStatus =
+  | 'PENDING'
+  | 'PROCESSING'
+  | 'SUCCEEDED'
+  | 'FAILED'
+  | 'EXPIRED'
+  | 'CANCELLED'
+
+export interface TopUpIntentDto {
+  id: string
+  intent_number: string
+  wallet_id: string
+  account_customer_id: string
+  amount: number
+  fee_amount: number
+  total_payable: number
+  currency: string
+  status: TopUpIntentStatus
+  payment_method: string | null
+  payment_reference: string | null
+  gateway_transaction_id: string | null
+  expires_at: string
+  settled_at: string | null
+  metadata: Record<string, unknown>
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateTopUpIntentInput {
+  wallet_id: string
+  account_customer_id: string
+  amount: number
+  fee_amount?: number
+  currency?: string
+  payment_method?: string
+  expires_in_hours?: number
+  metadata?: Record<string, unknown>
+  actor_id?: string | null
+  actor_scope?: WalletActorScope
+}
+
+export interface SettleTopUpIntentInput {
+  intent_number: string
+  payment_reference: string
+  gateway_transaction_id?: string
+  paid_amount?: number
+  currency?: string
+  payment_method?: string
+  actor_id?: string | null
+  actor_scope?: WalletActorScope
+}
+
+export interface SettleTopUpIntentResult {
+  intent: TopUpIntentDto
+  wallet_mutation: WalletMutationResult
+  already_processed: boolean
+}
+
+export interface TopUpIntentQueryFilter {
+  wallet_id?: string
+  account_customer_id?: string
+  status?: TopUpIntentStatus
+  limit?: number
+  offset?: number
+}
+
