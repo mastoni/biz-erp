@@ -3,6 +3,7 @@ import { ApiError, ValidationError } from '../errors/api_error'
 import { isUuid } from '../utils/uuid'
 import { withTransaction } from '../db/transaction'
 import { createAuditService } from './audit_service'
+import { createWalletService } from './wallet_service'
 
 export interface PlatformContext {
   scope: 'platform'
@@ -262,7 +263,7 @@ export function createPlatformService(pool: Pool) {
         throw new ValidationError('Invalid business id format')
       }
 
-      return withTransaction(pool, async (client) => {
+      const result = await withTransaction(pool, async (client) => {
         const bizRes = await client.query('SELECT id, status, name FROM businesses WHERE id = $1 FOR UPDATE', [id])
         if (bizRes.rows.length === 0) {
           throw new ApiError(404, 'NOT_FOUND', 'Business not found')
@@ -287,8 +288,15 @@ export function createPlatformService(pool: Pool) {
           RETURNING id, name, status, approved_at, approved_by, updated_at
         `
         const res = await client.query(updateSql, [actorUserId, id])
+
         return res.rows[0]
       })
+
+      // Auto-initialize default digital wallet for newly approved tenant (after transaction commit)
+      const walletService = createWalletService(pool, createAuditService(pool))
+      await walletService.ensureTenantWallet(id, { actor_id: actorUserId, actor_scope: 'platform' }).catch(() => {})
+
+      return result
     },
 
     async rejectBusiness(id: string, actorUserId: string, reason?: string): Promise<Record<string, unknown>> {

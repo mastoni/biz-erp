@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto'
 import { Pool, PoolClient } from 'pg'
 import {
   WalletAccountDto,
@@ -86,6 +87,109 @@ export function createWalletService(
       }
 
       return account
+    },
+
+    async ensureTenantWallet(
+      businessId: string,
+      actorContext?: { actor_id?: string | null; actor_scope?: 'platform' | 'tenant' | 'system' }
+    ): Promise<WalletAccountDto> {
+      // 1. Verify business exists and is active
+      const bizRes = await pool.query(
+        `SELECT id, name, account_customer_id, status FROM businesses WHERE id = $1`,
+        [businessId]
+      )
+      if (bizRes.rows.length === 0 || bizRes.rows[0].status !== 'ACTIVE') {
+        throw new ApiError(400, 'INVALID_BUSINESS', 'Business not found or not active')
+      }
+      const biz = bizRes.rows[0]
+
+      let accountCustomerId = biz.account_customer_id
+      if (!accountCustomerId) {
+        // Find existing account_customer by business code or name, or create one
+        const acCode = `ACC-BIZ-${businessId.substring(0, 8)}`
+        const acRes = await pool.query(
+          `SELECT id FROM account_customers WHERE code = $1 LIMIT 1`,
+          [acCode]
+        )
+        if (acRes.rows.length > 0) {
+          accountCustomerId = acRes.rows[0].id
+        } else {
+          const newAcId = randomUUID()
+          await pool.query(
+            `INSERT INTO account_customers (id, code, name, account_type, status, created_at, updated_at)
+             VALUES ($1, $2, $3, 'BUSINESS', 'ACTIVE', now(), now())`,
+            [newAcId, acCode, biz.name || 'Tenant Account']
+          )
+          accountCustomerId = newAcId
+        }
+
+        await pool.query(
+          `UPDATE businesses SET account_customer_id = $1, updated_at = now() WHERE id = $2`,
+          [accountCustomerId, businessId]
+        )
+      }
+
+      // 2. Check if wallet already exists for this business or account customer (IDR)
+      const existing = await walletRepo.getAccountByCustomerAndCurrency(accountCustomerId, 'IDR')
+      if (existing) {
+        // Ensure business_id is linked if it was not already populated
+        if (!existing.business_id) {
+          await pool.query(
+            `UPDATE wallet_accounts SET business_id = $1, updated_at = now() WHERE id = $2`,
+            [businessId, existing.id]
+          )
+          existing.business_id = businessId
+        }
+        return existing
+      }
+
+      // 3. Create wallet atomically with race-safety handling
+      try {
+        const walletNumber = generateWalletNumber()
+        const account = await walletRepo.createAccount({
+          accountCustomerId,
+          businessId,
+          walletNumber,
+          currency: 'IDR',
+          metadata: {
+            auto_initialized: true,
+            initialized_at: new Date().toISOString()
+          }
+        })
+
+        if (auditService) {
+          await auditService.recordAudit({
+            actor_id: actorContext?.actor_id ?? null,
+            actor_scope: actorContext?.actor_scope ?? 'system',
+            action: 'WALLET_ACCOUNT_CREATED',
+            service_code: 'DIGITAL_WALLET',
+            target_type: 'wallet_account',
+            target_id: account.id,
+            after_state: {
+              wallet_id: account.id,
+              wallet_number: account.wallet_number,
+              account_customer_id: account.account_customer_id,
+              business_id: account.business_id,
+              currency: account.currency,
+              balance: account.balance
+            },
+            metadata: {
+              wallet_number: account.wallet_number,
+              currency: account.currency,
+              auto_initialized: true
+            }
+          }).catch(() => {})
+        }
+
+        return account
+      } catch (err: any) {
+        // Handle race condition on unique constraint uq_account_customer_currency
+        if (err.code === '23505') {
+          const recheck = await walletRepo.getAccountByCustomerAndCurrency(accountCustomerId, 'IDR')
+          if (recheck) return recheck
+        }
+        throw err
+      }
     },
 
     async getAccountById(id: string): Promise<WalletAccountDto> {

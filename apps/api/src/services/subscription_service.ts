@@ -11,6 +11,7 @@ import {
 } from '../dto/subscription_dto'
 import { withTransaction } from '../db/transaction'
 import { isUuid } from '../utils/uuid'
+import { createWalletService } from './wallet_service'
 
 // ---------------------------------------------------------------------------
 // Internal helpers
@@ -282,7 +283,7 @@ export function createSubscriptionService(pool: Pool) {
 
       const request = validateSubscriptionUpdate(data)
 
-      return withTransaction(pool, async (client) => {
+      const updated = await withTransaction(pool, async (client) => {
         // First check if subscription exists and belongs to tenant
         const existing = await client.query(
           'SELECT * FROM subscriptions WHERE id = $1 AND business_id = $2',
@@ -358,13 +359,20 @@ export function createSubscriptionService(pool: Pool) {
 
         return mapRowToDto(result.rows[0])
       })
+
+      if (data.status === 'ACTIVE') {
+        const walletService = createWalletService(pool)
+        await walletService.ensureTenantWallet(tenantId).catch(() => {})
+      }
+
+      return updated
     },
 
     /**
      * Activate a subscription (PENDING -> ACTIVE).
      */
     async activate(id: string, tenantId: string): Promise<SubscriptionDto> {
-      return withTransaction(pool, async (client) => {
+      const activated = await withTransaction(pool, async (client) => {
         const existing = await client.query(
           'SELECT * FROM subscriptions WHERE id = $1 AND business_id = $2',
           [id, tenantId]
@@ -413,6 +421,12 @@ export function createSubscriptionService(pool: Pool) {
 
         return mapRowToDto(result.rows[0])
       })
+
+      // Ensure tenant wallet account exists (after transaction commit)
+      const walletService = createWalletService(pool)
+      await walletService.ensureTenantWallet(tenantId).catch(() => {})
+
+      return activated
     },
 
     /**

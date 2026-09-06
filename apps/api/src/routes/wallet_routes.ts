@@ -167,7 +167,27 @@ export function createWalletRoutes(pool: Pool): Router {
           limit,
           offset
         }
-        const result = await walletService.listAccounts(filter)
+        let result = await walletService.listAccounts(filter)
+
+        // Auto-initialize default IDR wallet if none exists for active tenant
+        if (
+          result.items.length === 0 &&
+          (!status || status === 'ACTIVE') &&
+          (!currency || currency === 'IDR') &&
+          claims.business_id
+        ) {
+          const autoWallet = await walletService.ensureTenantWallet(claims.business_id, {
+            actor_id: claims.sub,
+            actor_scope: 'tenant'
+          })
+          if (autoWallet) {
+            result = {
+              items: [autoWallet],
+              total: 1
+            }
+          }
+        }
+
         res.status(200).json({
           items: result.items,
           total: result.total,
