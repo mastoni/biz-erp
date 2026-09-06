@@ -82,8 +82,8 @@ jobs:
 
                     // 1. Update password hash and ensure ACTIVE status
                     await pool.query(
-                      "UPDATE users SET password_hash = $1, status = 'ACTIVE' WHERE id = $2 AND platform_role = 'SUPER_ADMIN'",
-                      [hash, u.id]
+                      "UPDATE users SET password_hash = $1, status = $2 WHERE id = $3 AND platform_role = $4",
+                      [hash, "ACTIVE", u.id, "SUPER_ADMIN"]
                     );
                     console.log("[ALIGNMENT SUCCESS] Password hash updated for SUPER_ADMIN.");
 
@@ -96,11 +96,8 @@ jobs:
 
                     // 3. Record audit event in platform_audit_logs
                     await pool.query(
-                      `INSERT INTO platform_audit_logs (
-                        actor_id, actor_email, actor_scope, actor_role, action,
-                        target_type, target_id, status, metadata
-                      ) VALUES ($1, $2, 'system', 'SUPER_ADMIN', 'SUPERADMIN_PASSWORD_RESET', 'user', $1, 'SUCCESS', $3)`,
-                      [u.id, email, JSON.stringify({ reason: "Controlled Superadmin Credential Alignment via Workflow" })]
+                      "INSERT INTO platform_audit_logs (actor_id, actor_email, actor_scope, actor_role, action, target_type, target_id, status, metadata) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
+                      [u.id, email, "system", "SUPER_ADMIN", "SUPERADMIN_PASSWORD_RESET", "user", u.id, "SUCCESS", JSON.stringify({ reason: "Controlled Superadmin Credential Alignment via Workflow" })]
                     );
                     console.log("[AUDIT RECORDED] SUPERADMIN_PASSWORD_RESET event successfully logged.");
                     return;
@@ -112,8 +109,8 @@ jobs:
                 const userId = randomUUID();
 
                 await pool.query(
-                  "INSERT INTO users (id, email, password_hash, status, platform_role) VALUES ($1, $2, $3, 'ACTIVE', 'SUPER_ADMIN')",
-                  [userId, email, hash]
+                  "INSERT INTO users (id, email, password_hash, status, platform_role) VALUES ($1, $2, $3, $4, $5)",
+                  [userId, email, hash, "ACTIVE", "SUPER_ADMIN"]
                 );
 
                 console.log("[BOOTSTRAP SUCCESS] Initial SUPER_ADMIN created successfully: email=" + email + ", status=ACTIVE, platform_role=SUPER_ADMIN (zero tenant binding).");
