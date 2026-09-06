@@ -4,6 +4,7 @@ import { createJwtService, AccessTokenClaims } from '../services/jwt_service'
 import { createWalletService } from '../services/wallet_service'
 import { createTopUpIntentService } from '../services/top_up_intent_service'
 import { createAuditService } from '../services/audit_service'
+import { createWalletReconciliationService } from '../services/wallet_reconciliation_service'
 import {
   WalletAccountDto,
   WalletQueryFilter,
@@ -30,6 +31,7 @@ export function createWalletRoutes(pool: Pool): Router {
   const auditService = createAuditService(pool)
   const walletService = createWalletService(pool, auditService)
   const topUpService = createTopUpIntentService(pool, auditService)
+  const reconciliationService = createWalletReconciliationService(pool, walletService, auditService)
 
   // ---------------------------------------------------------------------------
   // Authentication Middleware
@@ -571,6 +573,167 @@ export function createWalletRoutes(pool: Pool): Router {
           }
         })
       }
+
+      res.status(200).json(result)
+    })
+  )
+
+  // ===========================================================================
+  // 12. GET /v1/wallets/reconciliation — Reconcile wallet settlements (DW-2D)
+  // ===========================================================================
+  router.get(
+    '/reconciliation',
+    asyncHandler<WalletAuthenticatedRequest>(async (req, res) => {
+      const claims = req.claims!
+
+      let targetBusinessId: string | null = null
+
+      if (claims.scope === 'platform' && (claims.role === 'SUPER_ADMIN' || claims.role === 'PLATFORM_ADMIN')) {
+        const queryBiz = typeof req.query.business_id === 'string' ? req.query.business_id.trim() : null
+        if (!queryBiz || !isUuid(queryBiz)) {
+          throw new ValidationError('business_id query parameter is required for platform administrators')
+        }
+        targetBusinessId = queryBiz
+      } else if (claims.scope === 'tenant' && claims.role === 'OWNER') {
+        if (!claims.business_id) {
+          throw new ApiError(400, 'MISSING_BUSINESS_CONTEXT', 'Tenant business context is missing')
+        }
+        targetBusinessId = claims.business_id
+      } else {
+        throw new ApiError(403, 'INSUFFICIENT_PERMISSIONS', 'Only tenant owners and platform admins can view settlement reconciliation')
+      }
+
+      const domain = req.query.domain as any
+      const fromDate = typeof req.query.fromDate === 'string' ? req.query.fromDate.trim() : undefined
+      const toDate = typeof req.query.toDate === 'string' ? req.query.toDate.trim() : undefined
+
+      const result = await reconciliationService.reconcileSettlements(
+        targetBusinessId,
+        { domain, fromDate, toDate },
+        {
+          actorId: claims.sub,
+          actorScope: claims.scope === 'platform' ? 'platform' : 'tenant',
+          actorRole: claims.role
+        }
+      )
+
+      res.status(200).json(result)
+    })
+  )
+
+  // ===========================================================================
+  // 13. POST /v1/wallets/refunds/invoice/:id — Compensating refund for invoice (DW-2D)
+  // ===========================================================================
+  router.post(
+    '/refunds/invoice/:id',
+    asyncHandler<WalletAuthenticatedRequest>(async (req, res) => {
+      const claims = req.claims!
+      const invoiceId = req.params.id
+
+      if (!isUuid(invoiceId)) {
+        throw new ValidationError('Invoice ID must be a valid UUID')
+      }
+
+      let targetBusinessId: string | null = null
+
+      if (claims.scope === 'platform' && (claims.role === 'SUPER_ADMIN' || claims.role === 'PLATFORM_ADMIN')) {
+        const queryBiz = typeof req.query.business_id === 'string' ? req.query.business_id.trim() : null
+        if (queryBiz && isUuid(queryBiz)) {
+          targetBusinessId = queryBiz
+        } else {
+          // Resolve business_id from invoice
+          const invRes = await pool.query(`SELECT business_id FROM customer_invoices WHERE id = $1`, [invoiceId])
+          if (invRes.rows.length === 0) {
+            throw new ApiError(404, 'INVOICE_NOT_FOUND', 'Invoice not found')
+          }
+          targetBusinessId = invRes.rows[0].business_id
+        }
+      } else if (claims.scope === 'tenant' && claims.role === 'OWNER') {
+        if (!claims.business_id) {
+          throw new ApiError(400, 'MISSING_BUSINESS_CONTEXT', 'Tenant business context is missing')
+        }
+        targetBusinessId = claims.business_id
+      } else {
+        throw new ApiError(403, 'INSUFFICIENT_PERMISSIONS', 'Only tenant owners and platform admins can perform wallet settlement refunds')
+      }
+
+      const body = req.body
+      if (!body || typeof body !== 'object') {
+        throw new ValidationError('Request body is required')
+      }
+
+      const result = await reconciliationService.refundInvoiceSettlement(
+        targetBusinessId!,
+        invoiceId,
+        {
+          reason: body.reason,
+          idempotency_key: body.idempotency_key
+        },
+        {
+          actorId: claims.sub,
+          actorScope: claims.scope === 'platform' ? 'platform' : 'tenant',
+          actorRole: claims.role
+        }
+      )
+
+      res.status(200).json(result)
+    })
+  )
+
+  // ===========================================================================
+  // 14. POST /v1/wallets/refunds/sale/:id — Compensating refund for POS sale (DW-2D)
+  // ===========================================================================
+  router.post(
+    '/refunds/sale/:id',
+    asyncHandler<WalletAuthenticatedRequest>(async (req, res) => {
+      const claims = req.claims!
+      const saleId = req.params.id
+
+      if (!isUuid(saleId)) {
+        throw new ValidationError('Sale ID must be a valid UUID')
+      }
+
+      let targetBusinessId: string | null = null
+
+      if (claims.scope === 'platform' && (claims.role === 'SUPER_ADMIN' || claims.role === 'PLATFORM_ADMIN')) {
+        const queryBiz = typeof req.query.business_id === 'string' ? req.query.business_id.trim() : null
+        if (queryBiz && isUuid(queryBiz)) {
+          targetBusinessId = queryBiz
+        } else {
+          // Resolve business_id from sale
+          const saleRes = await pool.query(`SELECT business_id FROM sales WHERE id = $1`, [saleId])
+          if (saleRes.rows.length === 0) {
+            throw new ApiError(404, 'SALE_NOT_FOUND', 'Sale not found')
+          }
+          targetBusinessId = saleRes.rows[0].business_id
+        }
+      } else if (claims.scope === 'tenant' && claims.role === 'OWNER') {
+        if (!claims.business_id) {
+          throw new ApiError(400, 'MISSING_BUSINESS_CONTEXT', 'Tenant business context is missing')
+        }
+        targetBusinessId = claims.business_id
+      } else {
+        throw new ApiError(403, 'INSUFFICIENT_PERMISSIONS', 'Only tenant owners and platform admins can perform wallet settlement refunds')
+      }
+
+      const body = req.body
+      if (!body || typeof body !== 'object') {
+        throw new ValidationError('Request body is required')
+      }
+
+      const result = await reconciliationService.refundSaleSettlement(
+        targetBusinessId!,
+        saleId,
+        {
+          reason: body.reason,
+          idempotency_key: body.idempotency_key
+        },
+        {
+          actorId: claims.sub,
+          actorScope: claims.scope === 'platform' ? 'platform' : 'tenant',
+          actorRole: claims.role
+        }
+      )
 
       res.status(200).json(result)
     })
