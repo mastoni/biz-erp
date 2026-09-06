@@ -42,15 +42,22 @@ let walletC: string
 
 async function cleanWalletData(): Promise<void> {
   await pool.query(`
-    UPDATE businesses SET account_customer_id = NULL WHERE account_customer_id IS NOT NULL;
-    UPDATE subscriptions SET account_customer_id = NULL WHERE account_customer_id IS NOT NULL;
-    DELETE FROM platform_payment_webhook_events;
-    DELETE FROM platform_audit_logs;
-    DELETE FROM wallet_ledgers;
-    DELETE FROM top_up_intents;
-    DELETE FROM wallet_accounts;
-    DELETE FROM account_customer_users;
-    DELETE FROM account_customers;
+    UPDATE businesses SET account_customer_id = NULL WHERE id IN ('${BUSINESS_A}', '${BUSINESS_B}');
+    UPDATE subscriptions SET account_customer_id = NULL WHERE business_id IN ('${BUSINESS_A}', '${BUSINESS_B}');
+    DELETE FROM wallet_ledgers WHERE wallet_id IN (
+      SELECT id FROM wallet_accounts WHERE business_id IN ('${BUSINESS_A}', '${BUSINESS_B}')
+      OR account_customer_id IN (SELECT id FROM account_customers WHERE code LIKE 'ACC-A-%' OR code LIKE 'ACC-B-%' OR code LIKE 'ACC-C-%' OR code LIKE 'ACC-D-%')
+    );
+    DELETE FROM top_up_intents WHERE wallet_id IN (
+      SELECT id FROM wallet_accounts WHERE business_id IN ('${BUSINESS_A}', '${BUSINESS_B}')
+      OR account_customer_id IN (SELECT id FROM account_customers WHERE code LIKE 'ACC-A-%' OR code LIKE 'ACC-B-%' OR code LIKE 'ACC-C-%' OR code LIKE 'ACC-D-%')
+    );
+    DELETE FROM wallet_accounts WHERE business_id IN ('${BUSINESS_A}', '${BUSINESS_B}')
+      OR account_customer_id IN (SELECT id FROM account_customers WHERE code LIKE 'ACC-A-%' OR code LIKE 'ACC-B-%' OR code LIKE 'ACC-C-%' OR code LIKE 'ACC-D-%');
+    DELETE FROM account_customer_users WHERE account_customer_id IN (
+      SELECT id FROM account_customers WHERE code LIKE 'ACC-A-%' OR code LIKE 'ACC-B-%' OR code LIKE 'ACC-C-%' OR code LIKE 'ACC-D-%'
+    );
+    DELETE FROM account_customers WHERE code LIKE 'ACC-A-%' OR code LIKE 'ACC-B-%' OR code LIKE 'ACC-C-%' OR code LIKE 'ACC-D-%';
     DELETE FROM devices WHERE business_id IN ('${BUSINESS_A}', '${BUSINESS_B}');
     DELETE FROM branches WHERE business_id IN ('${BUSINESS_A}', '${BUSINESS_B}');
     DELETE FROM user_businesses WHERE business_id IN ('${BUSINESS_A}', '${BUSINESS_B}');
