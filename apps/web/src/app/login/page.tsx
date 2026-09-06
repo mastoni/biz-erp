@@ -196,6 +196,12 @@ export default function LoginPage() {
               <Label htmlFor="password" className="text-xs font-semibold text-ink">
                 Kata Sandi
               </Label>
+              <Link
+                href="/forgot-password"
+                className="text-xs font-medium text-pine hover:underline transition-colors"
+              >
+                Lupa Kata Sandi?
+              </Link>
             </div>
             <Input
               id="password"

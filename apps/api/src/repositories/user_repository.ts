@@ -27,7 +27,9 @@ export interface BusinessUser {
 export interface UserRepository {
   findByEmail(email: string): Promise<InternalUser | null>
   findById(client: Pool | PoolClient, id: string): Promise<PublicUser | null>
+  findByIdWithPassword(client: Pool | PoolClient, id: string): Promise<InternalUser | null>
   findByBusiness(client: PoolClient, businessId: string): Promise<BusinessUser[]>
+  updatePasswordHash(client: Pool | PoolClient, userId: string, passwordHash: string): Promise<void>
 }
 
 export function createUserRepository(pool: Pool): UserRepository {
@@ -63,6 +65,21 @@ export function createUserRepository(pool: Pool): UserRepository {
       return result.rows[0] as PublicUser
     },
 
+    async findByIdWithPassword(client: Pool | PoolClient, id: string): Promise<InternalUser | null> {
+      const result = await client.query(
+        `SELECT id, email, password_hash, status, created_at, updated_at, platform_role
+         FROM users
+         WHERE id = $1`,
+        [id]
+      )
+
+      if (result.rows.length === 0) {
+        return null
+      }
+
+      return result.rows[0] as InternalUser
+    },
+
     async findByBusiness(client: PoolClient, businessId: string): Promise<BusinessUser[]> {
       const result = await client.query(
         `SELECT u.id, u.email, u.status, u.created_at, u.updated_at, ub.role
@@ -76,6 +93,15 @@ export function createUserRepository(pool: Pool): UserRepository {
       )
 
       return result.rows as BusinessUser[]
+    },
+
+    async updatePasswordHash(client: Pool | PoolClient, userId: string, passwordHash: string): Promise<void> {
+      await client.query(
+        `UPDATE users
+         SET password_hash = $1, updated_at = now()
+         WHERE id = $2`,
+        [passwordHash, userId]
+      )
     }
   }
 }

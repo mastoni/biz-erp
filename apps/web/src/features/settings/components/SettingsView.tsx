@@ -3,6 +3,7 @@
 import React, { useState, ReactNode } from 'react';
 import { PRINTER_MODELS } from '../settings-helpers';
 import { useSettingsViewModel } from '../use-settings-viewmodel';
+import { changePassword, parsePasswordError } from '@/features/auth/password-recovery';
 
 /* ============ Formatters ============ */
 function idr(v: number): string {
@@ -128,6 +129,7 @@ const SECTIONS = [
   { id: 'scanner', label: 'Scanner', icon: '📷' },
   { id: 'laci', label: 'Laci Kasir', icon: '🗄️' },
   { id: 'perangkat', label: 'Perangkat', icon: '🔌' },
+  { id: 'keamanan', label: 'Ubah Kata Sandi', icon: '🔐' },
 ];
 
 export const CONTROLLED_DEVICES = [
@@ -135,6 +137,127 @@ export const CONTROLLED_DEVICES = [
   { id: 'scanner', name: 'Barcode Scanner Honeywell Voyager', port: 'COM3 · USB HID', status: 'terhubung' as const },
   { id: 'drawer', name: 'Laci Kasir EPSON UB-E04', port: 'RJ11 · Pin 2 Solenoid', status: 'terhubung' as const },
 ];
+
+/* ============ Change Password Card ============ */
+export function ChangePasswordCard() {
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmation, setConfirmation] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    if (newPassword !== confirmation) {
+      setErrorMsg('Konfirmasi kata sandi baru tidak cocok.');
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      setErrorMsg('Kata sandi baru minimal 8 karakter.');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const res = await changePassword({
+        current_password: currentPassword,
+        new_password: newPassword,
+        confirmation,
+      });
+      setSuccessMsg(res.message || 'Kata sandi berhasil diubah.');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmation('');
+    } catch (err) {
+      setErrorMsg(parsePasswordError(err));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <SettingCard
+      id="keamanan"
+      icon="🔐"
+      title="Ubah Kata Sandi"
+      desc="Perbarui kata sandi akun Anda untuk meningkatkan keamanan akun bisnis."
+    >
+      <form onSubmit={handleChangePassword} className="space-y-4 max-w-lg">
+        {errorMsg && (
+          <div className="rounded-lg border border-clay/30 bg-clay-soft/40 p-3 text-xs text-clay">
+            {errorMsg}
+          </div>
+        )}
+        {successMsg && (
+          <div className="rounded-lg border border-pine/30 bg-pine-soft/40 p-3 text-xs text-pine font-semibold">
+            ✓ {successMsg}
+          </div>
+        )}
+
+        <div>
+          <label htmlFor="current-password" className="block text-[12px] font-bold uppercase tracking-wider text-fog mb-1">
+            Kata Sandi Lama
+          </label>
+          <input
+            id="current-password"
+            type="password"
+            required
+            value={currentPassword}
+            onChange={(e) => setCurrentPassword(e.target.value)}
+            placeholder="Masukkan kata sandi lama"
+            className="w-full rounded-lg border border-line bg-white px-3 py-2 text-sm text-ink outline-none focus:border-pine focus:ring-1 focus:ring-pine"
+          />
+        </div>
+
+        <div>
+          <label htmlFor="new-password" className="block text-[12px] font-bold uppercase tracking-wider text-fog mb-1">
+            Kata Sandi Baru
+          </label>
+          <input
+            id="new-password"
+            type="password"
+            required
+            minLength={8}
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            placeholder="Minimal 8 karakter"
+            className="w-full rounded-lg border border-line bg-white px-3 py-2 text-sm text-ink outline-none focus:border-pine focus:ring-1 focus:ring-pine"
+          />
+        </div>
+
+        <div>
+          <label htmlFor="confirm-new-password" className="block text-[12px] font-bold uppercase tracking-wider text-fog mb-1">
+            Konfirmasi Kata Sandi Baru
+          </label>
+          <input
+            id="confirm-new-password"
+            type="password"
+            required
+            minLength={8}
+            value={confirmation}
+            onChange={(e) => setConfirmation(e.target.value)}
+            placeholder="Ulangi kata sandi baru"
+            className="w-full rounded-lg border border-line bg-white px-3 py-2 text-sm text-ink outline-none focus:border-pine focus:ring-1 focus:ring-pine"
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={isLoading}
+          className="rounded-lg bg-pine px-4 py-2 text-xs font-bold text-[#f2efe2] shadow-sm hover:bg-pine-deep disabled:opacity-50 cursor-pointer"
+        >
+          {isLoading ? 'Menyimpan...' : 'Ubah Kata Sandi'}
+        </button>
+      </form>
+    </SettingCard>
+  );
+}
 
 /* ============ Main SettingsView Component ============ */
 export function SettingsView({
@@ -790,6 +913,9 @@ export function SettingsView({
               ))}
             </ul>
           </SettingCard>
+
+          {/* SECTION 7: UBAH KATA SANDI */}
+          <ChangePasswordCard />
         </div>
       </div>
 

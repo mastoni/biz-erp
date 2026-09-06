@@ -7,6 +7,8 @@ import { createUserBusinessRepository } from '../repositories/user_business_repo
 import { createRefreshTokenService } from '../services/refresh_token_service'
 import { createJwtService, TokenRole, AccessTokenClaims } from '../services/jwt_service'
 import { createRegistrationService } from '../services/registration_service'
+import { createEmailService } from '../services/email_service'
+import { createPasswordResetService } from '../services/password_reset_service'
 import { validateRegistrationRequest } from '../dto/registration_dto'
 import { ApiError } from '../errors/api_error'
 import { ValidationError } from '../errors/validation_error'
@@ -23,6 +25,8 @@ export function createAuthRouter(pool: Pool): Router {
   const userBusinessRepo = createUserBusinessRepository(pool)
   const authService = createAuthService(userRepo, userBusinessRepo)
   const refreshTokenService = createRefreshTokenService(pool)
+  const emailService = createEmailService()
+  const passwordResetService = createPasswordResetService(pool, userRepo, emailService)
 
   // Use environment variables for JWT secret
   const jwtSecret = process.env.JWT_SECRET || 'insecure-test-secret-that-is-at-least-32-chars-long'
@@ -442,6 +446,112 @@ export function createAuthRouter(pool: Pool): Router {
         role: membership.role,
         scope: 'tenant'
       })
+    } catch (err) {
+      next(err)
+    }
+  })
+
+  const changePasswordLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'TOO_MANY_REQUESTS', message: 'Terlalu banyak percobaan ubah kata sandi. Silakan coba beberapa saat lagi.' },
+    skip: (req) => process.env.NODE_ENV === 'test' && !req.headers['x-forwarded-for'],
+    handler: (req, res, next, options) => {
+      res.status(options.statusCode).json(options.message)
+    }
+  })
+
+  const forgotPasswordLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 hour
+    max: 5,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'TOO_MANY_REQUESTS', message: 'Terlalu banyak permintaan pemulihan kata sandi. Silakan coba 1 jam lagi.' },
+    skip: (req) => {
+      if (process.env.NODE_ENV === 'test') {
+        const body = req.body as Record<string, unknown> | undefined
+        const email = body?.email as string | undefined
+        if (email && email.includes('ratelimit')) {
+          return false
+        }
+        return !req.headers['x-forwarded-for']
+      }
+      return false
+    },
+    handler: (req, res, next, options) => {
+      res.status(options.statusCode).json(options.message)
+    }
+  })
+
+  const resetPasswordLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'TOO_MANY_REQUESTS', message: 'Terlalu banyak percobaan atur ulang kata sandi. Silakan coba beberapa saat lagi.' },
+    skip: (req) => process.env.NODE_ENV === 'test' && !req.headers['x-forwarded-for'],
+    handler: (req, res, next, options) => {
+      res.status(options.statusCode).json(options.message)
+    }
+  })
+
+  router.post('/change-password', universalJwtAuth as RequestHandler, changePasswordLimiter, async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authReq = req as UniversalAuthenticatedRequest
+      if (!authReq.universalUser) {
+        throw new ApiError(401, 'UNAUTHORIZED', 'Unauthorized')
+      }
+
+      const { current_password, new_password, confirmation } = req.body
+
+      const result = await passwordResetService.changePassword({
+        userId: authReq.universalUser.userId,
+        currentPassword: current_password,
+        newPassword: new_password,
+        confirmation,
+        currentSessionId: authReq.universalUser.sessionId,
+        actorScope: authReq.universalUser.scope,
+        ipAddress: req.ip || (req.headers['x-forwarded-for'] as string),
+        userAgent: req.headers['user-agent']
+      })
+
+      res.status(200).json(result)
+    } catch (err) {
+      next(err)
+    }
+  })
+
+  router.post('/forgot-password', forgotPasswordLimiter, async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { email } = req.body
+
+      const result = await passwordResetService.requestPasswordReset({
+        email,
+        clientIp: req.ip || (req.headers['x-forwarded-for'] as string),
+        userAgent: req.headers['user-agent']
+      })
+
+      res.status(200).json(result)
+    } catch (err) {
+      next(err)
+    }
+  })
+
+  router.post('/reset-password', resetPasswordLimiter, async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { token, new_password, confirmation } = req.body
+
+      const result = await passwordResetService.resetPassword({
+        token,
+        newPassword: new_password,
+        confirmation,
+        clientIp: req.ip || (req.headers['x-forwarded-for'] as string),
+        userAgent: req.headers['user-agent']
+      })
+
+      res.status(200).json(result)
     } catch (err) {
       next(err)
     }

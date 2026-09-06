@@ -83,6 +83,31 @@ export const refreshSessionRepository = {
     )
   },
 
+  async revokeAllForUser(client: PoolClient, userId: string): Promise<void> {
+    await client.query(
+      `
+      UPDATE refresh_tokens
+      SET revoked_at = now()
+      WHERE user_id = $1
+        AND revoked_at IS NULL
+      `,
+      [userId]
+    )
+  },
+
+  async revokeAllForUserExcept(client: PoolClient, userId: string, exceptSessionId: string): Promise<void> {
+    await client.query(
+      `
+      UPDATE refresh_tokens
+      SET revoked_at = now()
+      WHERE user_id = $1
+        AND id != $2
+        AND revoked_at IS NULL
+      `,
+      [userId, exceptSessionId]
+    )
+  },
+
   async updateLastUsed(client: PoolClient, id: string): Promise<void> {
     await client.query(
       `
