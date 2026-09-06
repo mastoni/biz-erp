@@ -14,6 +14,7 @@ export interface SalePayload {
   cashier_id: string | null
   customer_id: string | null
   branch_id: string
+  wallet_id?: string | null
   created_at: string | null
   client_created_at: string | null
 }
@@ -147,6 +148,7 @@ function validateSale(raw: unknown, path: string, errors: Errors): SalePayload |
     cashier_id: cashierId === undefined || cashierId === null || cashierId === '' ? null : String(cashierId).trim(),
     customer_id: customerId === undefined || customerId === null || customerId === '' ? null : String(customerId).trim(),
     branch_id: typeof branchId === 'string' && isUuid(branchId) ? branchId.trim() : '',
+    wallet_id: validateOptionalUuid(raw, 'wallet_id', path, errors),
     created_at: validateOptionalTimestamp(raw, 'created_at', path, errors),
     client_created_at: validateOptionalTimestamp(raw, 'client_created_at', path, errors)
   }

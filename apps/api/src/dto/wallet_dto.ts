@@ -10,6 +10,7 @@ export type WalletTransactionType =
   | 'FEE'
   | 'ADJUSTMENT'
   | 'INVOICE_PAYMENT'
+  | 'POS_PAYMENT'
 
 export type WalletEntryType = 'DEBIT' | 'CREDIT'
 

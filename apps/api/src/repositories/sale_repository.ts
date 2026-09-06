@@ -29,12 +29,13 @@ export const saleRepository = {
           change_minor,
           cashier_id,
           customer_id,
+          wallet_id,
           created_at,
           client_created_at,
           server_created_at
         )
         VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17
         )
         RETURNING id, receipt_number, server_created_at
       `
@@ -55,8 +56,10 @@ export const saleRepository = {
           sale.change_minor,
           sale.cashier_id,
           sale.customer_id,
+          sale.wallet_id ?? null,
           createdAt,
-          clientCreatedAt, createdAt
+          clientCreatedAt,
+          createdAt
         ])
       } catch (err: any) {
         if (err.code === '23505' && err.constraint === 'idx_sales_business_receipt') {
@@ -119,6 +122,7 @@ export const saleRepository = {
           s.change_minor,
           s.cashier_id,
           s.customer_id,
+          s.wallet_id,
           s.client_created_at,
           s.server_created_at,
           COALESCE(ik.idempotency_key, s.id::text) as idempotency_key
@@ -176,6 +180,7 @@ export const saleRepository = {
         change_minor: row.change_minor ? Number(row.change_minor) : 0,
         cashier_id: row.cashier_id,
         customer_id: row.customer_id,
+        wallet_id: row.wallet_id ?? null,
         client_created_at: new Date(row.client_created_at || row.server_created_at).getTime(),
         server_created_at: new Date(row.server_created_at).getTime(),
         items: (itemsBySaleId.get(row.id) || []).map((item: any) => ({
@@ -202,6 +207,7 @@ export const saleRepository = {
       payment_method: string | null
       cashier_id: string | null
       customer_id: string | null
+      wallet_id: string | null
       created_at: string
       server_created_at: string
     } | null> {
@@ -210,6 +216,7 @@ export const saleRepository = {
           id, business_id, branch_id, receipt_number,
           subtotal_minor, discount_minor, tax_minor, total_minor,
           paid_minor, payment_method, cashier_id, customer_id,
+          wallet_id,
           client_created_at, server_created_at
         FROM sales
         WHERE id = $1 AND business_id = $2`,
@@ -232,6 +239,7 @@ export const saleRepository = {
         payment_method: row.payment_method,
         cashier_id: row.cashier_id,
         customer_id: row.customer_id,
+        wallet_id: row.wallet_id ?? null,
         created_at: row.client_created_at || row.server_created_at,
         server_created_at: row.server_created_at instanceof Date ? row.server_created_at.toISOString() : String(row.server_created_at)
       }
