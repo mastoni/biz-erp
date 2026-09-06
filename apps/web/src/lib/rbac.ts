@@ -69,31 +69,76 @@ export interface NavigationItem {
   name: string;
   href: string;
   icon: LucideIcon;
+  group: string;
+}
+
+export interface NavigationGroup {
+  title: string;
+  items: NavigationItem[];
 }
 
 export const NAVIGATION_ITEMS: NavigationItem[] = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Kasir', href: '/pos', icon: ShoppingCart },
-  { name: 'Products', href: '/products', icon: Package },
-  { name: 'Inventory', href: '/inventory', icon: Boxes },
-  { name: 'Movement History', href: '/inventory/movements', icon: Boxes },
-  { name: 'Stock Adjustment', href: '/inventory/adjustment', icon: Boxes },
-  { name: 'Perangkat Hardware', href: '/devices', icon: HardDrive },
-  { name: 'Layanan Servis', href: '/device-services', icon: Wrench },
-  { name: 'Langganan & Tagihan', href: '/billing', icon: RefreshCw },
-  { name: 'Digital Wallet', href: '/wallet', icon: Wallet },
-  { name: 'Sales', href: '/sales', icon: ShoppingCart },
-  { name: 'Pembelian', href: '/purchases', icon: Truck },
-  { name: 'Customers', href: '/customers', icon: Users },
-  { name: 'Supplier', href: '/suppliers', icon: Users },
-  { name: 'Pembukuan', href: '/finance/bookkeeping', icon: BookOpen },
-  { name: 'Laporan Keuangan', href: '/finance', icon: TrendingUp },
-  { name: 'Users', href: '/users', icon: UserCog },
-  { name: 'Reports', href: '/reports', icon: FileText },
-  { name: 'Pengaturan', href: '/settings', icon: Sliders },
+  // 1. RINGKASAN & KASIR
+  { name: 'Dasbor', href: '/dashboard', icon: LayoutDashboard, group: 'Ringkasan & Kasir' },
+  { name: 'Kasir', href: '/pos', icon: ShoppingCart, group: 'Ringkasan & Kasir' },
+  { name: 'Penjualan', href: '/sales', icon: ShoppingCart, group: 'Ringkasan & Kasir' },
+
+  // 2. PRODUK & STOK
+  { name: 'Katalog Produk', href: '/products', icon: Package, group: 'Produk & Stok' },
+  { name: 'Stok Barang', href: '/inventory', icon: Boxes, group: 'Produk & Stok' },
+  { name: 'Riwayat Stok', href: '/inventory/movements', icon: Boxes, group: 'Produk & Stok' },
+  { name: 'Penyesuaian Stok', href: '/inventory/adjustment', icon: Boxes, group: 'Produk & Stok' },
+
+  // 3. PEMBELIAN & KONTAK
+  { name: 'Pembelian', href: '/purchases', icon: Truck, group: 'Pembelian & Kontak' },
+  { name: 'Pelanggan', href: '/customers', icon: Users, group: 'Pembelian & Kontak' },
+  { name: 'Supplier', href: '/suppliers', icon: Users, group: 'Pembelian & Kontak' },
+
+  // 4. KEUANGAN & DOMPET
+  { name: 'Laporan Keuangan', href: '/finance', icon: TrendingUp, group: 'Keuangan & Dompet' },
+  { name: 'Pembukuan', href: '/finance/bookkeeping', icon: BookOpen, group: 'Keuangan & Dompet' },
+  { name: 'Digital Wallet', href: '/wallet', icon: Wallet, group: 'Keuangan & Dompet' },
+
+  // 5. LAPORAN & PENGATURAN
+  { name: 'Laporan', href: '/reports', icon: FileText, group: 'Laporan & Pengaturan' },
+  { name: 'Kelola Pengguna', href: '/users', icon: UserCog, group: 'Laporan & Pengaturan' },
+  { name: 'Pengaturan', href: '/settings', icon: Sliders, group: 'Laporan & Pengaturan' },
+  { name: 'Perangkat Hardware', href: '/devices', icon: HardDrive, group: 'Laporan & Pengaturan' },
+  { name: 'Layanan Servis', href: '/device-services', icon: Wrench, group: 'Laporan & Pengaturan' },
+  { name: 'Langganan & Tagihan', href: '/billing', icon: RefreshCw, group: 'Laporan & Pengaturan' },
 ];
 
 export function getAuthorizedNavigation(role: Role | null): NavigationItem[] {
   if (!role) return [];
   return NAVIGATION_ITEMS.filter((item) => canAccessRoute(role, item.href));
+}
+
+export function getGroupedAuthorizedNavigation(role: Role | null): NavigationGroup[] {
+  const authorizedItems = getAuthorizedNavigation(role);
+  const groupOrder = [
+    'Ringkasan & Kasir',
+    'Produk & Stok',
+    'Pembelian & Kontak',
+    'Keuangan & Dompet',
+    'Laporan & Pengaturan',
+  ];
+
+  const groupMap = new Map<string, NavigationItem[]>();
+  groupOrder.forEach((g) => groupMap.set(g, []));
+
+  authorizedItems.forEach((item) => {
+    const list = groupMap.get(item.group) || [];
+    list.push(item);
+    groupMap.set(item.group, list);
+  });
+
+  const groups: NavigationGroup[] = [];
+  groupOrder.forEach((title) => {
+    const items = groupMap.get(title) || [];
+    if (items.length > 0) {
+      groups.push({ title, items });
+    }
+  });
+
+  return groups;
 }

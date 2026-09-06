@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import { Menu, LogOut, Building2, ChevronDown, Check } from 'lucide-react';
 import { useAuth } from '@/features/auth/AuthContext';
 import { useBranchContext } from '@/features/branches/BranchContext';
-import { getAuthorizedNavigation, Role } from '@/lib/rbac';
+import { getGroupedAuthorizedNavigation, Role } from '@/lib/rbac';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -33,7 +33,7 @@ export function Header({ className }: HeaderProps = {}) {
 
   if (!user || !role) return null;
 
-  const navigation = getAuthorizedNavigation(role as Role);
+  const groups = getGroupedAuthorizedNavigation(role as Role);
   const userInitials = user.email ? user.email.substring(0, 2).toUpperCase() : 'U';
 
   const handleLogout = async () => {
@@ -55,27 +55,34 @@ export function Header({ className }: HeaderProps = {}) {
             <div className="flex h-16 items-center px-6 border-b border-[#f0efe7]/10">
               <SKMNetworkLogo dark size={28} />
             </div>
-            <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-1">
-              {navigation.map((item) => {
-                const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(`${item.href}/`));
-                const Icon = item.icon;
+            <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-4">
+              {groups.map((group) => (
+                <div key={group.title} className="space-y-1">
+                  <div className="px-3 text-[10px] font-bold uppercase tracking-wider text-[#f0efe7]/40 font-mono">
+                    {group.title}
+                  </div>
+                  {group.items.map((item) => {
+                    const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(`${item.href}/`));
+                    const Icon = item.icon;
 
-                return (
-                  <Link
-                    key={item.name}
-                    href={item.href}
-                    onClick={() => setOpen(false)}
-                    className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-medium transition-all ${
-                      isActive
-                        ? 'bg-[#17593e] text-[#f0efe7] font-semibold shadow-sm'
-                        : 'text-[#f0efe7]/70 hover:bg-[#f0efe7]/8 hover:text-[#f0efe7]'
-                    }`}
-                  >
-                    <Icon className={`h-4 w-4 ${isActive ? 'text-[#d3921f]' : 'text-[#f0efe7]/50'}`} />
-                    {item.name}
-                  </Link>
-                );
-              })}
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={() => setOpen(false)}
+                        className={`flex items-center gap-3 px-3.5 py-2 rounded-lg text-xs font-medium transition-all ${
+                          isActive
+                            ? 'bg-[#17593e] text-[#f0efe7] font-semibold shadow-sm'
+                            : 'text-[#f0efe7]/70 hover:bg-[#f0efe7]/8 hover:text-[#f0efe7]'
+                        }`}
+                      >
+                        <Icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-[#d3921f]' : 'text-[#f0efe7]/50'}`} />
+                        <span>{item.name}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              ))}
             </nav>
             <div className="p-4 border-t border-[#f0efe7]/10 bg-[#0a1b14]">
               <div className="flex items-center gap-3">

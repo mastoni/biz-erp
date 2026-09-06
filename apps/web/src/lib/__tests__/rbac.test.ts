@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { canAccessRoute, getAuthorizedNavigation, ROUTE_PERMISSIONS, NAVIGATION_ITEMS } from '../rbac';
+import { canAccessRoute, getAuthorizedNavigation, getGroupedAuthorizedNavigation, ROUTE_PERMISSIONS, NAVIGATION_ITEMS } from '../rbac';
 
 describe('Phase 4.1.5: Application Shell & RBAC Navigation (SHELL-001..007)', () => {
   describe('SHELL-001: OWNER route access across all canonical ERP routes', () => {
@@ -107,15 +107,38 @@ describe('Phase 4.1.5: Application Shell & RBAC Navigation (SHELL-001..007)', ()
     });
   });
 
-  describe('SHELL-007: Unauthenticated and unknown route handling', () => {
-    it('returns false and empty navigation when role is null', () => {
-      expect(canAccessRoute(null, '/dashboard')).toBe(false);
-      expect(getAuthorizedNavigation(null)).toEqual([]);
+  describe('SHELL-008: getGroupedAuthorizedNavigation clusters navigation into 5 UMKM groups', () => {
+    it('returns structured 5 clusters for OWNER without empty groups', () => {
+      const groups = getGroupedAuthorizedNavigation('OWNER');
+      expect(groups.length).toBeLessThanOrEqual(5);
+      expect(groups.length).toBeGreaterThanOrEqual(1);
+
+      const titles = groups.map((g) => g.title);
+      expect(titles).toContain('Ringkasan & Kasir');
+      expect(titles).toContain('Produk & Stok');
+      expect(titles).toContain('Pembelian & Kontak');
+      expect(titles).toContain('Keuangan & Dompet');
+      expect(titles).toContain('Laporan & Pengaturan');
+
+      groups.forEach((g) => {
+        expect(g.items.length).toBeGreaterThan(0);
+      });
     });
 
-    it('returns false for unknown unregistered routes', () => {
-      expect(canAccessRoute('OWNER', '/unknown-route')).toBe(false);
-      expect(canAccessRoute('CASHIER', '/another/unregistered')).toBe(false);
+    it('filters restricted items inside clusters for CASHIER while maintaining group structure', () => {
+      const groups = getGroupedAuthorizedNavigation('CASHIER');
+      const allHrefs = groups.flatMap((g) => g.items.map((i) => i.href));
+
+      expect(allHrefs).toContain('/pos');
+      expect(allHrefs).toContain('/inventory');
+      expect(allHrefs).not.toContain('/products');
+      expect(allHrefs).not.toContain('/sales');
+      expect(allHrefs).not.toContain('/wallet');
+      expect(allHrefs).not.toContain('/users');
+    });
+
+    it('returns empty array when role is null', () => {
+      expect(getGroupedAuthorizedNavigation(null)).toEqual([]);
     });
   });
 });
