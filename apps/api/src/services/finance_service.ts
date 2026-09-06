@@ -77,7 +77,7 @@ export function createFinanceService(pool: Pool) {
 
           const paymentMethod = sale.payment_method || 'cash'
 
-          let paymentAccountType: 'cash' | 'bank'
+          let paymentAccountType: 'cash' | 'bank' | 'mobile'
           switch (paymentMethod) {
             case 'cash':
               paymentAccountType = 'cash'
@@ -87,11 +87,17 @@ export function createFinanceService(pool: Pool) {
             case 'credit':
               paymentAccountType = 'bank'
               break
+            case 'wallet':
+              paymentAccountType = 'mobile'
+              break
             default:
               throw new ApiError(400, 'UNSUPPORTED_METHOD', `Unsupported payment method: ${paymentMethod}`)
           }
 
-          const paymentAccount = await accountRepository.findByType(client, businessId, paymentAccountType)
+          let paymentAccount = await accountRepository.findByType(client, businessId, paymentAccountType)
+          if (!paymentAccount && paymentMethod === 'wallet') {
+            paymentAccount = (await accountRepository.findByType(client, businessId, 'bank')) || (await accountRepository.findByType(client, businessId, 'cash'))
+          }
           if (!paymentAccount) {
             throw new ApiError(500, 'CONFIG_ERROR', `Payment account of type ${paymentAccountType} not configured`)
           }
@@ -164,7 +170,7 @@ export function createFinanceService(pool: Pool) {
 
         const paymentMethod = sale.payment_method || 'cash'
 
-        let paymentAccountType: 'cash' | 'bank'
+        let paymentAccountType: 'cash' | 'bank' | 'mobile'
         switch (paymentMethod) {
           case 'cash':
             paymentAccountType = 'cash'
@@ -174,11 +180,17 @@ export function createFinanceService(pool: Pool) {
           case 'credit':
             paymentAccountType = 'bank'
             break
+          case 'wallet':
+            paymentAccountType = 'mobile'
+            break
           default:
             throw new ApiError(400, 'UNSUPPORTED_METHOD', `Unsupported payment method: ${paymentMethod}`)
         }
 
-        const paymentAccount = await accountRepository.findByType(client, businessId, paymentAccountType)
+        let paymentAccount = await accountRepository.findByType(client, businessId, paymentAccountType)
+        if (!paymentAccount && paymentMethod === 'wallet') {
+          paymentAccount = (await accountRepository.findByType(client, businessId, 'bank')) || (await accountRepository.findByType(client, businessId, 'cash'))
+        }
         if (!paymentAccount) {
           throw new ApiError(500, 'CONFIG_ERROR', `Payment account of type ${paymentAccountType} not configured`)
         }

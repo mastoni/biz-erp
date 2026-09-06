@@ -9,6 +9,8 @@ import { productRepository } from '../repositories/product_repository'
 import { saleRepository } from '../repositories/sale_repository'
 import { inventoryRepository } from '../repositories/inventory_repository'
 import { branchRepository } from '../repositories/branch_repository'
+import { createWalletService } from './wallet_service'
+import { createAuditService } from './audit_service'
 import { withTransaction } from '../db/transaction'
 import { randomUUID } from 'crypto'
 import { createHash } from 'crypto'
@@ -28,7 +30,14 @@ function buildStockRequestHash(saleIdempotencyKey: string, productId: string, qu
   return createHash('sha256').update(hashStr).digest('hex')
 }
 
-export function createSalesSyncService(pool: Pool) {
+export function createSalesSyncService(
+  pool: Pool,
+  walletService?: ReturnType<typeof createWalletService>,
+  auditService?: ReturnType<typeof createAuditService>
+) {
+  const audit = auditService ?? createAuditService(pool)
+  const wallet = walletService ?? createWalletService(pool, audit)
+
   return {
     async syncBatch(body: unknown, tenantId: string): Promise<SalesBatchResponse> {
       const request: SalesBatchRequest = validateSalesBatch(body)
@@ -64,6 +73,49 @@ export function createSalesSyncService(pool: Pool) {
 
               await client.query(`RELEASE SAVEPOINT ${savepointName}`)
               continue
+            }
+
+            // If paying via wallet, pre-validate wallet existence, currency, status, tenant context, and balance
+            let targetWallet: any = null
+            if (item.sale.payment_method === 'wallet') {
+              if (!item.sale.wallet_id) {
+                throw new ValidationError('wallet_id is required when payment_method is wallet', {
+                  item_index: index
+                })
+              }
+
+              const wRes = await client.query(
+                `SELECT id, balance, status, currency, account_customer_id, business_id
+                 FROM wallet_accounts
+                 WHERE id = $1`,
+                [item.sale.wallet_id]
+              )
+              if (wRes.rows.length === 0) {
+                throw new ApiError(404, 'WALLET_NOT_FOUND', 'Target wallet account not found')
+              }
+              targetWallet = wRes.rows[0]
+
+              if (targetWallet.business_id && targetWallet.business_id !== request.business_id) {
+                throw new ApiError(403, 'BUSINESS_ACCESS_DENIED', 'Wallet does not belong to this business')
+              }
+
+              if (targetWallet.currency !== 'IDR') {
+                throw new ApiError(400, 'INVALID_CURRENCY', 'Digital wallet currency must be IDR')
+              }
+
+              if (targetWallet.status === 'FROZEN') {
+                throw new ApiError(400, 'WALLET_FROZEN', 'Wallet account is frozen; operations are blocked')
+              }
+              if (targetWallet.status === 'CLOSED') {
+                throw new ApiError(400, 'WALLET_CLOSED', 'Wallet account is closed; operations are blocked')
+              }
+              if (targetWallet.status !== 'ACTIVE') {
+                throw new ApiError(400, 'WALLET_NOT_ACTIVE', `Wallet account is not active (current: ${targetWallet.status})`)
+              }
+
+              if (BigInt(targetWallet.balance) < BigInt(item.sale.total_minor)) {
+                throw new ApiError(400, 'INSUFFICIENT_BALANCE', `Insufficient wallet balance (${targetWallet.balance}) for POS payment of ${item.sale.total_minor}`)
+              }
             }
 
             for (const [itemIndex, saleItem] of item.sale_items.entries()) {
@@ -165,10 +217,72 @@ export function createSalesSyncService(pool: Pool) {
               }
             }
 
-            const responseBody = {
+            // If paying via wallet, execute atomic wallet debit mutation through canonical wallet engine
+            let walletLedgerId: string | null = null
+            if (item.sale.payment_method === 'wallet' && targetWallet) {
+              const walletIdempotencyKey = `pos_wallet_${item.idempotency_key}`
+              try {
+                const debitResult = await wallet.debit(
+                  {
+                    wallet_id: targetWallet.id,
+                    amount: item.sale.total_minor,
+                    currency: 'IDR',
+                    transaction_type: 'POS_PAYMENT',
+                    reference_type: 'SALE',
+                    reference_id: created.sale_id,
+                    idempotency_key: walletIdempotencyKey,
+                    actor_id: item.sale.cashier_id ?? null,
+                    actor_scope: 'tenant',
+                    description: `POS Checkout Payment for Receipt ${created.receipt_number}`,
+                    metadata: {
+                      sale_id: created.sale_id,
+                      receipt_number: created.receipt_number,
+                      business_id: request.business_id,
+                      branch_id: item.sale.branch_id
+                    }
+                  },
+                  client
+                )
+                walletLedgerId = debitResult.ledger.id
+              } catch (err: any) {
+                if (err.code === 'INSUFFICIENT_FUNDS' || err.message?.includes('Insufficient wallet balance')) {
+                  throw new ApiError(400, 'INSUFFICIENT_BALANCE', 'Insufficient wallet balance for POS checkout')
+                }
+                throw err
+              }
+
+              if (audit) {
+                await audit.recordAudit({
+                  actor_id: item.sale.cashier_id ?? null,
+                  actor_scope: 'tenant',
+                  action: 'POS_SALE_WALLET_PAID',
+                  service_code: 'DIGITAL_WALLET',
+                  target_type: 'sale',
+                  target_id: created.sale_id,
+                  after_state: {
+                    sale_id: created.sale_id,
+                    receipt_number: created.receipt_number,
+                    total_minor: item.sale.total_minor,
+                    wallet_id: targetWallet.id,
+                    wallet_ledger_id: walletLedgerId
+                  },
+                  metadata: {
+                    business_id: request.business_id,
+                    branch_id: item.sale.branch_id,
+                    wallet_id: targetWallet.id,
+                    amount: item.sale.total_minor
+                  }
+                }).catch(() => {})
+              }
+            }
+
+            const responseBody: Record<string, unknown> = {
               sale_id: created.sale_id,
               receipt_number: created.receipt_number,
               server_created_at: created.server_created_at
+            }
+            if (walletLedgerId) {
+              responseBody.wallet_ledger_id = walletLedgerId
             }
 
             await idempotencyRepository.deleteExpiredForKey(client, request.business_id, item.idempotency_key)
