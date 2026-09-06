@@ -90,7 +90,13 @@ export default function InventoryPage() {
   // Keyed by tenant + branch + reloadTick: any context change or mutation
   // refetch clears previous state first (never display old branch data).
   useEffect(() => {
-    if (!tenantId || !branchId) return;
+    if (!tenantId || !branchId) {
+      setStocks([]);
+      setSummary(null);
+      setError(null);
+      setLoading(false);
+      return;
+    }
 
     let active = true;
     setStocks([]);
@@ -313,8 +319,14 @@ export default function InventoryPage() {
       {!loading && !isLoadingBranches && !error && stocks.length === 0 && (
         <EmptyState
           icon={<PackageSearch className="h-6 w-6" />}
-          title="Belum ada stok di cabang ini"
-          description="Stok akan muncul setelah ada penyesuaian stok masuk untuk produk Anda."
+          title={branches.length === 0 ? 'Belum ada cabang' : (!activeBranch ? 'Pilih cabang terlebih dahulu' : 'Belum ada stok di cabang ini')}
+          description={
+            branches.length === 0
+              ? 'Buat cabang terlebih dahulu untuk mulai mengelola stok produk.'
+              : (!activeBranch
+                  ? 'Pilih cabang dari menu di atas untuk menampilkan data inventaris.'
+                  : 'Stok akan muncul setelah ada penyesuaian stok masuk untuk produk Anda.')
+          }
         />
       )}
 

@@ -454,3 +454,29 @@ describe('INVENTORY-UI-018: no mock data in UI layer', () => {
     expect(source).not.toContain('confirm(');
   });
 });
+
+// ── Empty branch and missing branch states ─────────────────────────────────
+
+describe('INVENTORY-UI-019: empty branch and missing branch state rendering', () => {
+  it('renders clean empty state when no branches exist', () => {
+    const html = renderToString(
+      <EmptyState
+        title="Belum ada cabang"
+        description="Buat cabang terlebih dahulu untuk mulai mengelola stok produk."
+      />
+    );
+    expect(html).toContain('Belum ada cabang');
+    expect(html).toContain('Buat cabang terlebih dahulu');
+  });
+
+  it('renders prompt when active branch is not yet selected', () => {
+    const html = renderToString(
+      <EmptyState
+        title="Pilih cabang terlebih dahulu"
+        description="Pilih cabang dari menu di atas untuk menampilkan data inventaris."
+      />
+    );
+    expect(html).toContain('Pilih cabang terlebih dahulu');
+    expect(html).toContain('Pilih cabang dari menu di atas');
+  });
+});
