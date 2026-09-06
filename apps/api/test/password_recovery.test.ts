@@ -1,18 +1,18 @@
 import path from 'path'
 import { randomUUID } from 'crypto'
 import { Pool } from 'pg'
-import express from 'express'
+import { Express } from 'express'
 import request from 'supertest'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { createPool } from '../src/db/pool'
 import { runMigrations } from '../src/db/migrate'
 import { hashPassword, verifyPassword } from '../src/services/password_service'
-import { createAuthRouter } from '../src/routes/auth_routes'
-import { createJwtService } from '../src/services/jwt_service'
+import { createApp } from '../src/app'
+import { createJwtService, JwtService } from '../src/services/jwt_service'
 import { createRefreshTokenService } from '../src/services/refresh_token_service'
 import { MockEmailService } from '../src/services/email_service'
 import { createPasswordResetService } from '../src/services/password_reset_service'
-import { createUserRepository } from '../src/repositories/user_repository'
+import { createUserRepository, UserRepository } from '../src/repositories/user_repository'
 
 const TEST_BUSINESS_ID = '11111111-1111-4111-8111-111111111111'
 const JWT_SECRET = 'insecure-test-secret-that-is-at-least-32-chars-long'
@@ -20,7 +20,10 @@ const JWT_ISSUER = 'biz-erp-api'
 const JWT_AUDIENCE = 'biz-erp-client'
 
 let pool: Pool
-let app: express.Express
+let app: Express
+let jwtService: JwtService
+let refreshService: ReturnType<typeof createRefreshTokenService>
+let userRepo: UserRepository
 
 async function resetDatabase(): Promise<void> {
   await pool.query(`
@@ -53,9 +56,11 @@ beforeAll(async () => {
   pool = createPool(databaseUrl)
   await runMigrations(pool, path.resolve(process.cwd(), 'migrations'))
 
-  app = express()
-  app.use(express.json())
-  app.use('/v1/auth', createAuthRouter(pool))
+  jwtService = createJwtService(JWT_SECRET, JWT_ISSUER, JWT_AUDIENCE)
+  refreshService = createRefreshTokenService(pool)
+  userRepo = createUserRepository(pool)
+
+  app = createApp(pool)
 })
 
 afterAll(async () => {
@@ -67,10 +72,6 @@ beforeEach(async () => {
 })
 
 describe('AUTH-RECOVERY-3: Tenant Password Management', () => {
-  const jwtService = createJwtService(JWT_SECRET, JWT_ISSUER, JWT_AUDIENCE)
-  const refreshService = createRefreshTokenService(pool)
-  const userRepo = createUserRepository(pool)
-
   async function createTestUser(email: string, passwordPlain: string, role: 'OWNER' | 'CASHIER' = 'OWNER') {
     const userId = randomUUID()
     const passwordHash = await hashPassword(passwordPlain)
@@ -156,7 +157,7 @@ describe('AUTH-RECOVERY-3: Tenant Password Management', () => {
         })
 
       expect(res.status).toBe(400)
-      expect(res.body.code).toBe('INVALID_CURRENT_PASSWORD')
+      expect(res.body.error?.code).toBe('INVALID_CURRENT_PASSWORD')
     })
 
     it('rejects if confirmation does not match', async () => {
@@ -172,7 +173,7 @@ describe('AUTH-RECOVERY-3: Tenant Password Management', () => {
         })
 
       expect(res.status).toBe(400)
-      expect(res.body.code).toBe('PASSWORD_MISMATCH')
+      expect(res.body.error?.code).toBe('PASSWORD_MISMATCH')
     })
 
     it('rejects if new password is too short (< 8 chars)', async () => {
@@ -188,7 +189,7 @@ describe('AUTH-RECOVERY-3: Tenant Password Management', () => {
         })
 
       expect(res.status).toBe(400)
-      expect(res.body.code).toBe('WEAK_PASSWORD')
+      expect(res.body.error?.code).toBe('WEAK_PASSWORD')
     })
 
     it('rejects unauthenticated requests', async () => {
@@ -266,7 +267,7 @@ describe('AUTH-RECOVERY-3: Tenant Password Management', () => {
   describe('C. Reset Password (POST /v1/auth/reset-password)', () => {
     it('resets password with valid token and revokes all active sessions', async () => {
       const user = await createTestUser('reset_user@skmnetwork.com', 'OldPassword123!')
-      const session2 = await refreshService.createRefreshSession(user.userId, TEST_BUSINESS_ID, 'tenant')
+      await refreshService.createRefreshSession(user.userId, TEST_BUSINESS_ID, 'tenant')
 
       const emailService = new MockEmailService()
       const resetService = createPasswordResetService(pool, userRepo, emailService)
@@ -333,7 +334,7 @@ describe('AUTH-RECOVERY-3: Tenant Password Management', () => {
         })
 
       expect(res.status).toBe(400)
-      expect(res.body.code).toBe('TOKEN_ALREADY_USED')
+      expect(res.body.error?.code).toBe('TOKEN_ALREADY_USED')
     })
 
     it('rejects when token is expired', async () => {
@@ -356,7 +357,7 @@ describe('AUTH-RECOVERY-3: Tenant Password Management', () => {
         })
 
       expect(res.status).toBe(400)
-      expect(res.body.code).toBe('TOKEN_EXPIRED')
+      expect(res.body.error?.code).toBe('TOKEN_EXPIRED')
     })
 
     it('rejects invalid or tampered token', async () => {
@@ -369,7 +370,7 @@ describe('AUTH-RECOVERY-3: Tenant Password Management', () => {
         })
 
       expect(res.status).toBe(400)
-      expect(res.body.code).toBe('INVALID_TOKEN')
+      expect(res.body.error?.code).toBe('INVALID_TOKEN')
     })
 
     it('rejects if new password confirmation mismatches or is weak', async () => {
@@ -381,7 +382,7 @@ describe('AUTH-RECOVERY-3: Tenant Password Management', () => {
           confirmation: 'mismatch123'
         })
       expect(res1.status).toBe(400)
-      expect(res1.body.code).toBe('PASSWORD_MISMATCH')
+      expect(res1.body.error?.code).toBe('PASSWORD_MISMATCH')
 
       const res2 = await request(app)
         .post('/v1/auth/reset-password')
@@ -391,7 +392,7 @@ describe('AUTH-RECOVERY-3: Tenant Password Management', () => {
           confirmation: 'short'
         })
       expect(res2.status).toBe(400)
-      expect(res2.body.code).toBe('WEAK_PASSWORD')
+      expect(res2.body.error?.code).toBe('WEAK_PASSWORD')
     })
   })
 })
