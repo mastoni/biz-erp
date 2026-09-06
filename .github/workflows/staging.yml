@@ -130,6 +130,8 @@ jobs:
             echo "Synchronizing staging repository to exact deployment SHA..."
             cd /opt/skmnet-erp-staging/repo
             git fetch origin
+            git reset --hard
+            git clean -fd
             git checkout --detach "$IMAGE_TAG"
             if [ "$(git rev-parse HEAD)" != "$IMAGE_TAG" ]; then
               echo "Repository SHA mismatch! Expected: $IMAGE_TAG, Got: $(git rev-parse HEAD)"
