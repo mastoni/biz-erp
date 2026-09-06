@@ -72,22 +72,47 @@ jobs:
                   [email]
                 );
 
+                const hash = await hashPassword(password);
+
                 if (existing.rows.length > 0) {
                   const u = existing.rows[0];
                   
                   if (u.platform_role === "SUPER_ADMIN") {
-                    console.log("[BOOTSTRAP IDEMPOTENT] SUPER_ADMIN already exists: id=" + u.id + ", email=" + u.email + ", status=" + u.status + ", role=" + u.platform_role + ". No changes made.");
+                    console.log("[ALIGNMENT] Existing SUPER_ADMIN found: id=" + u.id + ", email=" + u.email + ". Aligning credentials securely...");
+
+                    // 1. Update password hash and ensure ACTIVE status
+                    await pool.query(
+                      "UPDATE users SET password_hash = $1, status = 'ACTIVE' WHERE id = $2 AND platform_role = 'SUPER_ADMIN'",
+                      [hash, u.id]
+                    );
+                    console.log("[ALIGNMENT SUCCESS] Password hash updated for SUPER_ADMIN.");
+
+                    // 2. Revoke all active refresh sessions for security
+                    const revokeRes = await pool.query(
+                      "UPDATE refresh_tokens SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL",
+                      [u.id]
+                    );
+                    console.log("[SESSION REVOCATION] Revoked " + revokeRes.rowCount + " active refresh token(s) for user.");
+
+                    // 3. Record audit event in platform_audit_logs
+                    await pool.query(
+                      `INSERT INTO platform_audit_logs (
+                        actor_id, actor_email, actor_scope, actor_role, action,
+                        target_type, target_id, status, metadata
+                      ) VALUES ($1, $2, 'system', 'SUPER_ADMIN', 'SUPERADMIN_PASSWORD_RESET', 'user', $1, 'SUCCESS', $3)`,
+                      [u.id, email, JSON.stringify({ reason: "Controlled Superadmin Credential Alignment via Workflow" })]
+                    );
+                    console.log("[AUDIT RECORDED] SUPERADMIN_PASSWORD_RESET event successfully logged.");
                     return;
                   }
 
-                  throw new Error("[BOOTSTRAP ABORTED] User with email " + email + " exists with incompatible platform_role=\"" + u.platform_role + "\" and status=\"" + u.status + "\". Refusing to mutate existing account.");
+                  throw new Error("[BOOTSTRAP ABORTED] User with email " + email + " exists with incompatible platform_role=\"" + u.platform_role + "\" and status=\"" + u.status + "\". Refusing to mutate non-platform account.");
                 }
 
-                const hash = await hashPassword(password);
                 const userId = randomUUID();
 
                 await pool.query(
-                  "INSERT INTO users (id, email, password_hash, status, platform_role) VALUES ($1, $2, $3, \x27ACTIVE\x27, \x27SUPER_ADMIN\x27)",
+                  "INSERT INTO users (id, email, password_hash, status, platform_role) VALUES ($1, $2, $3, 'ACTIVE', 'SUPER_ADMIN')",
                   [userId, email, hash]
                 );
 
@@ -131,11 +156,11 @@ jobs:
                     if (res.statusCode === 200) {
                       try {
                         const data = JSON.parse(body);
-                        if (data.access_token && data.role === "SUPER_ADMIN") {
+                        if (data.access_token && (data.role === "SUPER_ADMIN" || (data.user && data.user.platform_role === "SUPER_ADMIN"))) {
                           console.log("[VERIFY SUCCESS] Platform login HTTP 200 OK. Valid SUPER_ADMIN platform token issued.");
                           process.exit(0);
                         } else {
-                          console.error("[VERIFY FAILED] Unexpected response structure (status 200 but invalid platform payload).");
+                          console.error("[VERIFY FAILED] Unexpected response structure (status 200 but invalid platform payload):", body);
                           process.exit(1);
                         }
                       } catch (err) {
@@ -143,7 +168,7 @@ jobs:
                         process.exit(1);
                       }
                     } else {
-                      console.error("[VERIFY FAILED] Login returned HTTP status " + res.statusCode);
+                      console.error("[VERIFY FAILED] Login returned HTTP status " + res.statusCode + " body: " + body);
                       process.exit(1);
                     }
                   });
