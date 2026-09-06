@@ -88,18 +88,18 @@ jobs:
       - name: Push API Docker image
         run: |
           LOWER_REPO_OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-          docker tag bizerp-api:${{ github.sha }} ghcr.io/$LOWER_REPO_OWNER/bizerp-api:${{ github.sha }}
-          docker push ghcr.io/$LOWER_REPO_OWNER/bizerp-api:${{ github.sha }}
+          docker tag bizerp-api:${{ github.sha }} ghcr.io/$LOWER_REPO_OWNER/bizerp-api:${{ github.sha }}-staging
+          docker push ghcr.io/$LOWER_REPO_OWNER/bizerp-api:${{ github.sha }}-staging
 
       - name: Build Web Docker image
         working-directory: ./apps/web
-        run: docker build -t bizerp-web:${{ github.sha }} --build-arg NEXT_PUBLIC_API_URL=https://staging-api.skmnetwork.com .
+        run: docker build -t bizerp-web:${{ github.sha }}-staging --build-arg NEXT_PUBLIC_API_URL=https://staging-api.skmnetwork.com .
 
       - name: Push Web Docker image
         run: |
           LOWER_REPO_OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-          docker tag bizerp-web:${{ github.sha }} ghcr.io/$LOWER_REPO_OWNER/bizerp-web:${{ github.sha }}
-          docker push ghcr.io/$LOWER_REPO_OWNER/bizerp-web:${{ github.sha }}
+          docker tag bizerp-web:${{ github.sha }}-staging ghcr.io/$LOWER_REPO_OWNER/bizerp-web:${{ github.sha }}-staging
+          docker push ghcr.io/$LOWER_REPO_OWNER/bizerp-web:${{ github.sha }}-staging
 
   deploy-staging:
     needs: build-and-test
@@ -122,7 +122,7 @@ jobs:
             set -e
 
             export LOWER_REPO_OWNER=$(echo "$REPO_OWNER" | tr '[:upper:]' '[:lower:]')
-            API_IMAGE_URI="ghcr.io/$LOWER_REPO_OWNER/bizerp-api:$IMAGE_TAG"
+            API_IMAGE_URI="ghcr.io/$LOWER_REPO_OWNER/bizerp-api:${IMAGE_TAG}-staging"
 
             echo "Logging into GHCR..."
             echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
@@ -138,13 +138,13 @@ jobs:
               exit 1
             fi
 
-            echo "Pulling exact immutable API image tag: $IMAGE_TAG..."
+            echo "Pulling exact immutable API image tag: ${IMAGE_TAG}-staging..."
             docker pull $API_IMAGE_URI
 
             export STAGING_IMAGE=$API_IMAGE_URI
 
-            WEB_IMAGE_URI="ghcr.io/$LOWER_REPO_OWNER/bizerp-web:$IMAGE_TAG"
-            echo "Pulling exact immutable Web image tag: $IMAGE_TAG..."
+            WEB_IMAGE_URI="ghcr.io/$LOWER_REPO_OWNER/bizerp-web:${IMAGE_TAG}-staging"
+            echo "Pulling exact immutable Web image tag: ${IMAGE_TAG}-staging..."
             docker pull $WEB_IMAGE_URI
 
             export STAGING_WEB_IMAGE=$WEB_IMAGE_URI

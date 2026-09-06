@@ -13,8 +13,10 @@ export const setSessionExpiredCallback = (cb: () => void) => {
   sessionExpiredCallback = cb;
 };
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.skmnetwork.com';
+
 export const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL,
+  baseURL: API_BASE_URL,
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
@@ -32,7 +34,7 @@ api.interceptors.request.use((config) => {
 export const bootstrapSession = async (): Promise<string | null> => {
   try {
     const response = await axios.post<{ access_token: string }>(
-      `${process.env.NEXT_PUBLIC_API_URL}/v1/auth/refresh`,
+      `${API_BASE_URL}/v1/auth/refresh`,
       {},
       {
         withCredentials: true,
@@ -86,7 +88,7 @@ api.interceptors.response.use(
 
       try {
         const response = await axios.post<{ access_token: string }>(
-          `${process.env.NEXT_PUBLIC_API_URL}/v1/auth/refresh`,
+          `${API_BASE_URL}/v1/auth/refresh`,
           {},
           {
             withCredentials: true,
