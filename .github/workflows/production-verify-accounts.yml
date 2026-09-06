@@ -1,0 +1,87 @@
+name: Production Account State Verification
+
+on:
+  workflow_dispatch:
+
+jobs:
+  verify-accounts:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Execute Read-Only Production Account Verification
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PRODUCTION_HOST }}
+          username: skmdeploy
+          key: ${{ secrets.PRODUCTION_SSH_KEY }}
+          script: |
+            set -e
+            echo "== Executing Read-Only Account State Query =="
+            docker exec bizerp_prod_api node -e '
+            const { Pool } = require("pg");
+
+            async function check() {
+              const databaseUrl = process.env.DATABASE_URL;
+              if (!databaseUrl) throw new Error("DATABASE_URL missing");
+              const pool = new Pool({ connectionString: databaseUrl });
+              try {
+                // 1. Superadmin check
+                const superadminRes = await pool.query(
+                  "SELECT id, email, status, platform_role, (password_hash IS NOT NULL AND length(password_hash) > 0) AS has_password_hash FROM users WHERE email = $1",
+                  ["superadmin@skmnetwork.com"]
+                );
+                console.log("=== SUPERADMIN CHECK ===");
+                if (superadminRes.rows.length === 0) {
+                  console.log("superadmin_exists: false");
+                } else {
+                  const u = superadminRes.rows[0];
+                  console.log("superadmin_exists: true");
+                  console.log("superadmin_active:", u.status === "ACTIVE");
+                  console.log("superadmin_status:", u.status);
+                  console.log("superadmin_platform_role:", u.platform_role);
+                  console.log("superadmin_password_hash_exists:", u.has_password_hash);
+                }
+
+                // 2. Tenant check
+                const tenantRes = await pool.query(
+                  "SELECT id, email, status, platform_role, (password_hash IS NOT NULL AND length(password_hash) > 0) AS has_password_hash FROM users WHERE email = $1",
+                  ["skm.cell@gmail.com"]
+                );
+                console.log("=== TENANT USER CHECK ===");
+                if (tenantRes.rows.length === 0) {
+                  console.log("tenant_user_exists: false");
+                } else {
+                  const u = tenantRes.rows[0];
+                  console.log("tenant_user_exists: true");
+                  console.log("tenant_user_active:", u.status === "ACTIVE");
+                  console.log("tenant_user_status:", u.status);
+                  console.log("tenant_password_hash_exists:", u.has_password_hash);
+
+                  // Check user_businesses linkage
+                  const ubRes = await pool.query(
+                    `SELECT ub.business_id, ub.role, ub.status AS link_status, b.name AS business_name, b.status AS business_status
+                     FROM user_businesses ub
+                     LEFT JOIN businesses b ON ub.business_id = b.id
+                     WHERE ub.user_id = $1`,
+                    [u.id]
+                  );
+                  console.log("tenant_business_links_count:", ubRes.rows.length);
+                  if (ubRes.rows.length === 0) {
+                    console.log("tenant_business_link_exists: false");
+                  } else {
+                    for (let i = 0; i < ubRes.rows.length; i++) {
+                      const row = ubRes.rows[i];
+                      console.log("tenant_business_link_exists: true");
+                      console.log("tenant_role:", row.role);
+                      console.log("tenant_link_status:", row.link_status);
+                      console.log("business_exists:", !!row.business_name);
+                      console.log("business_status:", row.business_status);
+                    }
+                  }
+                }
+              } finally {
+                await pool.end();
+              }
+            }
+            check().catch(e => { console.error("Error:", e.message); process.exit(1); });
+            '
