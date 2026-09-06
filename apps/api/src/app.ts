@@ -106,8 +106,8 @@ export function createApp(pool: Pool): Express {
   const jwtService = createJwtService(jwtSecret, jwtIssuer, jwtAudience)
 
   app.use('/health', createHealthRouter(pool))
-  app.use('/v1', createRequireActiveTenant(jwtService, pool))
   app.use('/v1/auth', createAuthRouter(pool))
+  app.use('/v1', createRequireActiveTenant(jwtService, pool))
 
   const requireERP = requireEntitlement(jwtService, pool, 'ERP')
 
