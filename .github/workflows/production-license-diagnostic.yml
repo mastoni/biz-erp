@@ -6,90 +6,96 @@ on:
 jobs:
   diagnostic:
     runs-on: ubuntu-latest
-    environment: production
+    environment: staging
     steps:
-      - name: Execute Read-Only Production License Diagnostic
+      - name: Apply Minimal /beli/ Routing Fix and Validate
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.PRODUCTION_HOST }}
-          username: skmdeploy
-          key: ${{ secrets.PRODUCTION_SSH_KEY }}
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.STAGING_USERNAME }}
+          key: ${{ secrets.STAGING_SSH_KEY }}
           port: 22
           script: |
-            echo "=================================================="
-            echo "GATE 2F RESULT - PRODUCTION RUNTIME DIAGNOSTIC"
-            echo "=================================================="
+            set -euo pipefail
 
-            echo "--- [1] HOST IDENTITY ---"
-            echo "Hostname: $(hostname)"
-            echo "User: $(whoami)"
-            echo "PWD: $(pwd)"
+            CONF_FILE="/opt/skmnet-erp-staging/repo/apps/api/nginx/nginx.staging.conf"
+            TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+            BACKUP_FILE="${CONF_FILE}.bak_${TIMESTAMP}"
 
-            echo "--- [2] DOCKER SYSTEM INFO ---"
-            docker version --format 'Server Version: {{.Server.Version}}' || echo "docker version failed"
-            docker info --format 'Docker Name: {{.Name}}' || echo "docker info failed"
+            echo "=== STEP 1: BACKUP CURRENT CONFIG ==="
+            cp -a "$CONF_FILE" "$BACKUP_FILE"
+            echo "Backup created at: $BACKUP_FILE"
 
-            echo "--- [3] LIST ALL RUNNING CONTAINERS ---"
-            docker ps --format 'table {{.Names}}	{{.Image}}	{{.Status}}	{{.Ports}}'
+            echo "=== STEP 2: APPLY MINIMAL /BELI/ ROUTING EDIT ==="
+            python3 -c '
+with open("/opt/skmnet-erp-staging/repo/apps/api/nginx/nginx.staging.conf", "r") as f:
+    content = f.read()
 
-            echo "--- [4] ALL CONTAINERS MATCHING BUKU / WARUNG / LICENSE ---"
-            docker ps -a --format 'table {{.Names}}	{{.Image}}	{{.Status}}	{{.Ports}}' | grep -Ei 'buku|warung|license' || echo "NO_BUKUWARUNG_CONTAINERS_FOUND"
+beli_block = """        # 3.1 Public Order Page (/beli/*)
+        location /beli/ {
+            proxy_pass http://bukuwarung_license_server:3000;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_connect_timeout 10s;
+            proxy_read_timeout 30s;
+            proxy_send_timeout 30s;
+            proxy_buffering off;
+        }
 
-            echo "--- [5] ALL CONTAINERS MATCHING PROXY / NGINX ---"
-            docker ps -a --format 'table {{.Names}}	{{.Image}}	{{.Status}}	{{.Ports}}' | grep -Ei 'nginx|proxy|traefik|caddy|haproxy' || echo "NO_PROXY_CONTAINERS_FOUND"
+"""
 
-            echo "--- [6] INSPECT BUKU WARUNG CONTAINERS ---"
-            if docker ps -a --format '{{.Names}}' | grep -q '^bukuwarung_license_server$'; then
-              echo "=== bukuwarung_license_server ==="
-              docker inspect bukuwarung_license_server --format 'Image: {{.Config.Image}} | State: {{.State.Status}} | Networks: {{json .NetworkSettings.Networks}} | Ports: {{json .HostConfig.PortBindings}} | Mounts: {{json .Mounts}}'
-            else
-              echo "bukuwarung_license_server: CONTAINER_NOT_FOUND"
+if "location /beli/" not in content:
+    idx_license = content.find("server_name license.skmnetwork.com;")
+    if idx_license != -1:
+        idx_root = content.find("location / {", idx_license)
+        if idx_root != -1:
+            new_content = content[:idx_root] + beli_block + content[idx_root:]
+            with open("/opt/skmnet-erp-staging/repo/apps/api/nginx/nginx.staging.conf", "w") as f:
+                f.write(new_content)
+            print("Successfully updated nginx.staging.conf with location /beli/")
+else:
+    print("location /beli/ already present in nginx.staging.conf")
+'
+
+            echo "=== STEP 3: VALIDATE NGINX CONFIGURATION ==="
+            if ! docker exec bizerp_staging_nginx nginx -t; then
+              echo "ERROR: nginx -t failed! Rolling back immediately..."
+              cp -f "$BACKUP_FILE" "$CONF_FILE"
+              docker exec bizerp_staging_nginx nginx -t || true
+              exit 1
             fi
+            echo "nginx -t validation SUCCESSFUL."
 
-            if docker ps -a --format '{{.Names}}' | grep -q '^bukuwarung_license_admin$'; then
-              echo "=== bukuwarung_license_admin ==="
-              docker inspect bukuwarung_license_admin --format 'Image: {{.Config.Image}} | State: {{.State.Status}} | Networks: {{json .NetworkSettings.Networks}} | Ports: {{json .HostConfig.PortBindings}} | Mounts: {{json .Mounts}}'
-            else
-              echo "bukuwarung_license_admin: CONTAINER_NOT_FOUND"
-            fi
+            echo "=== STEP 4: VERIFY CONFIG CONTENT (nginx -T) ==="
+            docker exec bizerp_staging_nginx nginx -T 2>&1 | grep -A 35 -B 5 -Ei 'server_name.*license\.skmnetwork\.com'
 
-            echo "--- [7] DOCKER NETWORKS ---"
-            docker network ls
-            if docker network ls --format '{{.Name}}' | grep -q 'bukuwarung-license-internal'; then
-              echo "=== bukuwarung-license-internal containers ==="
-              docker network inspect bukuwarung-license-internal --format '{{json .Containers}}'
-            else
-              echo "bukuwarung-license-internal network: NOT_FOUND"
-            fi
+            echo "=== STEP 5: ACTIVATE CONFIG (nginx -s reload) ==="
+            docker exec bizerp_staging_nginx nginx -s reload
+            echo "Nginx reload SUCCESSFUL."
 
-            echo "--- [8] INSPECT ACTIVE REVERSE PROXY CONTAINERS ---"
-            for c in $(docker ps --format '{{.Names}}' | grep -Ei 'nginx|proxy|traefik|caddy|haproxy'); do
-              echo "=== Inspecting Proxy Container: $c ==="
-              docker inspect "$c" --format 'Image: {{.Config.Image}} | Networks: {{json .NetworkSettings.Networks}} | Ports: {{json .HostConfig.PortBindings}} | Mounts: {{json .Mounts}} | Labels: {{json .Config.Labels}}'
-            done
+            echo "=== STEP 6: LIVE VALIDATION ==="
+            echo "--- 1. Health endpoint ---"
+            curl -sSI -m 10 https://license.skmnetwork.com/health
 
-            echo "--- [9] NGINX CONFIGURATION INSPECTION (nginx -T) ---"
-            for c in $(docker ps --format '{{.Names}}' | grep -Ei 'nginx'); do
-              echo "=== Checking Nginx Config in container: $c ==="
-              docker exec "$c" nginx -T 2>&1 | grep -Ei 'server_name|location|proxy_pass|upstream' || echo "No matching directives found in $c"
-            done
+            echo "--- 2. Public Order Page Header ---"
+            curl -sSI -m 10 https://license.skmnetwork.com/beli/buku-warung
 
-            echo "--- [10] CHECK HOST-LEVEL SERVICES / DIRECTORIES ---"
-            ls -la /var/www/skmnetwork-landing/ 2>/dev/null || true
-            ls -la /var/www/bukuwarung-license/ 2>/dev/null || true
-            ls -la /var/data/ 2>/dev/null || true
-            ls -la /opt/ 2>/dev/null || true
+            echo "--- 3. Public Order Page Content Preview ---"
+            curl -sS -m 10 https://license.skmnetwork.com/beli/buku-warung | head -n 30
 
-            echo "--- [11] LIVE DOMAIN ENDPOINTS HTTP CHECK (READ-ONLY) ---"
-            echo "Testing https://license.skmnetwork.com/health :"
-            curl -sSI -m 5 https://license.skmnetwork.com/health || echo "Health curl failed"
+            echo "--- 4. Admin Root Preview ---"
+            curl -sS -m 10 https://license.skmnetwork.com/ | head -n 20
 
-            echo "Testing https://license.skmnetwork.com/beli/buku-warung :"
-            curl -sSI -m 5 https://license.skmnetwork.com/beli/buku-warung || echo "Order page curl failed"
+            echo "--- 5. Download endpoint ---"
+            curl -sSI -m 10 https://license.skmnetwork.com/download/buku-warung
 
-            echo "Preview https://license.skmnetwork.com/beli/buku-warung content (first 20 lines):"
-            curl -sS -m 5 https://license.skmnetwork.com/beli/buku-warung | head -n 20 || echo "Content curl failed"
+            echo "--- 6. Download guide endpoint ---"
+            curl -sSI -m 10 https://license.skmnetwork.com/download/buku-warung/panduan
 
-            echo "=================================================="
-            echo "DIAGNOSTIC COMPLETED"
-            echo "=================================================="
+            echo "=== STEP 7: REGRESSION CHECK ==="
+            docker ps --format 'table {{.Names}}	{{.Status}}'
+
+            echo "=== GATE 3C REMEDIATION COMPLETED ==="
