@@ -1,0 +1,96 @@
+name: Staging License Runtime Diagnostic
+
+on:
+  workflow_dispatch:
+
+jobs:
+  diagnostic:
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Execute Read-Only Staging License Diagnostic
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.STAGING_USERNAME }}
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          port: 22
+          script: |
+            echo "=================================================="
+            echo "GATE 3B RESULT - STAGING RUNTIME DIAGNOSTIC"
+            echo "=================================================="
+
+            echo "--- [1] HOST IDENTITY ---"
+            echo "Hostname: $(hostname)"
+            echo "User: $(whoami)"
+            echo "PWD: $(pwd)"
+
+            echo "--- [2] DOCKER SYSTEM INFO ---"
+            docker version --format 'Server Version: {{.Server.Version}}' || echo "docker version failed"
+            docker info --format 'Docker Name: {{.Name}}' || echo "docker info failed"
+
+            echo "--- [3] LIST ALL RUNNING CONTAINERS ---"
+            docker ps --format 'table {{.Names}}	{{.Image}}	{{.Status}}	{{.Ports}}'
+
+            echo "--- [4] ALL CONTAINERS MATCHING BUKU / WARUNG / LICENSE ---"
+            docker ps -a --format 'table {{.Names}}	{{.Image}}	{{.Status}}	{{.Ports}}' | grep -Ei 'buku|warung|license' || echo "NO_BUKUWARUNG_CONTAINERS_FOUND"
+
+            echo "--- [5] ALL CONTAINERS MATCHING PROXY / NGINX ---"
+            docker ps -a --format 'table {{.Names}}	{{.Image}}	{{.Status}}	{{.Ports}}' | grep -Ei 'nginx|proxy|traefik|caddy|haproxy' || echo "NO_PROXY_CONTAINERS_FOUND"
+
+            echo "--- [6] INSPECT BUKU WARUNG CONTAINERS ---"
+            if docker ps -a --format '{{.Names}}' | grep -q '^bukuwarung_license_server$'; then
+              echo "=== bukuwarung_license_server ==="
+              docker inspect bukuwarung_license_server --format 'Image: {{.Config.Image}} | State: {{.State.Status}} | Networks: {{json .NetworkSettings.Networks}} | Ports: {{json .HostConfig.PortBindings}} | Mounts: {{json .Mounts}}'
+            else
+              echo "bukuwarung_license_server: CONTAINER_NOT_FOUND"
+            fi
+
+            if docker ps -a --format '{{.Names}}' | grep -q '^bukuwarung_license_admin$'; then
+              echo "=== bukuwarung_license_admin ==="
+              docker inspect bukuwarung_license_admin --format 'Image: {{.Config.Image}} | State: {{.State.Status}} | Networks: {{json .NetworkSettings.Networks}} | Ports: {{json .HostConfig.PortBindings}} | Mounts: {{json .Mounts}}'
+            else
+              echo "bukuwarung_license_admin: CONTAINER_NOT_FOUND"
+            fi
+
+            echo "--- [7] DOCKER NETWORKS ---"
+            docker network ls
+            if docker network ls --format '{{.Name}}' | grep -q 'bukuwarung-license-internal'; then
+              echo "=== bukuwarung-license-internal containers ==="
+              docker network inspect bukuwarung-license-internal --format '{{json .Containers}}'
+            else
+              echo "bukuwarung-license-internal network: NOT_FOUND"
+            fi
+
+            echo "--- [8] INSPECT ACTIVE REVERSE PROXY CONTAINERS ---"
+            for c in $(docker ps --format '{{.Names}}' | grep -Ei 'nginx|proxy|traefik|caddy|haproxy'); do
+              echo "=== Inspecting Proxy Container: $c ==="
+              docker inspect "$c" --format 'Image: {{.Config.Image}} | Networks: {{json .NetworkSettings.Networks}} | Ports: {{json .HostConfig.PortBindings}} | Mounts: {{json .Mounts}} | Labels: {{json .Config.Labels}}'
+            done
+
+            echo "--- [9] NGINX CONFIGURATION INSPECTION (FULL LICENSE BLOCK) ---"
+            for c in $(docker ps --format '{{.Names}}' | grep -Ei 'nginx'); do
+              echo "=== Checking Nginx Config in container: $c ==="
+              docker exec "$c" nginx -T 2>&1 | grep -A 40 -B 5 -Ei 'server_name.*license.skmnetwork.com' || echo "No license.skmnetwork.com block found in $c"
+            done
+
+            echo "--- [10] CHECK HOST-LEVEL PATHS ---"
+            ls -la /var/www/ 2>/dev/null || true
+            ls -la /var/www/skmnetwork-landing/ 2>/dev/null || true
+            ls -la /var/www/bukuwarung-license/ 2>/dev/null || true
+            ls -la /var/data/ 2>/dev/null || true
+            ls -la /opt/ 2>/dev/null || true
+
+            echo "--- [11] LIVE DOMAIN ENDPOINTS HTTP CHECK (READ-ONLY) ---"
+            echo "Testing https://license.skmnetwork.com/health :"
+            curl -sSI -m 5 https://license.skmnetwork.com/health || echo "Health curl failed"
+
+            echo "Testing https://license.skmnetwork.com/beli/buku-warung :"
+            curl -sSI -m 5 https://license.skmnetwork.com/beli/buku-warung || echo "Order page curl failed"
+
+            echo "Preview https://license.skmnetwork.com/beli/buku-warung content (first 20 lines):"
+            curl -sS -m 5 https://license.skmnetwork.com/beli/buku-warung | head -n 20 || echo "Content curl failed"
+
+            echo "=================================================="
+            echo "DIAGNOSTIC COMPLETED"
+            echo "=================================================="
