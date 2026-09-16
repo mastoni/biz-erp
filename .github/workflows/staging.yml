@@ -147,9 +147,11 @@ jobs:
             echo "=== STEP 2: NGINX -T VALIDATION ==="
             docker exec bizerp_staging_nginx nginx -t
 
-            echo "=== STEP 3: NGINX RELOAD ==="
-            docker exec bizerp_staging_nginx nginx -s reload
-            echo "Nginx successfully reloaded."
+            echo "=== STEP 3: NGINX RESTART (Refresh File Inode) ==="
+            docker exec bizerp_staging_nginx nginx -t
+            docker restart bizerp_staging_nginx
+            docker exec bizerp_staging_nginx nginx -t
+            echo "bizerp_staging_nginx successfully restarted and validated."
 
             echo "=== STEP 4: VERIFY CONFIG CONTENT (nginx -T) ==="
             docker exec bizerp_staging_nginx nginx -T 2>&1 | grep -A 35 -B 5 -Ei 'server_name.*license\.skmnetwork\.com' || true
