@@ -229,3 +229,25 @@ jobs:
             curl -fS --retry 5 --retry-delay 5 https://staging-erp.skmnetwork.com/ || (echo "Web ERP health check failed!" && exit 1)
 
             echo "Deployment successful."
+
+            echo "=== VALIDATING LICENSE SERVER & ROUTING ==="
+            echo "1. License Health Check:"
+            curl -sSI -m 10 https://license.skmnetwork.com/health || echo "Health check failed"
+
+            echo "2. Public Order Page Header:"
+            curl -sSI -m 10 https://license.skmnetwork.com/beli/buku-warung
+
+            echo "3. Public Order Page Content Preview:"
+            curl -sS -m 10 https://license.skmnetwork.com/beli/buku-warung | head -n 30
+
+            echo "4. Admin Root Preview:"
+            curl -sS -m 10 https://license.skmnetwork.com/ | head -n 20
+
+            echo "5. Download endpoint:"
+            curl -sSI -m 10 https://license.skmnetwork.com/download/buku-warung
+
+            echo "6. Download guide endpoint:"
+            curl -sSI -m 10 https://license.skmnetwork.com/download/buku-warung/panduan
+
+            echo "=== ALL VALIDATIONS COMPLETE ==="
+
