@@ -27,51 +27,38 @@ jobs:
             echo "Backup created at: $BACKUP_FILE"
 
             echo "=== STEP 2: APPLY MINIMAL /BELI/ ROUTING EDIT ==="
-            if grep -q 'location /beli/' "$CONF_FILE"; then
-              echo "location /beli/ already present in $CONF_FILE"
-            else
-              node -e '
-              const fs = require("fs");
-              const confPath = process.argv[1];
-              let content = fs.readFileSync(confPath, "utf8");
-              
-              const beliBlock = `        # 3.1 Public Order Page (/beli/*)
+            python3 -c '
+with open("/opt/skmnet-erp-staging/repo/apps/api/nginx/nginx.staging.conf", "r") as f:
+    content = f.read()
+
+beli_block = """        # 3.1 Public Order Page (/beli/*)
         location /beli/ {
             proxy_pass http://bukuwarung_license_server:3000;
             proxy_http_version 1.1;
-            proxy_set_header Host \$host;
-            proxy_set_header X-Real-IP \$remote_addr;
-            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto \$scheme;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
             proxy_connect_timeout 10s;
             proxy_read_timeout 30s;
             proxy_send_timeout 30s;
             proxy_buffering off;
-        }\n\n`;
+        }
 
-              const targetPattern = /(server_name\s+license\.skmnetwork\.com;[\s\S]*?location\s+\/download\/[\s\S]*?\}\n+)(\s+)(#\s*4\.\s*Admin Dashboard|\s*location\s+\/\s*\{)/;
-              
-              if (targetPattern.test(content)) {
-                content = content.replace(targetPattern, (match, p1, p2, p3) => {
-                  return p1 + p2 + beliBlock + p2 + p3;
-                });
-                fs.writeFileSync(confPath, content, "utf8");
-                console.log("Successfully inserted location /beli/ into " + confPath);
-              } else {
-                const fallbackPattern = /(server_name\s+license\.skmnetwork\.com;[\s\S]*?)(\n\s+location\s+\/\s*\{)/;
-                if (fallbackPattern.test(content)) {
-                  content = content.replace(fallbackPattern, (match, p1, p2) => {
-                    return p1 + "\n" + beliBlock + p2;
-                  });
-                  fs.writeFileSync(confPath, content, "utf8");
-                  console.log("Fallback insertion of location /beli/ successful.");
-                } else {
-                  console.error("Could not find insertion anchor for license.skmnetwork.com");
-                  process.exit(1);
-                }
-              }
-              ' "$CONF_FILE"
-            fi
+"""
+
+if "location /beli/" not in content:
+    idx_license = content.find("server_name license.skmnetwork.com;")
+    if idx_license != -1:
+        idx_root = content.find("location / {", idx_license)
+        if idx_root != -1:
+            new_content = content[:idx_root] + beli_block + content[idx_root:]
+            with open("/opt/skmnet-erp-staging/repo/apps/api/nginx/nginx.staging.conf", "w") as f:
+                f.write(new_content)
+            print("Successfully updated nginx.staging.conf with location /beli/")
+else:
+    print("location /beli/ already present in nginx.staging.conf")
+'
 
             echo "=== STEP 3: VALIDATE NGINX CONFIGURATION ==="
             if ! docker exec bizerp_staging_nginx nginx -t; then
