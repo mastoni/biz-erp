@@ -2,11 +2,15 @@ name: Staging License Runtime Diagnostic
 
 on:
   workflow_dispatch:
+    inputs:
+      git_ref:
+        description: 'Git ref to run against'
+        required: true
+        default: 'main'
 
 jobs:
   diagnostic:
     runs-on: ubuntu-latest
-    environment: staging
     steps:
       - name: Apply Minimal /beli/ Routing Fix and Validate
         uses: appleboy/ssh-action@v1.0.3
