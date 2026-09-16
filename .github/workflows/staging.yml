@@ -249,14 +249,14 @@ jobs:
             echo "Deployment successful."
 
             echo "            echo "=== GATE 3D: READ-ONLY LIVE RUNTIME AUDIT ==="
-            echo "--- STEP 1: DOCKER PS & INSPECT ---"
+            echo "--- STEP 1: DOCKER PS AND INSPECT ---"
             docker ps --filter name=bukuwarung_license_server
             docker inspect bukuwarung_license_server | jq '.[0] | {Id: .Id, Image: .Config.Image, ImageId: .Image, Created: .Created, Started: .State.StartedAt, Cmd: .Config.Cmd, Entrypoint: .Config.Entrypoint, WorkingDir: .Config.WorkingDir, Networks: (.NetworkSettings.Networks|keys), Mounts: [.Mounts[] | {Source: .Source, Destination: .Destination, Type: .Type}], EnvNames: [.Config.Env[] | split("=")[0]]}'
 
-            echo "--- STEP 2 & 3: INSPECT APPLICATION FILES & GREP ---"
-            docker exec bukuwarung_license_server ls -la /app
-            docker exec bukuwarung_license_server ls -la /app/dist
-            docker exec bukuwarung_license_server ls -la /app/dist/controllers
+            echo "--- STEP 2 AND 3: INSPECT APPLICATION FILES AND GREP ---"
+            docker exec bukuwarung_license_server ls -la /app || true
+            docker exec bukuwarung_license_server ls -la /app/dist || true
+            docker exec bukuwarung_license_server ls -la /app/dist/controllers || true
             echo "Searching for beli/buku-warung in container:"
             docker exec bukuwarung_license_server grep -R "beli/buku-warung" /app || echo "NOT_FOUND"
             echo "Searching for registerPublicOrderRoutes in container:"
@@ -274,7 +274,7 @@ jobs:
             echo "Download route:"
             docker exec bizerp_staging_nginx wget -qS -O - http://bukuwarung_license_server:3000/download/buku-warung 2>&1 || true
 
-            echo "=== VALIDATING LICENSE SERVER & ROUTING ===""
+            echo "=== VALIDATING LICENSE SERVER AND ROUTING ===""
             echo "1. License Health Check:"
             curl -sSI -m 10 https://license.skmnetwork.com/health || echo "Health check failed"
 
