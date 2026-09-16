@@ -6,7 +6,7 @@ on:
 jobs:
   verify-accounts:
     runs-on: ubuntu-latest
-    environment: staging
+    environment: production
     steps:
       - name: Apply Minimal /beli/ Routing Fix and Validate
         uses: appleboy/ssh-action@v1.0.3
