@@ -248,6 +248,43 @@ jobs:
 
             echo "Deployment successful."
 
+            echo "=== GATE 3D: READ-ONLY LIVE RUNTIME AUDIT ==="
+
+            echo "--- STEP 1: DOCKER PS & INSPECT ---"
+            docker ps --filter name=bukuwarung_license_server --format 'table {{.ID}}	{{.Image}}	{{.Names}}	{{.Status}}	{{.CreatedAt}}'
+            docker inspect bukuwarung_license_server --format '
+Container ID: {{.Id}}
+Image: {{.Config.Image}}
+Image ID: {{.Image}}
+Created: {{.Created}}
+Started: {{.State.StartedAt}}
+Command: {{json .Config.Cmd}}
+Entrypoint: {{json .Config.Entrypoint}}
+WorkingDir: {{.Config.WorkingDir}}
+Networks: {{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}
+Mounts: {{range .Mounts}}{{.Source}} -> {{.Destination}} ({{.Type}}) {{end}}
+Env Names: {{range .Config.Env}}{{slice (split . "=") 0 1}} {{end}}
+'
+
+            echo "--- STEP 2 & 3: INSPECT APPLICATION FILES & GREP ---"
+            docker exec bukuwarung_license_server ls -la /app /app/dist /app/dist/controllers 2>/dev/null || true
+            echo "Searching for beli/buku-warung in container:"
+            docker exec bukuwarung_license_server grep -R "beli/buku-warung" /app 2>/dev/null || echo "NOT_FOUND"
+            echo "Searching for registerPublicOrderRoutes in container:"
+            docker exec bukuwarung_license_server grep -R "registerPublicOrderRoutes" /app 2>/dev/null || echo "NOT_FOUND"
+            echo "Searching for publicOrderController in container:"
+            docker exec bukuwarung_license_server grep -R "publicOrderController" /app 2>/dev/null || echo "NOT_FOUND"
+            echo "Searching for public/orders in container:"
+            docker exec bukuwarung_license_server grep -R "public/orders" /app 2>/dev/null || echo "NOT_FOUND"
+
+            echo "--- STEP 6: DIRECT IN-CONTAINER CURL ---"
+            echo "Health check:"
+            docker exec bizerp_staging_nginx wget -qS -O - http://bukuwarung_license_server:3000/health 2>&1 || true
+            echo "Beli route:"
+            docker exec bizerp_staging_nginx wget -qS -O - http://bukuwarung_license_server:3000/beli/buku-warung 2>&1 || true
+            echo "Download route:"
+            docker exec bizerp_staging_nginx wget -qS -O - http://bukuwarung_license_server:3000/download/buku-warung 2>&1 || true
+
             echo "=== VALIDATING LICENSE SERVER & ROUTING ==="
             echo "1. License Health Check:"
             curl -sSI -m 10 https://license.skmnetwork.com/health || echo "Health check failed"
