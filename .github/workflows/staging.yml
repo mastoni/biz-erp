@@ -248,38 +248,23 @@ jobs:
 
             echo "Deployment successful."
 
-            echo "=== GATE 3D: READ-ONLY LIVE RUNTIME AUDIT ==="
-
+            echo "            echo "=== GATE 3D: READ-ONLY LIVE RUNTIME AUDIT ==="
             echo "--- STEP 1: DOCKER PS & INSPECT ---"
-            docker ps --filter name=bukuwarung_license_server --format 'table {{.ID}}	{{.Image}}	{{.Names}}	{{.Status}}	{{.CreatedAt}}'
-            docker inspect bukuwarung_license_server | python3 -c '
-import json, sys
-data = json.load(sys.stdin)[0]
-cfg = data.get("Config", {})
-state = data.get("State", {})
-print("Container ID:", data.get("Id"))
-print("Image:", cfg.get("Image"))
-print("Image ID:", data.get("Image"))
-print("Created:", data.get("Created"))
-print("Started:", state.get("StartedAt"))
-print("Command:", cfg.get("Cmd"))
-print("Entrypoint:", cfg.get("Entrypoint"))
-print("WorkingDir:", cfg.get("WorkingDir"))
-print("Networks:", list(data.get("NetworkSettings", {}).get("Networks", {}).keys()))
-print("Mounts:", [(m.get("Source"), m.get("Destination"), m.get("Type")) for m in data.get("Mounts", [])])
-print("Env Names:", [e.split("=")[0] for e in cfg.get("Env", []) if "=" in e])
-'
+            docker ps --filter name=bukuwarung_license_server
+            docker inspect bukuwarung_license_server | jq '.[0] | {Id: .Id, Image: .Config.Image, ImageId: .Image, Created: .Created, Started: .State.StartedAt, Cmd: .Config.Cmd, Entrypoint: .Config.Entrypoint, WorkingDir: .Config.WorkingDir, Networks: (.NetworkSettings.Networks|keys), Mounts: [.Mounts[] | {Source: .Source, Destination: .Destination, Type: .Type}], EnvNames: [.Config.Env[] | split("=")[0]]}'
 
             echo "--- STEP 2 & 3: INSPECT APPLICATION FILES & GREP ---"
-            docker exec bukuwarung_license_server ls -la /app /app/dist /app/dist/controllers 2>/dev/null || true
+            docker exec bukuwarung_license_server ls -la /app
+            docker exec bukuwarung_license_server ls -la /app/dist
+            docker exec bukuwarung_license_server ls -la /app/dist/controllers
             echo "Searching for beli/buku-warung in container:"
-            docker exec bukuwarung_license_server grep -R "beli/buku-warung" /app 2>/dev/null || echo "NOT_FOUND"
+            docker exec bukuwarung_license_server grep -R "beli/buku-warung" /app || echo "NOT_FOUND"
             echo "Searching for registerPublicOrderRoutes in container:"
-            docker exec bukuwarung_license_server grep -R "registerPublicOrderRoutes" /app 2>/dev/null || echo "NOT_FOUND"
+            docker exec bukuwarung_license_server grep -R "registerPublicOrderRoutes" /app || echo "NOT_FOUND"
             echo "Searching for publicOrderController in container:"
-            docker exec bukuwarung_license_server grep -R "publicOrderController" /app 2>/dev/null || echo "NOT_FOUND"
+            docker exec bukuwarung_license_server grep -R "publicOrderController" /app || echo "NOT_FOUND"
             echo "Searching for public/orders in container:"
-            docker exec bukuwarung_license_server grep -R "public/orders" /app 2>/dev/null || echo "NOT_FOUND"
+            docker exec bukuwarung_license_server grep -R "public/orders" /app || echo "NOT_FOUND"
 
             echo "--- STEP 6: DIRECT IN-CONTAINER CURL ---"
             echo "Health check:"
@@ -289,7 +274,7 @@ print("Env Names:", [e.split("=")[0] for e in cfg.get("Env", []) if "=" in e])
             echo "Download route:"
             docker exec bizerp_staging_nginx wget -qS -O - http://bukuwarung_license_server:3000/download/buku-warung 2>&1 || true
 
-            echo "=== VALIDATING LICENSE SERVER & ROUTING ==="
+            echo "=== VALIDATING LICENSE SERVER & ROUTING ===""
             echo "1. License Health Check:"
             curl -sSI -m 10 https://license.skmnetwork.com/health || echo "Health check failed"
 

@@ -8,100 +8,22 @@ jobs:
     runs-on: ubuntu-latest
     environment: staging
     steps:
-      - name: Apply Minimal /beli/ Routing Fix and Validate
-        uses: appleboy/ssh-action@v1.0.3
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          host: ${{ secrets.STAGING_HOST }}
-          username: ${{ secrets.STAGING_USERNAME }}
-          key: ${{ secrets.STAGING_SSH_KEY }}
-          port: 22
-          script: |
-            set -euo pipefail
+          node-version: '20'
 
-            CONF_FILE="/opt/skmnet-erp-staging/repo/apps/api/nginx/nginx.staging.conf"
-            TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-            BACKUP_FILE="${CONF_FILE}.bak_${TIMESTAMP}"
+      - name: Install dependencies
+        working-directory: ./apps/api
+        run: npm ci
 
-            echo "=== STEP 1: BACKUP CURRENT CONFIG ==="
-            cp -a "$CONF_FILE" "$BACKUP_FILE"
-            echo "Backup created at: $BACKUP_FILE"
-
-            echo "=== STEP 2: MINIMAL CONFIG EDIT ==="
-            python3 -c '
-with open("/opt/skmnet-erp-staging/repo/apps/api/nginx/nginx.staging.conf", "r") as f:
-    content = f.read()
-
-beli_block = """        # 3.1 Public Order Page (/beli/*)
-        location /beli/ {
-            proxy_pass http://bukuwarung_license_server:3000;
-            proxy_http_version 1.1;
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
-            proxy_connect_timeout 10s;
-            proxy_read_timeout 30s;
-            proxy_send_timeout 30s;
-            proxy_buffering off;
-        }
-
-"""
-
-if "location /beli/" not in content:
-    idx_license = content.find("server_name license.skmnetwork.com;")
-    if idx_license != -1:
-        idx_root = content.find("location / {", idx_license)
-        if idx_root != -1:
-            new_content = content[:idx_root] + beli_block + content[idx_root:]
-            with open("/opt/skmnet-erp-staging/repo/apps/api/nginx/nginx.staging.conf", "w") as f:
-                f.write(new_content)
-            print("Successfully inserted location /beli/ block into nginx.staging.conf")
-        else:
-            print("ERROR: location / not found after license server block")
-            exit(1)
-    else:
-        print("ERROR: license.skmnetwork.com server block not found")
-        exit(1)
-else:
-    print("location /beli/ already present in nginx.staging.conf")
-'
-
-            echo "=== STEP 3: CONFIG VALIDATION (nginx -t) ==="
-            if ! docker exec bizerp_staging_nginx nginx -t; then
-              echo "ERROR: nginx -t failed! Restoring backup..."
-              cp -f "$BACKUP_FILE" "$CONF_FILE"
-              docker exec bizerp_staging_nginx nginx -t || true
-              exit 1
-            fi
-            echo "nginx -t validation PASSED."
-
-            echo "=== STEP 4: VERIFY CONFIG CONTENT (nginx -T) ==="
-            docker exec bizerp_staging_nginx nginx -T 2>&1 | grep -A 35 -B 5 -Ei 'server_name.*license.skmnetwork.com'
-
-            echo "=== STEP 5: ACTIVATE CONFIG (nginx -s reload) ==="
-            docker exec bizerp_staging_nginx nginx -s reload
-            echo "Nginx reload PASSED."
-
-            echo "=== STEP 6: LIVE VALIDATION ==="
-            echo "--- 1. Health check (Expect 200) ---"
-            curl -sSI -m 10 https://license.skmnetwork.com/health
-
-            echo "--- 2. Public Order Page Header (Expect 200) ---"
-            curl -sSI -m 10 https://license.skmnetwork.com/beli/buku-warung
-
-            echo "--- 3. Public Order Page Content Preview (First 30 lines) ---"
-            curl -sS -m 10 https://license.skmnetwork.com/beli/buku-warung | head -n 30
-
-            echo "--- 4. Admin Root Preview (First 20 lines) ---"
-            curl -sS -m 10 https://license.skmnetwork.com/ | head -n 20
-
-            echo "--- 5. Download APK Header (Expect 200) ---"
-            curl -sSI -m 10 https://license.skmnetwork.com/download/buku-warung
-
-            echo "--- 6. Download Guide Header (Expect 200) ---"
-            curl -sSI -m 10 https://license.skmnetwork.com/download/buku-warung/panduan
-
-            echo "=== STEP 7: REGRESSION CHECK ==="
-            docker ps --format 'table {{.Names}}\t{{.Status}}'
-
-            echo "=== GATE 3C EXECUTION COMPLETED ==="
+      - name: Run Verification Script
+        working-directory: ./apps/api
+        env:
+          SUPERADMIN_EMAIL: ${{ secrets.SUPERADMIN_EMAIL }}
+          SUPERADMIN_PASSWORD: ${{ secrets.SUPERADMIN_PASSWORD }}
+          API_URL: 'https://staging-api.skmnetwork.com'
+        run: npx tsx scripts/verify-staging-sa2-5.ts
