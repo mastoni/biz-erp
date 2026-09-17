@@ -248,14 +248,16 @@ jobs:
 
             echo "Deployment successful."
 
-            echo "=== GATE 4G: BUILD AND UPDATE LICENSE SERVER (COMMIT fcc19be) ==="
+            echo "=== GATE 4L: BUILD AND UPDATE ADMIN ONLY (COMMIT b920cd1) ==="
 
             echo "--- STEP 1: PRE-FLIGHT ---"
             docker version
             docker ps --filter name=bukuwarung
             docker ps --filter name=nginx
-            OLD_IMAGE_ID=$(docker inspect bukuwarung_license_server | jq -r '.[0].Image')
-            echo "Current License Server Image ID: $OLD_IMAGE_ID"
+            OLD_ADMIN_IMAGE_ID=$(docker inspect bukuwarung_license_admin | jq -r '.[0].Image')
+            LICENSE_SERVER_IMAGE_ID=$(docker inspect bukuwarung_license_server | jq -r '.[0].Image')
+            echo "Current Admin Image ID: $OLD_ADMIN_IMAGE_ID"
+            echo "Current License Server Image ID: $LICENSE_SERVER_IMAGE_ID"
 
             echo "--- STEP 2: VERIFY AND PREPARE SOURCE REPOSITORY ---"
             BW_REPO_DIR="/opt/buku-warung"
@@ -266,96 +268,80 @@ jobs:
 
             cd "$BW_REPO_DIR"
             git fetch origin
-            git checkout fcc19be525df86feda20999bf640ad7e01e049b2
+            git checkout b920cd1b1befc95821e5cdb5c153728cac20d963
             CURRENT_HEAD=$(git rev-parse HEAD)
             echo "Checked out commit: $CURRENT_HEAD"
-            if [ "$CURRENT_HEAD" != "fcc19be525df86feda20999bf640ad7e01e049b2" ]; then
-              echo "FATAL: Failed to checkout commit fcc19be525df86feda20999bf640ad7e01e049b2"
+            if [ "$CURRENT_HEAD" != "b920cd1b1befc95821e5cdb5c153728cac20d963" ]; then
+              echo "FATAL: Failed to checkout commit b920cd1b1befc95821e5cdb5c153728cac20d963"
               exit 1
             fi
 
-            echo "Preserving release assets and public directory..."
-            mkdir -p "$BW_REPO_DIR/server/public/releases"
-            docker cp bukuwarung_license_server:/app/public/. "$BW_REPO_DIR/server/public/" 2>/dev/null || true
+            echo "Verifying admin build context in $BW_REPO_DIR/admin..."
+            ls -la "$BW_REPO_DIR/admin"
+            test -f "$BW_REPO_DIR/admin/Dockerfile"
+            test -f "$BW_REPO_DIR/admin/package.json"
+            test -f "$BW_REPO_DIR/admin/tsconfig.json"
+            test -d "$BW_REPO_DIR/admin/src"
+            test -d "$BW_REPO_DIR/admin/public"
 
-            echo "Verifying server build context in $BW_REPO_DIR/server..."
-            ls -la "$BW_REPO_DIR/server"
-            test -f "$BW_REPO_DIR/server/Dockerfile"
-            test -f "$BW_REPO_DIR/server/package.json"
-            test -f "$BW_REPO_DIR/server/tsconfig.json"
-            test -d "$BW_REPO_DIR/server/src"
-            test -d "$BW_REPO_DIR/server/public"
+            echo "--- STEP 3: PRESERVE ENV VARIABLES SAFELY ---"
+            docker inspect bukuwarung_license_admin | jq -r '.[0].Config.Env[] | select(startswith("PATH=") or startswith("NODE_VERSION=") or startswith("YARN_VERSION=") | not)' > /tmp/bukuwarung_admin.env
+            echo "Preserved Admin Environment Variables:"
+            cat /tmp/bukuwarung_admin.env | sed 's/=.*/=REDACTED/'
 
-            echo "--- STEP 3: DATABASE SAFETY & ENV AUDIT ---"
-            docker inspect bukuwarung_license_server | jq -r '.[0].Mounts[] | select(.Destination | contains("data") or contains("license"))'
-            # Save current container environment safely
-            docker inspect bukuwarung_license_server | jq -r '.[0].Config.Env[] | select(startswith("PATH=") or startswith("NODE_VERSION=") or startswith("YARN_VERSION=") | not)' > /tmp/bukuwarung_server.env
-            echo "Preserved Environment Variables:"
-            cat /tmp/bukuwarung_server.env | sed 's/=.*/=REDACTED/'
-
-            echo "--- STEP 4: BUILD ONLY LICENSE SERVER IMAGE ---"
-            cd "$BW_REPO_DIR/server"
-            docker build -t bukuwarung-license-server:production -f Dockerfile .
+            echo "--- STEP 4: BUILD ONLY ADMIN IMAGE ---"
+            cd "$BW_REPO_DIR/admin"
+            docker build -t bukuwarung-license-admin:production -f Dockerfile .
 
             echo "--- STEP 5: VERIFY IMAGE BEFORE CONTAINER UPDATE ---"
-            NEW_IMAGE_ID=$(docker images --no-trunc -q bukuwarung-license-server:production | head -n 1)
-            echo "Newly built Image ID: $NEW_IMAGE_ID"
+            NEW_ADMIN_IMAGE_ID=$(docker images --no-trunc -q bukuwarung-license-admin:production | head -n 1)
+            echo "Newly built Admin Image ID: $NEW_ADMIN_IMAGE_ID"
 
-            echo "Verifying dist/server.js and publicOrderController in newly built image..."
-            docker run --rm --env-file /tmp/bukuwarung_server.env bukuwarung-license-server:production node -e '
+            echo "Verifying /app/public/app.js in newly built image..."
+            docker run --rm bukuwarung-license-admin:production node -e '
               const fs = require("fs");
-              const app = fs.readFileSync("dist/app.js", "utf8");
-              console.log("dist/app.js contains registerPublicOrderRoutes:", app.includes("registerPublicOrderRoutes"));
-              const c = fs.readFileSync("dist/controllers/publicOrderController.js", "utf8");
-              console.log("dist/controllers/publicOrderController.js exists and length is:", c.length);
-              console.log("dist/controllers/publicOrderController.js contains nonce:", c.includes("nonce"));
-              if (!app.includes("registerPublicOrderRoutes") || !c.includes("nonce")) {
+              const appJs = fs.readFileSync("public/app.js", "utf8");
+              console.log("public/app.js contains result.data?.funnel:", appJs.includes("result.data?.funnel"));
+              console.log("public/app.js contains renderFunnelAnalytics(funnelData):", appJs.includes("renderFunnelAnalytics(funnelData)"));
+              if (!appJs.includes("result.data?.funnel") || !appJs.includes("renderFunnelAnalytics(funnelData)")) {
                 process.exit(1);
               }
             '
 
-            echo "--- STEP 6: UPDATE ONLY LICENSE SERVER CONTAINER ---"
-            docker stop bukuwarung_license_server
-            docker rm bukuwarung_license_server
+            echo "--- STEP 6: UPDATE ONLY ADMIN CONTAINER ---"
+            docker stop bukuwarung_license_admin
+            docker rm bukuwarung_license_admin
             docker run -d \
-              --name bukuwarung_license_server \
+              --name bukuwarung_license_admin \
               --restart always \
               --network bukuwarung-license-internal \
-              -v bukuwarung_license_data:/var/data/bukuwarung-license \
-              --env-file /tmp/bukuwarung_server.env \
-              --expose 3000 \
-              bukuwarung-license-server:production
+              --env-file /tmp/bukuwarung_admin.env \
+              --expose 3001 \
+              bukuwarung-license-admin:production
 
             echo "--- STEP 7: IMMEDIATE CONTAINER CHECK ---"
             sleep 4
-            docker ps --filter name=bukuwarung_license_server
-            UPDATED_IMAGE_ID=$(docker inspect bukuwarung_license_server | jq -r '.[0].Image')
-            echo "Updated Running Container Image ID: $UPDATED_IMAGE_ID"
-            docker inspect bukuwarung_license_server | jq '.[0] | {Id: .Id, Image: .Config.Image, ImageId: .Image, Status: .State.Status, Running: .State.Running, Health: .State.Health.Status, Networks: (.NetworkSettings.Networks|keys), Mounts: [.Mounts[] | {Source: .Source, Destination: .Destination, Type: .Type}]}'
+            docker ps --filter name=bukuwarung
+            UPDATED_ADMIN_IMAGE_ID=$(docker inspect bukuwarung_license_admin | jq -r '.[0].Image')
+            CHECK_SERVER_IMAGE_ID=$(docker inspect bukuwarung_license_server | jq -r '.[0].Image')
+            echo "Updated Running Admin Image ID: $UPDATED_ADMIN_IMAGE_ID"
+            echo "License Server Image ID (Must be unchanged): $CHECK_SERVER_IMAGE_ID"
+            docker inspect bukuwarung_license_admin | jq '.[0] | {Id: .Id, Image: .Config.Image, ImageId: .Image, Status: .State.Status, Running: .State.Running, Health: .State.Health.Status, Networks: (.NetworkSettings.Networks|keys)}'
 
-            echo "--- STEP 8: HEALTH CHECK ---"
-            docker exec bizerp_staging_nginx wget -qS -O - http://bukuwarung_license_server:3000/health 2>&1
+            echo "--- STEP 8: HEALTH CHECK (INTERNAL) ---"
+            docker exec bizerp_staging_nginx wget -qS -O - http://bukuwarung_license_admin:3001/health 2>&1
 
-            echo "--- STEP 9: CRITICAL ROUTE CHECK (IN-CONTAINER) ---"
-            docker exec bizerp_staging_nginx wget -qS -O - http://bukuwarung_license_server:3000/beli/buku-warung 2>&1 | head -n 40
+            echo "--- STEP 9: PUBLIC ASSET CHECK ---"
+            echo "Checking public app.js content on live domain:"
+            curl -sS -m 10 https://license.skmnetwork.com/app.js | grep -n "result.data?.funnel" || echo "UNWRAP_CODE_NOT_FOUND_IN_LIVE_ASSET"
 
-            echo "--- STEP 10: PUBLIC DOMAIN CSP & NONCE AUDIT ---"
-            echo "Public /beli/buku-warung Headers 1:"
-            curl -sSI -m 10 https://license.skmnetwork.com/beli/buku-warung
-
-            echo "Public /beli/buku-warung Headers 2 (Verify distinct nonce):"
-            curl -sSI -m 10 https://license.skmnetwork.com/beli/buku-warung
-
-            echo "Public /beli/buku-warung HTML Script Nonce Check:"
-            curl -sS -m 10 https://license.skmnetwork.com/beli/buku-warung | grep -n "script nonce" || echo "NONCE_SCRIPT_TAG_NOT_FOUND"
-
-            echo "--- STEP 11: REGRESSION SUITE ---"
+            echo "--- STEP 10: REGRESSION SUITE ---"
             echo "1. Health:"
             curl -sSI -m 10 https://license.skmnetwork.com/health
             echo "2. Public Order:"
             curl -sSI -m 10 https://license.skmnetwork.com/beli/buku-warung
-            echo "3. API Root /v1/:"
-            curl -sSI -m 10 https://license.skmnetwork.com/v1/license/validate || true
+            echo "3. Public Order Nonce:"
+            curl -sS -m 10 https://license.skmnetwork.com/beli/buku-warung | grep -n "script nonce" || echo "NONCE_SCRIPT_TAG_NOT_FOUND"
             echo "4. Download Binary:"
             curl -sSI -m 10 https://license.skmnetwork.com/download/buku-warung
             echo "5. Download Guide:"
@@ -363,4 +349,4 @@ jobs:
             echo "6. Admin Root:"
             curl -sS -m 10 https://license.skmnetwork.com/ | head -n 20
 
-            echo "=== GATE 4G DEPLOYMENT & VERIFICATION COMPLETE ==="
+            echo "=== GATE 4L DEPLOYMENT & VERIFICATION COMPLETE ==="
