@@ -248,50 +248,110 @@ jobs:
 
             echo "Deployment successful."
 
-            echo "            echo "=== GATE 3D: READ-ONLY LIVE RUNTIME AUDIT ==="
-            echo "--- STEP 1: DOCKER PS AND INSPECT ---"
+            echo "=== GATE 4C: BUILD AND UPDATE LICENSE SERVER ONLY ==="
+
+            echo "--- STEP 1: PRE-FLIGHT ---"
+            docker version
+            docker ps
+            OLD_IMAGE_ID=$(docker inspect bukuwarung_license_server | jq -r '.[0].Image')
+            echo "Current License Server Image ID: $OLD_IMAGE_ID"
+
+            echo "--- STEP 2: LOCATE AND VERIFY BUKU WARUNG DEPLOYMENT REPOSITORY ---"
+            BW_REPO_DIR=""
+            if [ -d "/opt/buku-warung" ]; then
+              BW_REPO_DIR="/opt/buku-warung"
+            elif [ -d "/opt/bukuwarung" ]; then
+              BW_REPO_DIR="/opt/bukuwarung"
+            elif [ -d "/opt/skmnet-bukuwarung" ]; then
+              BW_REPO_DIR="/opt/skmnet-bukuwarung"
+            elif [ -d "/var/www/buku-warung" ]; then
+              BW_REPO_DIR="/var/www/buku-warung"
+            else
+              FOUND_COMPOSE=$(find /opt /var /home /root -name "docker-compose.production.yml" -exec grep -l "bukuwarung_license_server" {} + 2>/dev/null | head -n 1 || true)
+              if [ -n "$FOUND_COMPOSE" ]; then
+                BW_REPO_DIR=$(dirname $(dirname "$FOUND_COMPOSE"))
+              fi
+            fi
+
+            echo "Detected Buku Warung repo path: $BW_REPO_DIR"
+
+            if [ -z "$BW_REPO_DIR" ] || [ ! -d "$BW_REPO_DIR" ]; then
+              echo "Cloning canonical repo to /opt/buku-warung..."
+              git clone https://github.com/mastoni/buku-warung.git /opt/buku-warung
+              BW_REPO_DIR="/opt/buku-warung"
+            fi
+
+            cd "$BW_REPO_DIR"
+            git fetch origin
+            git checkout 4260e0c051f7ef9a46f96748ad2dca7fb8b49322
+            CURRENT_HEAD=$(git rev-parse HEAD)
+            echo "Checked out commit: $CURRENT_HEAD"
+            if [ "$CURRENT_HEAD" != "4260e0c051f7ef9a46f96748ad2dca7fb8b49322" ]; then
+              echo "FATAL: Failed to checkout commit 4260e0c051f7ef9a46f96748ad2dca7fb8b49322"
+              exit 1
+            fi
+
+            echo "Verifying server build context in $BW_REPO_DIR/server..."
+            ls -la "$BW_REPO_DIR/server"
+            test -f "$BW_REPO_DIR/server/Dockerfile"
+            test -f "$BW_REPO_DIR/server/package.json"
+            test -f "$BW_REPO_DIR/server/tsconfig.json"
+            test -d "$BW_REPO_DIR/server/src"
+
+            echo "--- STEP 3: DATABASE SAFETY AUDIT ---"
+            docker inspect bukuwarung_license_server | jq -r '.[0].Mounts[] | select(.Destination | contains("data") or contains("license"))'
+
+            echo "--- STEP 4: BUILD ONLY LICENSE SERVER ---"
+            cd "$BW_REPO_DIR/server"
+            docker compose -f deploy/docker-compose.production.yml build bukuwarung_license_server
+
+            echo "--- STEP 5: VERIFY IMAGE BEFORE CONTAINER UPDATE ---"
+            NEW_IMAGE_ID=$(docker images --no-trunc -q bukuwarung-license-server:production | head -n 1)
+            echo "Newly built Image ID: $NEW_IMAGE_ID"
+
+            echo "Verifying dist/server.js in newly built image..."
+            docker run --rm bukuwarung-license-server:production node -e '
+              const fs = require("fs");
+              const content = fs.readFileSync("dist/controllers/publicOrderController.js", "utf8");
+              console.log("Image contains publicOrderController:", content.length > 0);
+            '
+
+            echo "--- STEP 6: UPDATE ONLY LICENSE SERVER ---"
+            cd "$BW_REPO_DIR/server"
+            docker compose -f deploy/docker-compose.production.yml up -d --no-deps bukuwarung_license_server
+
+            echo "--- STEP 7: IMMEDIATE CONTAINER CHECK ---"
+            sleep 3
             docker ps --filter name=bukuwarung_license_server
-            docker inspect bukuwarung_license_server | jq '.[0] | {Id: .Id, Image: .Config.Image, ImageId: .Image, Created: .Created, Started: .State.StartedAt, Cmd: .Config.Cmd, Entrypoint: .Config.Entrypoint, WorkingDir: .Config.WorkingDir, Networks: (.NetworkSettings.Networks|keys), Mounts: [.Mounts[] | {Source: .Source, Destination: .Destination, Type: .Type}], EnvNames: [.Config.Env[] | split("=")[0]]}'
+            UPDATED_IMAGE_ID=$(docker inspect bukuwarung_license_server | jq -r '.[0].Image')
+            echo "Updated Running Container Image ID: $UPDATED_IMAGE_ID"
+            docker inspect bukuwarung_license_server | jq '.[0] | {Id: .Id, Image: .Config.Image, ImageId: .Image, Status: .State.Status, Running: .State.Running, Networks: (.NetworkSettings.Networks|keys), Mounts: [.Mounts[] | {Source: .Source, Destination: .Destination, Type: .Type}]}'
 
-            echo "--- STEP 2 AND 3: INSPECT APPLICATION FILES AND GREP ---"
-            docker exec bukuwarung_license_server ls -la /app || true
-            docker exec bukuwarung_license_server ls -la /app/dist || true
-            docker exec bukuwarung_license_server ls -la /app/dist/controllers || true
-            echo "Searching for beli/buku-warung in container:"
-            docker exec bukuwarung_license_server grep -R "beli/buku-warung" /app || echo "NOT_FOUND"
-            echo "Searching for registerPublicOrderRoutes in container:"
-            docker exec bukuwarung_license_server grep -R "registerPublicOrderRoutes" /app || echo "NOT_FOUND"
-            echo "Searching for publicOrderController in container:"
-            docker exec bukuwarung_license_server grep -R "publicOrderController" /app || echo "NOT_FOUND"
-            echo "Searching for public/orders in container:"
-            docker exec bukuwarung_license_server grep -R "public/orders" /app || echo "NOT_FOUND"
+            echo "--- STEP 8: HEALTH CHECK ---"
+            docker exec bizerp_staging_nginx wget -qS -O - http://bukuwarung_license_server:3000/health 2>&1
 
-            echo "--- STEP 6: DIRECT IN-CONTAINER CURL ---"
-            echo "Health check:"
-            docker exec bizerp_staging_nginx wget -qS -O - http://bukuwarung_license_server:3000/health 2>&1 || true
-            echo "Beli route:"
-            docker exec bizerp_staging_nginx wget -qS -O - http://bukuwarung_license_server:3000/beli/buku-warung 2>&1 || true
-            echo "Download route:"
-            docker exec bizerp_staging_nginx wget -qS -O - http://bukuwarung_license_server:3000/download/buku-warung 2>&1 || true
+            echo "--- STEP 9: CRITICAL ROUTE CHECK ---"
+            docker exec bizerp_staging_nginx wget -qS -O - http://bukuwarung_license_server:3000/beli/buku-warung 2>&1 | head -n 40
 
-            echo "=== VALIDATING LICENSE SERVER AND ROUTING ===""
-            echo "1. License Health Check:"
-            curl -sSI -m 10 https://license.skmnetwork.com/health || echo "Health check failed"
-
-            echo "2. Public Order Page Header:"
+            echo "--- STEP 10: PUBLIC DOMAIN CHECK ---"
+            echo "Public /beli/buku-warung Header:"
             curl -sSI -m 10 https://license.skmnetwork.com/beli/buku-warung
 
-            echo "3. Public Order Page Content Preview:"
-            curl -sS -m 10 https://license.skmnetwork.com/beli/buku-warung | head -n 30
+            echo "Public /beli/buku-warung Body Preview:"
+            curl -sS -m 10 https://license.skmnetwork.com/beli/buku-warung | head -n 35
 
-            echo "4. Admin Root Preview:"
+            echo "--- STEP 11: REGRESSION SUITE ---"
+            echo "1. Health:"
+            curl -sSI -m 10 https://license.skmnetwork.com/health
+            echo "2. Public Order:"
+            curl -sSI -m 10 https://license.skmnetwork.com/beli/buku-warung
+            echo "3. API Root /v1/:"
+            curl -sSI -m 10 https://license.skmnetwork.com/v1/license/validate || true
+            echo "4. Download Binary:"
+            curl -sSI -m 10 https://license.skmnetwork.com/download/buku-warung
+            echo "5. Download Guide:"
+            curl -sSI -m 10 https://license.skmnetwork.com/download/buku-warung/panduan
+            echo "6. Admin Root:"
             curl -sS -m 10 https://license.skmnetwork.com/ | head -n 20
 
-            echo "5. Download endpoint:"
-            curl -sSI -m 10 https://license.skmnetwork.com/download/buku-warung
-
-            echo "6. Download guide endpoint:"
-            curl -sSI -m 10 https://license.skmnetwork.com/download/buku-warung/panduan
-
-            echo "=== ALL VALIDATIONS COMPLETE ==="
-
+            echo "=== GATE 4C VERIFICATION COMPLETE ==="
