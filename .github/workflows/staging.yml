@@ -274,12 +274,17 @@ jobs:
               exit 1
             fi
 
+            echo "Preserving release assets and public directory..."
+            mkdir -p "$BW_REPO_DIR/server/public/releases"
+            docker cp bukuwarung_license_server:/app/public/. "$BW_REPO_DIR/server/public/" 2>/dev/null || true
+
             echo "Verifying server build context in $BW_REPO_DIR/server..."
             ls -la "$BW_REPO_DIR/server"
             test -f "$BW_REPO_DIR/server/Dockerfile"
             test -f "$BW_REPO_DIR/server/package.json"
             test -f "$BW_REPO_DIR/server/tsconfig.json"
             test -d "$BW_REPO_DIR/server/src"
+            test -d "$BW_REPO_DIR/server/public"
 
             echo "--- STEP 3: DATABASE SAFETY & ENV AUDIT ---"
             docker inspect bukuwarung_license_server | jq -r '.[0].Mounts[] | select(.Destination | contains("data") or contains("license"))'
