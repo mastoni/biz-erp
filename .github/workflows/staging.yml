@@ -248,7 +248,7 @@ jobs:
 
             echo "Deployment successful."
 
-            echo "=== GATE 4C: BUILD AND UPDATE LICENSE SERVER ONLY ==="
+            echo "=== GATE 4G: BUILD AND UPDATE LICENSE SERVER (COMMIT fcc19be) ==="
 
             echo "--- STEP 1: PRE-FLIGHT ---"
             docker version
@@ -266,11 +266,11 @@ jobs:
 
             cd "$BW_REPO_DIR"
             git fetch origin
-            git checkout 4260e0c051f7ef9a46f96748ad2dca7fb8b49322
+            git checkout fcc19be525df86feda20999bf640ad7e01e049b2
             CURRENT_HEAD=$(git rev-parse HEAD)
             echo "Checked out commit: $CURRENT_HEAD"
-            if [ "$CURRENT_HEAD" != "4260e0c051f7ef9a46f96748ad2dca7fb8b49322" ]; then
-              echo "FATAL: Failed to checkout commit 4260e0c051f7ef9a46f96748ad2dca7fb8b49322"
+            if [ "$CURRENT_HEAD" != "fcc19be525df86feda20999bf640ad7e01e049b2" ]; then
+              echo "FATAL: Failed to checkout commit fcc19be525df86feda20999bf640ad7e01e049b2"
               exit 1
             fi
 
@@ -308,7 +308,8 @@ jobs:
               console.log("dist/app.js contains registerPublicOrderRoutes:", app.includes("registerPublicOrderRoutes"));
               const c = fs.readFileSync("dist/controllers/publicOrderController.js", "utf8");
               console.log("dist/controllers/publicOrderController.js exists and length is:", c.length);
-              if (!app.includes("registerPublicOrderRoutes") || c.length === 0) {
+              console.log("dist/controllers/publicOrderController.js contains nonce:", c.includes("nonce"));
+              if (!app.includes("registerPublicOrderRoutes") || !c.includes("nonce")) {
                 process.exit(1);
               }
             '
@@ -338,12 +339,15 @@ jobs:
             echo "--- STEP 9: CRITICAL ROUTE CHECK (IN-CONTAINER) ---"
             docker exec bizerp_staging_nginx wget -qS -O - http://bukuwarung_license_server:3000/beli/buku-warung 2>&1 | head -n 40
 
-            echo "--- STEP 10: PUBLIC DOMAIN CHECK ---"
-            echo "Public /beli/buku-warung Header:"
+            echo "--- STEP 10: PUBLIC DOMAIN CSP & NONCE AUDIT ---"
+            echo "Public /beli/buku-warung Headers 1:"
             curl -sSI -m 10 https://license.skmnetwork.com/beli/buku-warung
 
-            echo "Public /beli/buku-warung Body Preview:"
-            curl -sS -m 10 https://license.skmnetwork.com/beli/buku-warung | head -n 35
+            echo "Public /beli/buku-warung Headers 2 (Verify distinct nonce):"
+            curl -sSI -m 10 https://license.skmnetwork.com/beli/buku-warung
+
+            echo "Public /beli/buku-warung HTML Script Nonce Check:"
+            curl -sS -m 10 https://license.skmnetwork.com/beli/buku-warung | grep -n "script nonce" || echo "NONCE_SCRIPT_TAG_NOT_FOUND"
 
             echo "--- STEP 11: REGRESSION SUITE ---"
             echo "1. Health:"
@@ -359,4 +363,4 @@ jobs:
             echo "6. Admin Root:"
             curl -sS -m 10 https://license.skmnetwork.com/ | head -n 20
 
-            echo "=== GATE 4C VERIFICATION COMPLETE ==="
+            echo "=== GATE 4G DEPLOYMENT & VERIFICATION COMPLETE ==="
